@@ -1,0 +1,1135 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mi Asistente</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;margin:0;background:#0b1220;color:#e2e8f0;min-height:100vh;padding-bottom:80px}
+header{background:rgba(15,23,42,.85);backdrop-filter:saturate(140%) blur(10px);-webkit-backdrop-filter:saturate(140%) blur(10px);padding:10px 20px;border-bottom:1px solid #1e293b;display:flex;gap:14px;align-items:center;flex-wrap:wrap;position:sticky;top:0;z-index:50}
+h1{font-size:16px;margin:0;font-weight:600;letter-spacing:.2px;white-space:nowrap}
+.nav-top{display:flex;gap:2px;margin-left:auto;flex-wrap:wrap;background:#0b1220;border:1px solid #1e293b;border-radius:10px;padding:3px}
+.nav-top button{background:none;border:none;color:#94a3b8;padding:7px 12px;border-radius:7px;cursor:pointer;font-size:12.5px;font-weight:500;transition:background .15s,color .15s;line-height:1.1}
+.nav-top button.active{background:#2563eb;color:#fff;box-shadow:0 1px 3px rgba(37,99,235,.4)}
+.nav-top button:hover:not(.active){background:#1e293b;color:#e2e8f0}
+.nav-bottom{display:none;position:fixed;bottom:0;left:0;right:0;background:rgba(15,23,42,.96);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-top:1px solid #1e293b;padding:6px;justify-content:space-around;z-index:60}
+.nav-bottom button{background:none;border:none;color:#94a3b8;font-size:10px;padding:4px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;flex:1}
+.nav-bottom button.active{color:#60a5fa}
+.nav-bottom .ico{font-size:18px}
+@media(max-width:768px){.nav-top{display:none}.nav-bottom{display:flex}body{padding-bottom:70px}header{padding:10px 12px}h1{font-size:15px}}
+main{padding:20px;max-width:1400px;margin:0 auto}
+.section{display:none}.section.active{display:block}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:18px}
+.card{background:#0f172a;padding:14px;border-radius:10px;border:1px solid #1e293b}
+.card .l{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+.card .v{font-size:20px;font-weight:600;margin-top:4px}
+.card .s{font-size:11px;color:#94a3b8;margin-top:2px}
+.panel{background:#0f172a;border-radius:10px;border:1px solid #1e293b;padding:18px;margin-bottom:18px}
+.panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.panel h2{margin:0;font-size:13px;color:#cbd5e1;text-transform:uppercase;letter-spacing:.5px;font-weight:500}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:768px){.grid2{grid-template-columns:1fr}.cards{grid-template-columns:repeat(2,1fr)}}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:10px 10px;background:#020617;color:#94a3b8;font-weight:500;font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #1e293b}
+td{padding:10px 10px;border-top:1px solid #1e293b;vertical-align:middle}
+tr:hover td{background:#0b1322}
+.btn{background:#1e293b;border:none;color:#e2e8f0;padding:6px 12px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:500}
+.btn:hover{background:#334155}
+.btn.primary{background:#1e40af}.btn.primary:hover{background:#1e3a8a}
+.btn.danger{background:#7f1d1d}.btn.danger:hover{background:#991b1b}
+.btn.success{background:#166534}.btn.success:hover{background:#15803d}
+.btn.sm{padding:3px 7px;font-size:11px}
+.btn-row{display:flex;gap:4px}
+.muted{color:#64748b}
+input,select,textarea{background:#020617;border:1px solid #1e293b;color:#e2e8f0;padding:8px 10px;border-radius:5px;font-size:13px;font-family:inherit}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#1e40af}
+.filters{display:flex;gap:8px;margin-bottom:14px;align-items:end;flex-wrap:wrap;background:#0f172a;padding:12px;border-radius:10px;border:1px solid #1e293b}
+.filters label{font-size:11px;color:#94a3b8;display:flex;flex-direction:column;gap:4px}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:500}
+.amt{font-weight:600;text-align:right;white-space:nowrap}
+.amt.gasto{color:#f87171}.amt.ingreso{color:#4ade80}
+.dt{font-size:11px;color:#94a3b8;white-space:nowrap}
+.dt b{font-size:13px;color:#e2e8f0;font-weight:600;display:block}
+.empty{text-align:center;padding:40px 20px;color:#64748b}
+.empty .ico{font-size:48px;margin-bottom:12px;opacity:.3}
+.empty .cta{margin-top:16px}
+.lst-aisle{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin:12px 0 4px;font-weight:600}
+.lst-aisle:first-child{margin-top:0}
+.lst-item{display:flex;align-items:center;gap:10px;padding:9px 6px;border-bottom:1px solid #1e293b;cursor:pointer;font-size:14px}
+.lst-item:hover{background:#0b1322}
+.lst-item input[type=checkbox]{width:18px;height:18px;accent-color:#2563eb;cursor:pointer;flex:none}
+.lst-item .lst-text{flex:1}
+.lst-item.is-done .lst-text{text-decoration:line-through;color:#64748b}
+.lst-item .lst-del{opacity:0;transition:opacity .15s}
+.lst-item:hover .lst-del{opacity:1}
+.lst-items.done{opacity:.7}
+@media(max-width:768px){.lst-item .lst-del{opacity:1}}
+.note{background:#020617;padding:12px 14px;border-radius:8px;margin-bottom:10px;border-left:3px solid #1e40af}
+.note .m{font-size:11px;color:#94a3b8;margin-bottom:6px}
+.ev{display:flex;align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid #1e293b}
+.ev .d{font-size:11px;text-align:center;min-width:50px;color:#94a3b8}
+.ev .d .day{font-size:22px;font-weight:600;color:#e2e8f0}
+.ev .b{flex:1}.ev .b .t{font-weight:500}.ev .b .m{font-size:12px;color:#94a3b8;margin-top:2px}
+.account-card{padding:14px;border-radius:10px;background:#0f172a;border:1px solid #1e293b;border-left:4px solid #1e40af;display:flex;flex-direction:column;gap:6px}
+.account-card .name{font-weight:600;display:flex;align-items:center;gap:6px;justify-content:space-between}
+.account-card .bal{font-size:14px;color:#cbd5e1}
+.account-card .bal.neg{color:#f87171}.account-card .bal.pos{color:#4ade80}
+.account-card .type{font-size:10px;color:#64748b;text-transform:uppercase}
+.account-card .cuotas{margin-top:6px;padding-top:8px;border-top:1px dashed #1e293b;font-size:11px;color:#94a3b8}
+.rate-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.rate{padding:12px;background:#020617;border-radius:8px;text-align:center}
+.rate .t{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+.rate .v{font-size:18px;font-weight:600;margin-top:4px}
+.priority-alta{color:#f87171}.priority-media{color:#fbbf24}.priority-baja{color:#34d399}
+.chart-wrap{position:relative;height:280px}
+.tag{display:inline-block;background:#1e293b;padding:2px 8px;border-radius:99px;font-size:11px;margin-right:4px}
+.tx-actions{opacity:0;transition:opacity .15s}
+tr:hover .tx-actions{opacity:1}
+.modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px}
+.modal-content{background:#0f172a;border:1px solid #1e293b;padding:24px;border-radius:12px;max-width:500px;width:100%;max-height:90vh;overflow-y:auto}
+.modal-content h3{margin:0 0 16px;font-size:16px}
+.modal-content .field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.modal-content .field label{font-size:11px;color:#94a3b8}
+.modal-content .field input,.modal-content .field select,.modal-content .field textarea{width:100%}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#toast-container{position:fixed;top:80px;right:20px;z-index:300;display:flex;flex-direction:column;gap:8px;max-width:320px}
+.toast{background:#1e293b;color:#e2e8f0;padding:12px 18px;border-radius:8px;border-left:4px solid #60a5fa;box-shadow:0 4px 12px rgba(0,0,0,.5);font-size:13px;animation:slideIn .3s ease}
+.toast.success{border-left-color:#4ade80}.toast.error{border-left-color:#f87171}
+@keyframes slideIn{from{transform:translateX(20px);opacity:0}to{transform:translateX(0);opacity:1}}
+.fab{position:fixed;bottom:80px;right:20px;width:54px;height:54px;border-radius:50%;background:#1e40af;color:#fff;border:none;font-size:24px;cursor:pointer;box-shadow:0 6px 14px rgba(0,0,0,.5);z-index:55}
+.fab:hover{background:#1d4ed8}
+@media(min-width:768px){.fab{bottom:30px}}
+.bulk-bar{background:#1e40af;color:#fff;padding:10px 14px;border-radius:8px;margin-bottom:12px;display:none;align-items:center;gap:10px;flex-wrap:wrap}
+.bulk-bar.show{display:flex}
+.bulk-bar span{font-size:13px;font-weight:500;margin-right:auto}
+.tx-cb{cursor:pointer}
+.cuota-tag{display:inline-block;background:#7c3aed33;color:#a78bfa;padding:2px 6px;border-radius:4px;font-size:10px;margin-left:6px}
+.color-swatch{width:20px;height:20px;border-radius:4px;display:inline-block;vertical-align:middle;border:1px solid #1e293b}
+
+/* ===================== MOBILE: hamburguesa + drawer (base, ocultos en desktop) ===================== */
+.nav-burger{display:none;background:none;border:1px solid #1e293b;color:#cbd5e1;font-size:20px;line-height:1;padding:5px 11px;border-radius:8px;cursor:pointer;margin-left:auto}
+.nav-burger:hover{background:#1e293b}
+.nav-drawer{position:fixed;top:0;right:0;height:100vh;height:100dvh;width:82%;max-width:310px;background:#0f172a;border-left:1px solid #1e293b;z-index:10001;transform:translateX(100%);transition:transform .22s ease;display:flex;flex-direction:column;gap:2px;padding:62px 12px 24px;overflow-y:auto;box-shadow:-12px 0 32px rgba(0,0,0,.4)}
+.nav-drawer.open{transform:translateX(0)}
+.nav-drawer:before{content:"Menú";position:absolute;top:22px;left:18px;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#64748b}
+.nav-drawer button{display:flex;align-items:center;gap:13px;width:100%;background:none;border:none;color:#cbd5e1;font-size:15px;font-weight:500;text-align:left;padding:13px 14px;border-radius:10px;cursor:pointer;transition:background .15s,color .15s}
+.nav-drawer button .ico{font-size:19px;width:24px;text-align:center}
+.nav-drawer button.active{background:#2563eb;color:#fff}
+.nav-drawer button:hover:not(.active){background:#1e293b}
+.nav-drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;opacity:0;pointer-events:none;transition:opacity .22s ease}
+.nav-drawer-overlay.open{opacity:1;pointer-events:auto}
+
+/* ===================== MOBILE (<=768px) ===================== */
+@media(max-width:768px){
+  /* Nav: hamburguesa reemplaza la barra inferior */
+  .nav-burger{display:block}
+  .nav-bottom{display:none !important}
+  header{top:38px}            /* el header queda fijo debajo de la user bar inyectada */
+  body{padding-bottom:88px}
+  .fab{bottom:24px}
+
+  /* User bar (inyectada por web.py) compacta y deslizable en una linea */
+  #cw-userbar{gap:8px !important;font-size:12px !important;padding:6px 10px !important;flex-wrap:nowrap !important;overflow-x:auto !important;-webkit-overflow-scrolling:touch}
+  #cw-userbar::-webkit-scrollbar{display:none}
+  #cw-userbar button{flex:0 0 auto;white-space:nowrap}
+  #cw-userbar span[style*="flex:1"]{flex:0 0 auto !important}  /* anula el spacer para que "Salir" no quede fuera de pantalla */
+  #cw-userbar a[href="/logout"]{position:sticky;right:0;background:#0f172a;padding-left:10px}  /* "Salir" siempre visible aunque el nombre/usuario sea largo */
+
+  /* Cards de cuentas/tarjetas a 1 columna (los KPIs del inicio siguen en 2) */
+  #cards-list,#acc-cards{grid-template-columns:1fr !important}
+  #venc-widget{margin:0 0 14px !important}
+  #venc-cards{grid-template-columns:1fr !important}
+
+  /* Modales: campos a 1 columna */
+  .field-grid{grid-template-columns:1fr}
+
+  /* ===== Tablas -> card-stack (cada fila = una tarjeta con etiquetas) ===== */
+  main table,main tbody,main tr,main td{display:block}
+  main thead{display:none}
+  main table{width:100%}
+  main tbody tr{margin-bottom:12px;border:1px solid #1e293b;border-radius:10px;background:#0f172a;padding:6px 12px}
+  main tbody tr:hover td{background:transparent}
+  main td{border:none !important;padding:7px 0;text-align:left !important;white-space:normal}
+  main td+td{border-top:1px solid #131c2e !important}
+  main td[data-label]:before{content:attr(data-label);display:block;color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;font-weight:500}
+  main td:empty{display:none}
+  main td.empty{text-align:center !important}
+  main .tx-actions{opacity:1 !important}   /* sin hover en mobile: mostrar siempre los botones */
+}
+</style></head><body>
+
+<header><h1>📊 Mi Asistente</h1>
+<div class="nav-top" id="nav-top"></div>
+<button class="nav-burger" id="nav-burger" type="button" aria-label="Menú" onclick="toggleDrawer()">☰</button>
+</header>
+
+<div class="nav-bottom" id="nav-bottom"></div>
+<div class="nav-drawer-overlay" id="nav-drawer-overlay" onclick="closeDrawer()"></div>
+<nav class="nav-drawer" id="nav-drawer" aria-label="Menú"></nav>
+
+<main>
+<section id="overview" class="section active">
+<div class="cards" id="overview-cards"></div>
+<div class="panel"><h2>💳 Tarjetas de crédito</h2><div class="cards" id="cards-list"></div></div>
+<div class="panel"><h2>Cuentas y balances</h2><div class="cards" id="acc-cards"></div></div>
+<div class="grid2">
+  <div class="panel"><div class="panel-head"><h2 id="ov-cat-title">Por categoría</h2></div><div class="chart-wrap"><canvas id="cat-chart"></canvas></div></div>
+  <div class="panel"><div class="panel-head"><h2 id="ov-acc-title">Por cuenta</h2></div><div class="chart-wrap"><canvas id="acc-chart"></canvas></div></div>
+</div>
+</section>
+
+<section id="transacciones" class="section">
+<div class="filters">
+  <label>Año <input type="number" id="t-year" style="width:80px"></label>
+  <label>Mes <select id="t-month"></select></label>
+  <label>Cuenta <select id="t-account"><option value="">Todas</option></select></label>
+  <label>Categoría <select id="t-category"><option value="">Todas</option></select></label>
+  <label>Tipo <select id="t-type"><option value="">Todos</option><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select></label>
+  <label>Moneda <select id="t-currency"><option value="">Todas</option><option value="ARS">ARS</option><option value="USD">USD</option><option value="EUR">EUR</option></select></label>
+  <label>Buscar <input type="text" id="t-q" placeholder="descripción..."></label>
+  <button class="btn primary" onclick="loadTx()">Aplicar</button>
+  <button class="btn" onclick="resetTxFilters()">Reset</button>
+  <button class="btn" onclick="exportCSV()">📥 CSV</button>
+</div>
+<div class="bulk-bar" id="bulk-bar"><span><span id="bulk-count">0</span> seleccionadas</span>
+  <button class="btn sm" onclick="bulkMove()">Mover</button>
+  <button class="btn sm danger" onclick="bulkDelete()">Borrar</button>
+  <button class="btn sm" onclick="clearSel()">Cancelar</button>
+</div>
+<div class="panel">
+  <div id="t-sums" style="margin-bottom:14px"></div>
+  <div style="overflow-x:auto"><table id="tx-table"></table></div>
+</div>
+</section>
+
+<section id="recurrentes" class="section">
+<div class="filters">
+  <label><input type="checkbox" id="rec-incl-inactive"> Mostrar pausadas</label>
+  <button class="btn" onclick="loadRec()">Refrescar</button>
+  <button class="btn primary" onclick="modalRecurrente()">+ Nueva</button>
+</div>
+<div class="panel"><div id="rec-list"></div></div>
+</section>
+
+<section id="cuentas" class="section">
+<div class="filters">
+  <label><input type="checkbox" id="acc-incl-inactive"> Mostrar archivadas</label>
+  <button class="btn primary" onclick="modalAccount()">+ Nueva cuenta</button>
+</div>
+<div class="panel"><div id="acc-table"></div></div>
+</section>
+
+<section id="categorias" class="section">
+<div class="filters">
+  <label><input type="checkbox" id="cat-incl-inactive"> Mostrar archivadas</label>
+  <button class="btn primary" onclick="modalCategory()">+ Nueva categoría</button>
+</div>
+<div class="panel"><div id="cat-table"></div></div>
+</section>
+
+<section id="cotizacion" class="section">
+<div class="panel"><h2>Cotización del dólar</h2><div class="rate-grid" id="cot-grid"></div>
+<p class="muted" style="margin-top:14px;font-size:12px">Fuente: dolarapi.com</p></div>
+</section>
+
+<section id="patrimonio" class="section">
+<div class="cards" id="nw-cards"></div>
+<div class="panel">
+  <div class="panel-head"><h2 id="nw-title">Patrimonio total</h2></div>
+  <div class="chart-wrap"><canvas id="nw-chart"></canvas></div>
+</div>
+<div class="panel"><h2>Detalle por cuenta</h2><div class="cards" id="nw-detail"></div></div>
+</section>
+
+<section id="tendencias" class="section">
+<div class="filters">
+  <label>Meses <select id="tr-months"><option>6</option><option>12</option></select></label>
+  <label>Ver <select id="tr-by"><option value="total">Total</option><option value="category">Por categoría</option></select></label>
+  <label>Moneda <select id="tr-cur"><option>ARS</option><option>USD</option></select></label>
+  <button class="btn primary" onclick="loadTrends()">Aplicar</button>
+</div>
+<div class="panel"><div class="panel-head"><h2 id="tr-title">Tendencia de gastos</h2></div>
+  <div class="chart-wrap" style="height:340px"><canvas id="trend-chart"></canvas></div></div>
+</section>
+
+<section id="calendario" class="section">
+<div class="filters"><label>Próximos <input type="number" id="cal-days" value="45" style="width:70px"> días</label>
+  <button class="btn primary" onclick="loadCalendar()">Aplicar</button></div>
+<div class="grid2">
+  <div class="panel"><h2>💳 Pagos por vencer</h2><div id="cal-pagos"></div></div>
+  <div class="panel"><h2>🗓️ Agenda (eventos y recordatorios)</h2><div id="cal-agenda"></div></div>
+</div>
+</section>
+
+<section id="eventos" class="section">
+<div class="filters"><button class="btn primary" onclick="modalEvento()">+ Nuevo evento</button></div>
+<div class="panel"><h2>Próximos</h2><div id="ev-next"></div></div>
+<div class="panel"><h2>Pasados</h2><div id="ev-past"></div></div>
+</section>
+
+<section id="tareas" class="section">
+<div class="filters">
+  <label><input type="radio" name="t-st" value="pendiente" checked> Pendientes</label>
+  <label><input type="radio" name="t-st" value="hecha"> Hechas</label>
+  <button class="btn primary" onclick="modalTarea()">+ Nueva</button>
+</div>
+<div class="panel"><div id="tareas-list"></div></div>
+</section>
+
+<section id="listas" class="section">
+<div class="filters">
+  <select id="lst-pick" style="min-width:160px"></select>
+  <button class="btn primary" onclick="modalNuevaLista()">+ Nueva lista</button>
+  <button class="btn" onclick="loadListas(true)">Refrescar</button>
+</div>
+<div class="panel"><div id="listas-body"></div></div>
+</section>
+
+<section id="habitos" class="section">
+<div class="filters"><label>Últimos <input type="number" id="h-days" value="30" style="width:60px"> días</label>
+<button class="btn" onclick="loadHabitos()">Aplicar</button>
+<button class="btn primary" onclick="modalHabito()">+ Registrar</button></div>
+<div class="panel"><h2>Resumen</h2><div id="h-res"></div></div>
+<div class="panel"><h2>Registros</h2><div style="overflow-x:auto"><table id="h-log"></table></div></div>
+</section>
+
+<section id="recordatorios" class="section">
+<div class="filters"><label><input type="checkbox" id="rec-incl-fired"> Incluir disparados</label>
+<button class="btn" onclick="loadRecs()">Refrescar</button>
+<button class="btn primary" onclick="modalRecordatorio()">+ Nuevo</button></div>
+<div class="panel"><h2>Recordatorios</h2><div id="rec-pend"></div></div>
+</section>
+
+<section id="notas" class="section">
+<div class="filters"><input type="text" id="n-search" placeholder="Buscar..." style="flex:1">
+<button class="btn" onclick="loadNotas()">Buscar</button>
+<button class="btn primary" onclick="modalNota()">+ Nueva</button></div>
+<div id="notas-list"></div>
+</section>
+
+</main>
+
+<button class="fab" onclick="modalTx()" title="Nueva transacción">+</button>
+<div id="toast-container"></div>
+
+<script>
+const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const DIAS = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+let ACCOUNTS = [], CATEGORIES = [], SELECTED = new Set();
+
+const TABS = [
+  ["overview","🏠","Inicio"],
+  ["transacciones","💸","Movim."],
+  ["recurrentes","🔁","Recur."],
+  ["cuentas","💳","Cuentas"],
+  ["categorias","🏷️","Catego."],
+  ["cotizacion","💱","USD"],
+  ["patrimonio","📈","Patrim."],
+  ["tendencias","📊","Tend."],
+  ["calendario","🗓️","Calend."],
+  ["eventos","📅","Eventos"],
+  ["tareas","✅","Tareas"],
+  ["listas","🛒","Listas"],
+  ["habitos","💪","Hábitos"],
+  ["recordatorios","⏰","Recor."],
+  ["notas","📓","Notas"],
+];
+const navTop = document.getElementById('nav-top');
+const navBot = document.getElementById('nav-bottom');
+const navDrawer = document.getElementById('nav-drawer');
+TABS.forEach(([id, ico, lbl], i) => {
+  const t = document.createElement('button');
+  t.dataset.tab = id; t.textContent = `${ico} ${lbl}`;
+  if (i === 0) t.classList.add('active');
+  t.onclick = () => switchTab(id);
+  navTop.appendChild(t);
+  const b = document.createElement('button');
+  b.dataset.tab = id;
+  b.innerHTML = `<span class="ico">${ico}</span>${lbl}`;
+  if (i === 0) b.classList.add('active');
+  b.onclick = () => switchTab(id);
+  navBot.appendChild(b);
+  const dr = document.createElement('button');
+  dr.dataset.tab = id;
+  dr.innerHTML = `<span class="ico">${ico}</span><span>${lbl}</span>`;
+  if (i === 0) dr.classList.add('active');
+  dr.onclick = () => switchTab(id);
+  navDrawer.appendChild(dr);
+});
+function switchTab(id) {
+  document.querySelectorAll('.nav-top button, .nav-bottom button, .nav-drawer button').forEach(b => b.classList.toggle('active', b.dataset.tab === id));
+  document.querySelectorAll('.section').forEach(s => s.classList.toggle('active', s.id === id));
+  closeDrawer();
+  loadTab(id);
+}
+function toggleDrawer() {
+  document.getElementById('nav-drawer').classList.toggle('open');
+  document.getElementById('nav-drawer-overlay').classList.toggle('open');
+}
+function closeDrawer() {
+  document.getElementById('nav-drawer').classList.remove('open');
+  document.getElementById('nav-drawer-overlay').classList.remove('open');
+}
+
+const tMon = document.getElementById('t-month');
+const today = new Date();
+['Todos', ...MESES].forEach((m, i) => {
+  const o = document.createElement('option'); o.value = i === 0 ? '' : i; o.textContent = m;
+  if (i === today.getMonth() + 1) o.selected = true; tMon.appendChild(o);
+});
+document.getElementById('t-year').value = today.getFullYear();
+document.getElementById('rec-incl-inactive').onchange = loadRec;
+document.getElementById('acc-incl-inactive').onchange = loadAccTable;
+document.getElementById('cat-incl-inactive').onchange = loadCatTable;
+document.getElementById('rec-incl-fired').onchange = loadRecs;
+
+function parseDT(s){ return new Date((s||'').replace(' ','T')) }
+function fmtMoney(n){ return Number(n||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) }
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])) }
+function fmtDay(d){ return String(d.getDate()).padStart(2,'0')+' '+MESES[d.getMonth()] }
+function fmtTime(d){ return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0') }
+async function api(p, o={}){
+  if (o.body && typeof o.body === 'object') { o.body = JSON.stringify(o.body); o.headers = {...(o.headers||{}), 'Content-Type':'application/json'}; }
+  const r = await fetch(p, o);
+  if (!r.ok) { const e = await r.text().catch(()=>'Error'); throw new Error(e); }
+  return r.json();
+}
+function toast(text, type='info') {
+  const t = document.createElement('div'); t.className = `toast ${type}`; t.textContent = text;
+  document.getElementById('toast-container').appendChild(t);
+  setTimeout(()=>{ t.style.transition='opacity .3s'; t.style.opacity='0'; setTimeout(()=>t.remove(),300); }, 3000);
+}
+
+let LAST_TRASH = null;
+async function softDelete(entity, id, label, reload) {
+  const r = await api(`/api/trash/${entity}/${id}`, {method:'POST'});
+  LAST_TRASH = {id: r.trash_id, reload};
+  const t = document.createElement('div'); t.className = 'toast';
+  t.innerHTML = `🗑 ${label} <button class="btn sm primary" style="margin-left:8px" onclick="undoDelete(this)">Deshacer</button>`;
+  document.getElementById('toast-container').appendChild(t);
+  setTimeout(()=>{ t.style.transition='opacity .3s'; t.style.opacity='0'; setTimeout(()=>t.remove(),300); }, 6000);
+  reload();
+}
+async function undoDelete(btn) {
+  if (!LAST_TRASH) return;
+  const lt = LAST_TRASH; LAST_TRASH = null;
+  await api(`/api/trash/restore/${lt.id}`, {method:'POST'});
+  toast('Restaurado ↩','success'); lt.reload();
+  btn.closest('.toast').remove();
+}
+
+function showModal(html, onSave) {
+  const m = document.createElement('div'); m.className = 'modal';
+  m.innerHTML = `<div class="modal-content">${html}<div class="modal-actions"><button class="btn" onclick="this.closest('.modal').remove()">Cancelar</button><button class="btn primary" id="modal-save">Guardar</button></div></div>`;
+  m.onclick = e => { if (e.target === m) m.remove(); };
+  document.body.appendChild(m);
+  document.getElementById('modal-save').onclick = async () => {
+    try { if (await onSave(m) !== false) m.remove(); }
+    catch (e) { toast(e.message || 'Error', 'error'); }
+  };
+  setTimeout(() => { const f = m.querySelector('input, select, textarea'); if (f) f.focus(); }, 50);
+  return m;
+}
+
+async function loadMeta(force = false) {
+  if (!force && ACCOUNTS.length) return;
+  ACCOUNTS = await api('/api/accounts');
+  CATEGORIES = await api('/api/categories');
+  const accSel = document.getElementById('t-account');
+  accSel.innerHTML = '<option value="">Todas</option>';
+  ACCOUNTS.forEach(a => { const o=document.createElement('option'); o.value=a.id; o.textContent=`${a.icon||''} ${a.name}`; accSel.appendChild(o); });
+  const catSel = document.getElementById('t-category');
+  catSel.innerHTML = '<option value="">Todas</option>';
+  CATEGORIES.forEach(c => { const o=document.createElement('option'); o.value=c.id; o.textContent=`${c.icon||''} ${c.name}`; catSel.appendChild(o); });
+  const oN = document.createElement('option'); oN.value=-1; oN.textContent='(sin categoría)'; catSel.appendChild(oN);
+}
+
+// ===== Overview =====
+let catChart, accChart, nwChart;
+async function loadOverview(){
+  await loadMeta();
+  const d = await api('/api/overview');
+  document.getElementById('overview-cards').innerHTML = `
+    <div class="card"><div class="l">Eventos próx</div><div class="v">${d.counts.eventos_proximos}</div></div>
+    <div class="card"><div class="l">Tareas pendientes</div><div class="v">${d.counts.tareas_pendientes}</div></div>
+    <div class="card"><div class="l">Recordatorios</div><div class="v">${d.counts.recordatorios}</div></div>
+    <div class="card"><div class="l">Recurrentes</div><div class="v">${d.counts.recurrentes}</div></div>
+    <div class="card"><div class="l">Notas</div><div class="v">${d.counts.notas}</div></div>`;
+  const cards = d.accounts.filter(a => a.type === 'credito');
+  document.getElementById('cards-list').innerHTML = cards.length ? cards.map(a => {
+    const bals = (a.balances||[]).map(b => `<div class="bal ${b.balance<0?'neg':'pos'}">${b.currency}: ${fmtMoney(b.balance)}</div>`).join('') || '<div class="muted">Sin movimientos</div>';
+    const cuotas = (a.pending_cuotas||[]).filter(c=>c.remaining).length ? `<div class="cuotas">📅 Cuotas pendientes:<br>${(a.pending_cuotas||[]).filter(c=>c.remaining).map(c=>`${c.remaining}× ${fmtMoney(c.amount_per||c.amount)} ${c.currency} (${esc(c.description)})`).join('<br>')}</div>` : '';
+    return `<div class="account-card" style="border-left-color:${a.color||'#ef4444'}"><div class="name">${a.icon||''} ${esc(a.name)} <span class="type">${a.type}</span></div>${bals}${cuotas}</div>`;
+  }).join('') : '<div class="empty"><div class="ico">💳</div>Sin tarjetas de crédito</div>';
+  const noCard = d.accounts.filter(a => a.type !== 'credito');
+  document.getElementById('acc-cards').innerHTML = noCard.map(a => {
+    const bals = (a.balances||[]).map(b => `<div class="bal ${b.balance<0?'neg':'pos'}">${b.currency}: ${fmtMoney(b.balance)}</div>`).join('') || '<div class="muted">Sin movimientos</div>';
+    return `<div class="account-card" style="border-left-color:${a.color||'#1e40af'}"><div class="name">${a.icon||''} ${esc(a.name)} <span class="type">${a.type}</span></div>${bals}</div>`;
+  }).join('') || '<div class="empty"><div class="ico">📂</div>Sin cuentas</div>';
+  document.getElementById('ov-cat-title').textContent = `Gastos por categoría — ${d.mes_nombre} ${d.year}`;
+  document.getElementById('ov-acc-title').textContent = `Gastos por cuenta — ${d.mes_nombre} ${d.year}`;
+  if (catChart) catChart.destroy();
+  const cg = {}; d.por_categoria.forEach(p => { const k=`${p.cat} (${p.currency})`; cg[k] = (cg[k]||0)+p.total; });
+  const palette = ['#60a5fa','#f87171','#34d399','#fbbf24','#a78bfa','#fb923c','#f472b6','#22d3ee','#94a3b8','#84cc16','#ec4899','#6366f1'];
+  if (Object.keys(cg).length) catChart = new Chart(document.getElementById('cat-chart'),{type:'doughnut',data:{labels:Object.keys(cg),datasets:[{data:Object.values(cg),backgroundColor:palette,borderWidth:0}]},options:{maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#cbd5e1',boxWidth:12,font:{size:11}}}}}});
+  if (accChart) accChart.destroy();
+  const ag = {}; d.por_cuenta.forEach(p => { const k=`${p.acc} (${p.currency})`; ag[k]=(ag[k]||0)+p.total; });
+  if (Object.keys(ag).length) accChart = new Chart(document.getElementById('acc-chart'),{type:'bar',data:{labels:Object.keys(ag),datasets:[{data:Object.values(ag),backgroundColor:'#60a5fa',borderRadius:4}]},options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94a3b8',font:{size:10}}},y:{ticks:{color:'#94a3b8'}}}}});
+}
+
+// ===== Transactions =====
+function resetTxFilters(){ ['t-account','t-category','t-type','t-currency','t-q'].forEach(id=>document.getElementById(id).value=''); loadTx(); }
+function exportCSV(){ const y=document.getElementById('t-year').value, m=document.getElementById('t-month').value; const u=y&&m?`/api/export.csv?year=${y}&month=${m}`:'/api/export.csv'; window.open(u); }
+async function loadTx(){
+  await loadMeta();
+  const p = new URLSearchParams();
+  const y = document.getElementById('t-year').value, m = document.getElementById('t-month').value;
+  if (y && m) { p.set('year',y); p.set('month',m); }
+  ['t-account','t-category','t-type','t-currency'].forEach(id=>{ const v=document.getElementById(id).value; if(v) p.set(id.replace('t-','').replace('account','account_id').replace('category','category_id'), v); });
+  const q = document.getElementById('t-q').value.trim(); if(q) p.set('q',q);
+  p.set('limit',300);
+  const d = await api('/api/transactions?'+p);
+  const sums = d.sums||[];
+  const gas = sums.filter(s=>s.type==='gasto'), ing = sums.filter(s=>s.type==='ingreso');
+  let sumsH=''; if (gas.length||ing.length) { sumsH='<div style="display:flex;gap:18px;flex-wrap:wrap">';
+    gas.forEach(g=>sumsH+=`<div><span class="muted">Gastos ${g.currency}</span> <span class="amt gasto">-${fmtMoney(g.total)}</span></div>`);
+    ing.forEach(i=>sumsH+=`<div><span class="muted">Ingresos ${i.currency}</span> <span class="amt ingreso">+${fmtMoney(i.total)}</span></div>`);
+    sumsH+='</div>'; }
+  document.getElementById('t-sums').innerHTML = sumsH;
+  const t = document.getElementById('tx-table');
+  if (!d.items.length) { t.innerHTML = '<tr><td><div class="empty"><div class="ico">📭</div>Sin transacciones</div></td></tr>'; return; }
+  let h = '<thead><tr><th><input type="checkbox" id="tx-all" onclick="toggleAll(this)"></th><th>Fecha</th><th>Descripción</th><th>Categoría</th><th>Cuenta</th><th style="text-align:right">Monto</th><th></th></tr></thead><tbody>';
+  for (const x of d.items) {
+    const dt = parseDT(x.occurred_at);
+    const sign = x.type==='gasto' ? '-' : '+', cls = x.type==='gasto' ? 'gasto' : 'ingreso';
+    const catB = x.cat_name ? `<span class="badge" style="background:${x.cat_color||'#1e293b'}33;color:${x.cat_color||'#e2e8f0'}">${x.cat_icon||''} ${esc(x.cat_name)}</span>` : '<span class="muted">—</span>';
+    const accB = `<span class="badge" style="background:${x.acc_color||'#1e293b'}33;color:${x.acc_color||'#e2e8f0'}">${x.acc_icon||''} ${esc(x.acc_name)}</span>`;
+    const cuota = x.recurring_id && x.rec_total ? `<span class="cuota-tag">🧾 cuota ${(x.rec_fired||0)}/${x.rec_total}</span>` : (x.recurring_id ? '<span class="cuota-tag">🔁 recur.</span>' : '');
+    h += `<tr><td><input type="checkbox" class="tx-cb" data-id="${x.id}" onclick="toggleSel(${x.id})"></td><td class="dt"><b>${fmtDay(dt)}</b>${fmtTime(dt)}</td><td>${esc(x.description||'(sin descripción)')}${cuota}<div class="muted" style="font-size:10px">#${x.id}</div></td><td>${catB}</td><td>${accB}</td><td class="amt ${cls}">${sign}${fmtMoney(x.amount)} ${x.currency}</td><td><div class="tx-actions btn-row"><button class="btn sm" onclick="editTx(${x.id})">✏️</button><button class="btn sm danger" onclick="delTx(${x.id})">×</button></div></td></tr>`;
+  }
+  h += '</tbody>'; t.innerHTML = h;
+}
+function toggleAll(cb) { document.querySelectorAll('.tx-cb').forEach(x=>{x.checked=cb.checked; const id=parseInt(x.dataset.id); if(cb.checked)SELECTED.add(id); else SELECTED.delete(id);}); updateBulkBar(); }
+function toggleSel(id) { if(SELECTED.has(id))SELECTED.delete(id); else SELECTED.add(id); updateBulkBar(); }
+function updateBulkBar() { const b=document.getElementById('bulk-bar'); document.getElementById('bulk-count').textContent=SELECTED.size; b.classList.toggle('show', SELECTED.size>0); }
+function clearSel() { SELECTED.clear(); document.querySelectorAll('.tx-cb').forEach(x=>x.checked=false); const a=document.getElementById('tx-all'); if(a)a.checked=false; updateBulkBar(); }
+async function bulkDelete() { if (!confirm(`¿Borrar ${SELECTED.size} transacciones?`)) return;
+  try { await api('/api/transactions/bulk_delete',{method:'POST',body:{ids:[...SELECTED]}}); toast('Borradas','success'); clearSel(); loadTx(); }
+  catch(e){ toast('Error: '+e.message,'error'); }
+}
+function bulkMove() {
+  const accOpts = ACCOUNTS.map(a=>`<option value="${a.id}">${a.icon||''} ${esc(a.name)}</option>`).join('');
+  const catOpts = '<option value="">No cambiar</option>' + CATEGORIES.map(c=>`<option value="${c.id}">${c.icon||''} ${esc(c.name)}</option>`).join('');
+  showModal(`<h3>Mover ${SELECTED.size} transacciones</h3>
+    <div class="field"><label>Cuenta destino</label><select id="bm-acc"><option value="">No cambiar</option>${accOpts}</select></div>
+    <div class="field"><label>Categoría destino</label><select id="bm-cat">${catOpts}</select></div>`,
+    async () => {
+      const body = {ids:[...SELECTED]};
+      const a = document.getElementById('bm-acc').value, c = document.getElementById('bm-cat').value;
+      if (a) body.account_id = parseInt(a); if (c) body.category_id = parseInt(c);
+      if (!body.account_id && !body.category_id) { toast('Elegí algo a cambiar','error'); return false; }
+      await api('/api/transactions/bulk_move',{method:'POST',body}); toast('Movidas','success'); clearSel(); loadTx();
+    });
+}
+async function delTx(id) { softDelete('transactions', id, 'Transacción borrada', loadTx); }
+
+function modalTx(tx=null) {
+  const isEdit = tx !== null;
+  const accOpts = ACCOUNTS.map(a=>`<option value="${a.id}" ${tx&&tx.account_id===a.id?'selected':''}>${a.icon||''} ${esc(a.name)}</option>`).join('');
+  const catOpts = '<option value="">(sin categoría)</option>' + CATEGORIES.map(c=>`<option value="${c.id}" ${tx&&tx.category_id===c.id?'selected':''}>${c.icon||''} ${esc(c.name)}</option>`).join('');
+  const nowISO = new Date().toISOString().slice(0,16);
+  showModal(`<h3>${isEdit?'Editar':'Nueva'} transacción</h3>
+    <div class="field-grid">
+      <div class="field"><label>Tipo</label><select id="tx-type"><option value="gasto" ${tx&&tx.type==='gasto'?'selected':''}>Gasto</option><option value="ingreso" ${tx&&tx.type==='ingreso'?'selected':''}>Ingreso</option></select></div>
+      <div class="field"><label>Monto</label><input type="number" id="tx-amount" step="0.01" value="${tx?tx.amount:''}"></div>
+      <div class="field"><label>Moneda</label><select id="tx-currency"><option ${tx&&tx.currency==='ARS'?'selected':''}>ARS</option><option ${tx&&tx.currency==='USD'?'selected':''}>USD</option><option ${tx&&tx.currency==='EUR'?'selected':''}>EUR</option></select></div>
+      <div class="field"><label>Cuenta</label><select id="tx-account">${accOpts}</select></div>
+    </div>
+    <div class="field"><label>Categoría</label><select id="tx-category">${catOpts}</select></div>
+    <div class="field"><label>Descripción</label><input type="text" id="tx-desc" value="${tx?esc(tx.description||''):''}"></div>
+    <div class="field"><label>Fecha y hora</label><input type="datetime-local" id="tx-when" value="${tx?(tx.occurred_at||'').slice(0,16):nowISO}"></div>`,
+    async () => {
+      const body = {
+        type: document.getElementById('tx-type').value,
+        amount: parseFloat(document.getElementById('tx-amount').value),
+        currency: document.getElementById('tx-currency').value,
+        account_id: parseInt(document.getElementById('tx-account').value),
+        category_id: document.getElementById('tx-category').value ? parseInt(document.getElementById('tx-category').value) : null,
+        description: document.getElementById('tx-desc').value,
+        occurred_at: document.getElementById('tx-when').value,
+      };
+      if (!body.amount || !body.account_id) { toast('Faltan datos','error'); return false; }
+      if (isEdit) { await api(`/api/transactions/${tx.id}`,{method:'PATCH',body}); toast('Actualizada','success'); }
+      else { await api('/api/transactions',{method:'POST',body}); toast('Creada','success'); }
+      loadTx();
+    });
+}
+async function editTx(id) {
+  const r = await fetch(`/api/transactions?limit=1&offset=0`); // fetch this one
+  const tx = (await api('/api/transactions?limit=500')).items.find(x => x.id === id);
+  if (!tx) { toast('No encontrada','error'); return; }
+  modalTx(tx);
+}
+
+// ===== Recurrentes =====
+async function loadRec() {
+  await loadMeta();
+  const incl = document.getElementById('rec-incl-inactive').checked;
+  const arr = await api('/api/recurring?include_inactive='+incl);
+  const el = document.getElementById('rec-list');
+  if (!arr.length) { el.innerHTML = '<div class="empty"><div class="ico">🔁</div>Sin recurrentes</div>'; return; }
+  let h = '<table><thead><tr><th>Descripción</th><th>Monto</th><th>Cuenta</th><th>Categoría</th><th>Cuota</th><th>Día</th><th>Próxima</th><th>Estado</th><th></th></tr></thead><tbody>';
+  for (const r of arr) {
+    const sign = r.type==='gasto' ? '-' : '+', cls = r.type==='gasto' ? 'gasto' : 'ingreso';
+    const accB = `<span class="badge" style="background:${r.acc_color||'#1e293b'}33;color:${r.acc_color||'#e2e8f0'}">${r.acc_icon||''} ${esc(r.acc_name)}</span>`;
+    const catB = r.cat_name ? `<span class="badge" style="background:${r.cat_color||'#1e293b'}33;color:${r.cat_color||'#e2e8f0'}">${r.cat_icon||''} ${esc(r.cat_name)}</span>` : '<span class="muted">—</span>';
+    const cuotaInfo = r.total_installments ? `${(r.installments_fired||0)+1}/${r.total_installments}` : '∞';
+    h += `<tr><td>${esc(r.description)}<div class="muted" style="font-size:10px">#${r.id}</div></td><td class="amt ${cls}">${sign}${fmtMoney(r.amount)} ${r.currency}</td><td>${accB}</td><td>${catB}</td><td>${cuotaInfo}</td><td>${r.day_of_month||'—'}</td><td>${r.next_occurrence}</td><td>${r.active?'<span style="color:#4ade80">● activa</span>':'<span class="muted">○ pausada</span>'}</td><td class="btn-row"><button class="btn sm" onclick="toggleRec(${r.id},${r.active?0:1})">${r.active?'Pausar':'Activar'}</button><button class="btn sm danger" onclick="delRecRow(${r.id})">×</button></td></tr>`;
+  }
+  h += '</tbody>'; el.innerHTML = h;
+}
+async function toggleRec(id, active) { await api(`/api/recurring/${id}`,{method:'PATCH',body:{active}}); toast(active?'Activada':'Pausada','success'); loadRec(); }
+async function delRecRow(id) { softDelete('recurring', id, 'Recurrente borrada', loadRec); }
+
+// ===== Cuentas CRUD =====
+async function loadAccTable() {
+  const incl = document.getElementById('acc-incl-inactive').checked;
+  const arr = await api('/api/accounts?include_inactive='+incl);
+  await loadMeta(true);
+  const el = document.getElementById('acc-table');
+  if (!arr.length) { el.innerHTML='<div class="empty"><div class="ico">💳</div>Sin cuentas<div class="cta"><button class="btn primary" onclick="modalAccount()">+ Crear primera</button></div></div>'; return; }
+  let h = '<table><thead><tr><th>Color</th><th>Nombre</th><th>Tipo</th><th>Estado</th><th></th></tr></thead><tbody>';
+  for (const a of arr) {
+    h += `<tr><td><span class="color-swatch" style="background:${a.color||'#1e293b'}"></span> ${a.icon||''}</td><td>${esc(a.name)}</td><td><span class="muted">${a.type}</span></td><td>${a.active?'<span style="color:#4ade80">activa</span>':'<span class="muted">archivada</span>'}</td><td class="btn-row"><button class="btn sm" onclick='modalAccount(${JSON.stringify(a).replace(/'/g,"&apos;")})'>✏️</button><button class="btn sm danger" onclick="delAcc(${a.id})">×</button></td></tr>`;
+  }
+  h += '</tbody>'; el.innerHTML = h;
+}
+function modalAccount(acc=null) {
+  const isEdit = acc !== null;
+  const types = ['efectivo','billetera','credito','debito','inversion','transferencia'];
+  showModal(`<h3>${isEdit?'Editar':'Nueva'} cuenta</h3>
+    <div class="field"><label>Nombre</label><input type="text" id="acc-name" value="${acc?esc(acc.name):''}"></div>
+    <div class="field-grid">
+      <div class="field"><label>Tipo</label><select id="acc-type">${types.map(t=>`<option ${acc&&acc.type===t?'selected':''}>${t}</option>`).join('')}</select></div>
+      <div class="field"><label>Icono (emoji)</label><input type="text" id="acc-icon" value="${acc?esc(acc.icon||''):'💳'}"></div>
+    </div>
+    <div class="field"><label>Color</label><input type="color" id="acc-color" value="${acc?acc.color||'#60a5fa':'#60a5fa'}"></div>
+    ${isEdit?'<div class="field"><label><input type="checkbox" id="acc-active" '+(acc.active?'checked':'')+'> Activa</label></div>':''}`,
+    async () => {
+      const body = { name: document.getElementById('acc-name').value.trim(), type: document.getElementById('acc-type').value, icon: document.getElementById('acc-icon').value, color: document.getElementById('acc-color').value };
+      if (isEdit) body.active = document.getElementById('acc-active').checked;
+      if (!body.name) { toast('Nombre requerido','error'); return false; }
+      if (isEdit) await api(`/api/accounts/${acc.id}`,{method:'PATCH',body});
+      else await api('/api/accounts',{method:'POST',body});
+      toast(isEdit?'Actualizada':'Creada','success'); loadAccTable();
+    });
+}
+async function delAcc(id) { if (!confirm('¿Eliminar? Si tiene transacciones se archiva.')) return; const r=await api(`/api/accounts/${id}`,{method:'DELETE'}); toast(r.archived?'Archivada':'Borrada','success'); loadAccTable(); }
+
+// ===== Categorías CRUD =====
+async function loadCatTable() {
+  const incl = document.getElementById('cat-incl-inactive').checked;
+  const arr = await api('/api/categories?include_inactive='+incl);
+  await loadMeta(true);
+  const el = document.getElementById('cat-table');
+  if (!arr.length) { el.innerHTML='<div class="empty"><div class="ico">🏷️</div>Sin categorías</div>'; return; }
+  let h = '<table><thead><tr><th>Color</th><th>Nombre</th><th>Tipo</th><th>Estado</th><th></th></tr></thead><tbody>';
+  for (const c of arr) {
+    h += `<tr><td><span class="color-swatch" style="background:${c.color||'#1e293b'}"></span> ${c.icon||''}</td><td>${esc(c.name)}</td><td><span class="muted">${c.type}</span></td><td>${c.active?'<span style="color:#4ade80">activa</span>':'<span class="muted">archivada</span>'}</td><td class="btn-row"><button class="btn sm" onclick='modalCategory(${JSON.stringify(c).replace(/'/g,"&apos;")})'>✏️</button><button class="btn sm danger" onclick="delCat(${c.id})">×</button></td></tr>`;
+  }
+  h += '</tbody>'; el.innerHTML = h;
+}
+function modalCategory(cat=null) {
+  const isEdit = cat !== null;
+  showModal(`<h3>${isEdit?'Editar':'Nueva'} categoría</h3>
+    <div class="field"><label>Nombre</label><input type="text" id="cat-name" value="${cat?esc(cat.name):''}"></div>
+    <div class="field-grid">
+      <div class="field"><label>Tipo</label><select id="cat-type"><option value="gasto" ${cat&&cat.type==='gasto'?'selected':''}>Gasto</option><option value="ingreso" ${cat&&cat.type==='ingreso'?'selected':''}>Ingreso</option></select></div>
+      <div class="field"><label>Icono</label><input type="text" id="cat-icon" value="${cat?esc(cat.icon||''):'📦'}"></div>
+    </div>
+    <div class="field"><label>Color</label><input type="color" id="cat-color" value="${cat?cat.color||'#94a3b8':'#94a3b8'}"></div>
+    ${isEdit?'<div class="field"><label><input type="checkbox" id="cat-active" '+(cat.active?'checked':'')+'> Activa</label></div>':''}`,
+    async () => {
+      const body = { name: document.getElementById('cat-name').value.trim(), type: document.getElementById('cat-type').value, icon: document.getElementById('cat-icon').value, color: document.getElementById('cat-color').value };
+      if (isEdit) body.active = document.getElementById('cat-active').checked;
+      if (!body.name) { toast('Nombre requerido','error'); return false; }
+      if (isEdit) await api(`/api/categories/${cat.id}`,{method:'PATCH',body});
+      else await api('/api/categories',{method:'POST',body});
+      toast(isEdit?'Actualizada':'Creada','success'); loadCatTable();
+    });
+}
+async function delCat(id) { if (!confirm('¿Eliminar? Si tiene transacciones se archiva.')) return; const r=await api(`/api/categories/${id}`,{method:'DELETE'}); toast(r.archived?'Archivada':'Borrada','success'); loadCatTable(); }
+
+// ===== Cotización =====
+async function loadCot() {
+  const d = await api('/api/cotizacion');
+  const types = [['oficial','Oficial'],['blue','Blue'],['mep','MEP'],['cripto','Cripto']];
+  document.getElementById('cot-grid').innerHTML = types.map(([k,l])=>`<div class="rate"><div class="t">${l}</div><div class="v">${d[k]?'$'+fmtMoney(d[k]):'<span class="muted">N/D</span>'}</div></div>`).join('');
+}
+
+// ===== Eventos =====
+async function loadEv() {
+  const [nx, ps] = await Promise.all([api('/api/eventos'), api('/api/eventos?past=true')]);
+  const r = (arr, id, isNext) => { const el=document.getElementById(id);
+    if (!arr.length) {
+      el.innerHTML = isNext
+        ? '<div class="empty"><div class="ico">📅</div>Sin eventos próximos.<div class="cta muted" style="font-size:12px">Los recordatorios viven en la pestaña ⏰ Recordatorios y también se ven en 🗓️ Calendario.</div></div>'
+        : '<div class="empty"><div class="ico">📅</div>Sin eventos pasados</div>';
+      return;
+    }
+    el.innerHTML = arr.map(e => { const d=parseDT(e.starts_at); return `<div class="ev"><div class="d"><div>${MESES[d.getMonth()]}</div><div class="day">${d.getDate()}</div><div>${fmtTime(d)}</div></div><div class="b"><div class="t">${esc(e.title)}</div><div class="m">${esc(e.location||'')}${e.notes?' · '+esc(e.notes):''}</div></div><button class="btn sm" onclick='modalEvento(${JSON.stringify(e).replace(/'/g,"&apos;")})'>✏️</button><button class="btn sm danger" onclick="delEv(${e.id})">×</button></div>`}).join(''); };
+  r(nx, 'ev-next', true); r(ps, 'ev-past', false);
+}
+async function delEv(id) { softDelete('eventos', id, 'Evento borrado', loadEv); }
+
+// ===== Tareas =====
+async function loadTar() {
+  const st = document.querySelector('input[name=t-st]:checked').value;
+  const arr = await api(`/api/tareas?status=${st}`);
+  const el = document.getElementById('tareas-list');
+  if (!arr.length) { el.innerHTML='<div class="empty"><div class="ico">✅</div>Sin tareas</div>'; return; }
+  let h = '<table><thead><tr><th></th><th>Tarea</th><th>Prioridad</th><th>Vence</th><th></th></tr></thead><tbody>';
+  for (const t of arr) {
+    h += `<tr><td>${t.status==='pendiente'?`<button class="btn success sm" onclick="tDone(${t.id})">✓</button>`:`<button class="btn sm" onclick="tUndo(${t.id})">↩</button>`}</td><td>${esc(t.text)}<div class="muted" style="font-size:10px">#${t.id}</div></td><td class="priority-${t.priority}">${t.priority}</td><td>${t.due_at?esc(t.due_at):'<span class="muted">—</span>'}</td><td class="btn-row"><button class="btn sm" onclick='modalTarea(${JSON.stringify(t).replace(/'/g,"&apos;")})'>✏️</button><button class="btn sm danger" onclick="delTar(${t.id})">×</button></td></tr>`;
+  }
+  h += '</tbody>'; el.innerHTML = h;
+}
+function modalTarea(t=null) {
+  const isEdit = t !== null;
+  showModal(`<h3>${isEdit?'Editar':'Nueva'} tarea</h3>
+    <div class="field"><label>Texto</label><textarea id="ta-text" rows="2">${t?esc(t.text):''}</textarea></div>
+    <div class="field-grid">
+      <div class="field"><label>Prioridad</label><select id="ta-pri"><option value="baja" ${t&&t.priority==='baja'?'selected':''}>Baja</option><option value="media" ${!t||t.priority==='media'?'selected':''}>Media</option><option value="alta" ${t&&t.priority==='alta'?'selected':''}>Alta</option></select></div>
+      <div class="field"><label>Vence</label><input type="date" id="ta-due" value="${t&&t.due_at?String(t.due_at).slice(0,10):''}"></div>
+    </div>`,
+    async () => {
+      const body = { text: document.getElementById('ta-text').value.trim(), priority: document.getElementById('ta-pri').value, due_at: document.getElementById('ta-due').value || null };
+      if (!body.text) { toast('Texto requerido','error'); return false; }
+      if (isEdit) { await api(`/api/tareas/${t.id}`,{method:'PATCH',body}); toast('Actualizada','success'); }
+      else { await api('/api/tareas',{method:'POST',body}); toast('Creada','success'); }
+      loadTar();
+    });
+}
+async function tDone(id) { await api(`/api/tareas/${id}/done`,{method:'POST'}); toast('Hecha','success'); loadTar(); }
+async function tUndo(id) { await api(`/api/tareas/${id}/undone`,{method:'POST'}); loadTar(); }
+async function delTar(id) { softDelete('tareas', id, 'Tarea borrada', loadTar); }
+document.querySelectorAll('input[name=t-st]').forEach(r=>r.onchange=loadTar);
+
+// ===== Listas de compras =====
+let LISTAS = [];
+let CUR_LIST = null;
+const AISLE_ICON = {Verduleria:'🥬',Carniceria:'🥩',Lacteos:'🥛',Panaderia:'🥖',Almacen:'🛒',Bebidas:'🥤',Limpieza:'🧽',Higiene:'🧴',Congelados:'🧊',Farmacia:'💊',Otros:'📦'};
+const AISLE_ORDER = ['Verduleria','Carniceria','Lacteos','Panaderia','Almacen','Bebidas','Limpieza','Higiene','Congelados','Farmacia','Otros'];
+function fmtItem(it){
+  let body = esc(it.text);
+  if (it.qty){
+    const q = Number.isInteger(it.qty) ? it.qty : String(Number(it.qty).toFixed(2)).replace(/\.?0+$/,'');
+    body = (it.unit ? q+' '+esc(it.unit)+' ' : q+' ') + esc(it.text);
+  }
+  return body;
+}
+function fmtListSub(l){
+  const parts = [];
+  if (l.target_date){ const d = new Date(l.target_date+'T00:00'); if (!isNaN(d)) parts.push('📅 '+fmtDay(d)); }
+  if (l.recurrence){ parts.push('🔁 '+({weekly:'semanal',monthly:'mensual',daily:'diaria'}[l.recurrence]||l.recurrence)); }
+  return parts.join(' · ');
+}
+async function loadListas(){
+  const d = await api('/api/listas');
+  LISTAS = d.lists || [];
+  const sel = document.getElementById('lst-pick');
+  const body = document.getElementById('listas-body');
+  if (!LISTAS.length){
+    body.innerHTML = '<div class="empty"><div class="ico">🛒</div>No hay listas todavía.<div class="cta"><button class="btn primary" onclick="modalNuevaLista()">+ Crear lista</button></div></div>';
+    sel.innerHTML = ''; return;
+  }
+  if (CUR_LIST === null || !LISTAS.some(l => l.id === CUR_LIST)) CUR_LIST = LISTAS[0].id;
+  sel.innerHTML = LISTAS.map(l => `<option value="${l.id}" ${l.id===CUR_LIST?'selected':''}>${l.icon||'📝'} ${esc(l.name)} (${l.pend})</option>`).join('');
+  sel.onchange = () => { CUR_LIST = +sel.value; renderLista(); };
+  renderLista();
+}
+function itemRow(it){
+  return `<label class="lst-item${it.done?' is-done':''}"><input type="checkbox" ${it.done?'checked':''} onchange="toggleItem(${it.id})"><span class="lst-text">${fmtItem(it)}</span><button class="btn sm danger lst-del" onclick="event.preventDefault();delItem(${it.id})">×</button></label>`;
+}
+function renderLista(){
+  const l = LISTAS.find(x => x.id === CUR_LIST);
+  const body = document.getElementById('listas-body');
+  if (!l){ body.innerHTML = ''; return; }
+  const pend = l.items.filter(i => !i.done);
+  const done = l.items.filter(i => i.done);
+  const sub = fmtListSub(l);
+  let h = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+    <h2 style="margin:0;flex:1">${l.icon||'📝'} ${esc(l.name)}</h2>
+    <button class="btn sm danger" onclick="delLista(${l.id})">Borrar lista</button></div>`;
+  if (sub) h += `<div class="muted" style="margin-bottom:10px;font-size:12px">${sub}</div>`;
+  h += `<div class="filters" style="margin-bottom:12px;gap:6px">
+    <input type="text" id="lst-add" placeholder="Agregar ítem (ej: 2 kg de papa)" style="flex:1" onkeydown="if(event.key==='Enter')addItem()">
+    <button class="btn primary" onclick="addItem()">+ Agregar</button>
+    <button class="btn" onclick="buyAll(${l.id})" title="Marcar todo como comprado">✅ Compré todo</button>
+    <button class="btn" onclick="saveTemplate(${l.id})" title="Guardar como plantilla">💾 Plantilla</button>
+    <button class="btn" onclick="useTemplate(${l.id})" title="Usar una plantilla">📋 Usar</button>
+  </div>`;
+  if (!l.items.length){ h += '<div class="empty">Lista vacía. Agregá el primer ítem.</div>'; body.innerHTML = h; return; }
+  const groups = {};
+  pend.forEach(it => { const a = it.category || 'Otros'; (groups[a] = groups[a] || []).push(it); });
+  const aisles = AISLE_ORDER.filter(a => groups[a]).concat(Object.keys(groups).filter(a => !AISLE_ORDER.includes(a)));
+  const multi = aisles.length > 1;
+  if (pend.length){
+    h += '<div class="lst-items">';
+    aisles.forEach(a => {
+      if (multi) h += `<div class="lst-aisle">${AISLE_ICON[a]||'📦'} ${esc(a)}</div>`;
+      groups[a].forEach(it => { h += itemRow(it); });
+    });
+    h += '</div>';
+  } else {
+    h += '<div class="muted" style="padding:8px 0">✅ ¡Todo comprado!</div>';
+  }
+  if (done.length){
+    h += `<div style="display:flex;align-items:center;gap:8px;margin:16px 0 4px"><div class="muted" style="flex:1">✅ Comprados (${done.length})</div><button class="btn sm" onclick="clearDone(${l.id})">🧹 Limpiar</button></div>`;
+    h += '<div class="lst-items done">' + done.map(itemRow).join('') + '</div>';
+  }
+  body.innerHTML = h;
+}
+async function addItem(){
+  const inp = document.getElementById('lst-add');
+  const text = (inp.value || '').trim();
+  if (!text) return;
+  await api(`/api/listas/${CUR_LIST}/items`, {method:'POST', body:{text}});
+  await loadListas();
+  const ni = document.getElementById('lst-add'); if (ni) ni.focus();
+}
+async function toggleItem(id){ await api(`/api/listas/items/${id}/toggle`, {method:'POST'}); await loadListas(); }
+async function delItem(id){ await api(`/api/listas/items/${id}`, {method:'DELETE'}); await loadListas(); }
+async function clearDone(lid){ await api(`/api/listas/${lid}/clear`, {method:'POST'}); toast('Comprados limpiados','success'); await loadListas(); }
+async function buyAll(lid){ await api(`/api/listas/${lid}/buy-all`, {method:'POST'}); toast('Marcado como comprado','success'); await loadListas(); }
+function saveTemplate(lid){
+  showModal('<h3>Guardar como plantilla</h3><div class="field"><label>Nombre de la plantilla</label><input id="tpl-name" placeholder="Ej: Compras de la semana"></div>', async () => {
+    const name = document.getElementById('tpl-name').value.trim();
+    if (!name){ toast('Nombre requerido','error'); return false; }
+    const r = await api(`/api/listas/${lid}/save-template`, {method:'POST', body:{name}});
+    toast(`Plantilla guardada (${r.count} ítems)`, 'success');
+  });
+}
+async function useTemplate(lid){
+  const d = await api('/api/listas/templates');
+  const tpls = d.templates || [];
+  if (!tpls.length){ toast('No tenés plantillas. Guardá una primero con 💾.', 'info'); return; }
+  const opts = tpls.map(t => `<option value="${esc(t.name)}">${t.icon||'📋'} ${esc(t.name)} (${t.total})</option>`).join('');
+  showModal(`<h3>Usar plantilla</h3><div class="field"><label>Plantilla</label><select id="tpl-pick">${opts}</select></div><div class="muted" style="font-size:12px">Se agregan los ítems a la lista actual.</div>`, async () => {
+    const name = document.getElementById('tpl-pick').value;
+    const r = await api('/api/listas/use-template', {method:'POST', body:{name, target_list_id: lid}});
+    toast(`Agregué ${r.count} ítems`, 'success'); await loadListas();
+  });
+}
+async function delLista(lid){
+  if (!confirm('¿Borrar la lista y todos sus ítems?')) return;
+  await api(`/api/listas/${lid}`, {method:'DELETE'}); CUR_LIST = null;
+  toast('Lista borrada','success'); await loadListas();
+}
+function modalNuevaLista(){
+  showModal('<h3>Nueva lista</h3><div class="field"><label>Nombre</label><input id="nl-name" placeholder="Ej: Farmacia, Ferretería, Regalos..."></div>', async () => {
+    const name = document.getElementById('nl-name').value.trim();
+    if (!name){ toast('Nombre requerido','error'); return false; }
+    const r = await api('/api/listas', {method:'POST', body:{name}});
+    if (r.id) CUR_LIST = r.id;
+    toast('Lista creada','success'); await loadListas();
+  });
+}
+
+// ===== Hábitos =====
+async function loadHabitos() {
+  const days = document.getElementById('h-days').value;
+  const d = await api(`/api/habitos?days=${days}`);
+  document.getElementById('h-res').innerHTML = d.resumen.length ?
+    '<table><thead><tr><th>Hábito</th><th>Veces</th><th>Total</th></tr></thead><tbody>' +
+    d.resumen.map(h=>`<tr><td>${esc(h.name)}</td><td>${h.cnt}</td><td>${h.total&&h.unit?h.total+' '+esc(h.unit):'<span class="muted">—</span>'}</td></tr>`).join('')+'</tbody>' :
+    '<div class="empty">Sin registros</div>';
+  document.getElementById('h-log').innerHTML = d.items.length ?
+    '<thead><tr><th>Fecha</th><th>Hábito</th><th>Valor</th><th></th></tr></thead><tbody>' +
+    d.items.map(h=>`<tr><td>${parseDT(h.logged_at).toLocaleString('es-AR')}</td><td>${esc(h.name)}</td><td>${h.value&&h.unit?h.value+' '+esc(h.unit):''}</td><td><button class="btn sm danger" onclick="delHabito(${h.id})">×</button></td></tr>`).join('')+'</tbody>' :
+    '<thead><tr><th>Fecha</th><th>Hábito</th><th>Valor</th></tr></thead><tbody><tr><td colspan=3 class="empty">Sin registros</td></tr></tbody>';
+}
+
+// ===== Recordatorios =====
+async function loadRecs() {
+  const incl = document.getElementById('rec-incl-fired').checked;
+  const arr = await api('/api/recordatorios?include_fired='+incl);
+  const el = document.getElementById('rec-pend');
+  if (!arr.length) { el.innerHTML='<div class="empty"><div class="ico">⏰</div>Sin recordatorios</div>'; return; }
+  let h = '<table><thead><tr><th>Estado</th><th>Cuándo</th><th>Texto</th><th>Origen</th><th></th></tr></thead><tbody>';
+  for (const r of arr) {
+    const d = parseDT(r.remind_at);
+    const status = r.fired ? '<span style="color:#4ade80">✓ disparado</span>' : '<span style="color:#fbbf24">⏳ pendiente</span>';
+    h += `<tr><td>${status}</td><td class="dt"><b>${fmtDay(d)}</b>${fmtTime(d)}</td><td>${esc(r.text)}</td><td class="muted">${esc(r.source||'')}</td><td class="btn-row">${r.fired?'':`<button class="btn sm" onclick="snoozeRec(${r.id},'1h')">+1h</button><button class="btn sm" onclick="snoozeRec(${r.id},'manana')">Mañana</button>`}<button class="btn sm danger" onclick="delRecPend(${r.id})">×</button></td></tr>`;
+  }
+  h += '</tbody>'; el.innerHTML = h;
+}
+async function delRecPend(id) { softDelete('recordatorios', id, 'Recordatorio borrado', loadRecs); }
+
+// ===== Notas =====
+async function loadNotas() {
+  const q = document.getElementById('n-search').value.trim();
+  const arr = await api(`/api/notas${q?'?q='+encodeURIComponent(q):''}`);
+  const el = document.getElementById('notas-list');
+  if (!arr.length) { el.innerHTML='<div class="empty"><div class="ico">📓</div>Sin notas</div>'; return; }
+  el.innerHTML = arr.map(n=>{ const tags=n.tags?JSON.parse(n.tags):[]; return `<div class="note"><div class="m">${parseDT(n.created_at).toLocaleString('es-AR')} · #${n.id}<button class="btn sm danger" style="float:right" onclick="delNotaItem(${n.id})">×</button><button class="btn sm" style="float:right;margin-right:4px" onclick='modalNota(${JSON.stringify(n).replace(/'/g,"&apos;")})'>✏️</button></div><div>${esc(n.text).replace(/\n/g,'<br>')}</div>${tags.length?'<div style="margin-top:8px">'+tags.map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</div>':''}</div>`}).join('');
+}
+function modalNota(n=null) {
+  const isEdit = n !== null;
+  showModal(`<h3>${isEdit?'Editar':'Nueva'} nota</h3><div class="field"><label>Texto</label><textarea id="n-text" rows="5">${n?esc(n.text):''}</textarea></div>`,
+    async () => {
+      const text = document.getElementById('n-text').value.trim();
+      if (!text) { toast('Texto requerido','error'); return false; }
+      if (isEdit) { await api(`/api/notas/${n.id}`,{method:'PATCH',body:{text}}); toast('Actualizada','success'); }
+      else { await api('/api/notas',{method:'POST',body:{text}}); toast('Creada','success'); }
+      loadNotas();
+    });
+}
+async function delNotaItem(id) { softDelete('notas', id, 'Nota borrada', loadNotas); }
+document.getElementById('n-search').addEventListener('keydown', e => { if (e.key === 'Enter') loadNotas(); });
+
+
+// ===== Nuevos modales (CRUD v2) =====
+async function modalRecurrente() {
+  await loadMeta();
+  const accOpts = ACCOUNTS.map(a=>`<option value="${a.id}">${a.icon||''} ${esc(a.name)}</option>`).join('');
+  const catOpts = '<option value="">(sin categoría)</option>' + CATEGORIES.map(c=>`<option value="${c.id}">${c.icon||''} ${esc(c.name)}</option>`).join('');
+  showModal(`<h3>Nueva recurrente</h3>
+    <div class="field"><label>Descripción</label><input type="text" id="rc-desc" placeholder="Movistar"></div>
+    <div class="field-grid">
+      <div class="field"><label>Tipo</label><select id="rc-type"><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select></div>
+      <div class="field"><label>Monto</label><input type="number" id="rc-amount" step="0.01"></div>
+      <div class="field"><label>Moneda</label><select id="rc-currency"><option>ARS</option><option>USD</option><option>EUR</option></select></div>
+      <div class="field"><label>Cuenta</label><select id="rc-account">${accOpts}</select></div>
+      <div class="field"><label>Categoría</label><select id="rc-category">${catOpts}</select></div>
+      <div class="field"><label>Día del mes (1-28)</label><input type="number" id="rc-day" min="1" max="28" value="10"></div>
+    </div>
+    <div class="field"><label>Cuotas (vacío = sin fin)</label><input type="number" id="rc-inst" min="1" placeholder="∞"></div>`,
+    async () => {
+      const body = {
+        type: document.getElementById('rc-type').value,
+        amount: parseFloat(document.getElementById('rc-amount').value),
+        currency: document.getElementById('rc-currency').value,
+        account_id: parseInt(document.getElementById('rc-account').value),
+        category_id: document.getElementById('rc-category').value ? parseInt(document.getElementById('rc-category').value) : null,
+        description: document.getElementById('rc-desc').value.trim(),
+        day_of_month: parseInt(document.getElementById('rc-day').value),
+        total_installments: document.getElementById('rc-inst').value ? parseInt(document.getElementById('rc-inst').value) : null,
+      };
+      if (!body.amount || !body.description || !body.day_of_month) { toast('Faltan datos','error'); return false; }
+      await api('/api/recurring',{method:'POST',body}); toast('Creada','success'); loadRec();
+    });
+}
+function modalEvento(ev=null) {
+  const isEdit = ev !== null;
+  showModal(`<h3>${isEdit?'Editar':'Nuevo'} evento</h3>
+    <div class="field"><label>Título</label><input type="text" id="ev-title" value="${ev?esc(ev.title):''}"></div>
+    <div class="field"><label>Fecha y hora</label><input type="datetime-local" id="ev-when" value="${ev?(ev.starts_at||'').replace(' ','T').slice(0,16):''}"></div>
+    <div class="field"><label>Lugar</label><input type="text" id="ev-loc" value="${ev?esc(ev.location||''):''}"></div>
+    <div class="field"><label>Notas</label><textarea id="ev-notes" rows="2">${ev?esc(ev.notes||''):''}</textarea></div>`,
+    async () => {
+      const body = {
+        title: document.getElementById('ev-title').value.trim(),
+        starts_at: document.getElementById('ev-when').value,
+        location: document.getElementById('ev-loc').value || null,
+        notes: document.getElementById('ev-notes').value || null,
+      };
+      if (!body.title || !body.starts_at) { toast('Faltan datos','error'); return false; }
+      if (isEdit) { await api(`/api/eventos/${ev.id}`,{method:'PATCH',body}); toast('Actualizado','success'); }
+      else { await api('/api/eventos',{method:'POST',body}); toast('Creado','success'); }
+      loadEv();
+    });
+}
+function modalRecordatorio() {
+  showModal(`<h3>Nuevo recordatorio</h3>
+    <div class="field"><label>Texto</label><input type="text" id="rm-text" placeholder="Pagar el internet"></div>
+    <div class="field"><label>Cuándo</label><input type="datetime-local" id="rm-when"></div>
+    <p class="muted" style="font-size:11px;margin:0">Te llega por Telegram (puede demorar hasta 1 min).</p>`,
+    async () => {
+      const body = { text: document.getElementById('rm-text').value.trim(), remind_at: document.getElementById('rm-when').value };
+      if (!body.text || !body.remind_at) { toast('Faltan datos','error'); return false; }
+      await api('/api/recordatorios',{method:'POST',body}); toast('Creado','success'); loadRecs();
+    });
+}
+async function snoozeRec(id, preset) {
+  await api(`/api/recordatorios/${id}/snooze?preset=${preset}`,{method:'POST'});
+  toast(preset==='1h'?'Pospuesto 1 hora':'Pospuesto a mañana 9:00','success'); loadRecs();
+}
+function modalHabito() {
+  showModal(`<h3>Registrar hábito</h3>
+    <div class="field"><label>Hábito</label><input type="text" id="hb-name" placeholder="ejercicio"></div>
+    <div class="field-grid">
+      <div class="field"><label>Cantidad</label><input type="number" id="hb-value" step="0.1"></div>
+      <div class="field"><label>Unidad</label><input type="text" id="hb-unit" placeholder="min"></div>
+    </div>
+    <div class="field"><label>Nota</label><input type="text" id="hb-note"></div>`,
+    async () => {
+      const body = {
+        name: document.getElementById('hb-name').value.trim().toLowerCase(),
+        value: document.getElementById('hb-value').value ? parseFloat(document.getElementById('hb-value').value) : null,
+        unit: document.getElementById('hb-unit').value || null,
+        note: document.getElementById('hb-note').value || null,
+      };
+      if (!body.name) { toast('Nombre requerido','error'); return false; }
+      await api('/api/habitos',{method:'POST',body}); toast('Registrado','success'); loadHabitos();
+    });
+}
+async function delHabito(id) { softDelete('habitos', id, 'Registro borrado', loadHabitos); }
+
+// ===== Patrimonio =====
+async function loadPatrimonio(){
+  await loadMeta();
+  const d = await api('/api/networth');
+  const now = d.now;
+  document.getElementById('nw-cards').innerHTML = now ? `
+    <div class="card"><div class="l">Total (ARS)</div><div class="v">$${fmtMoney(now.total_ars)}</div></div>
+    <div class="card"><div class="l">Equivalente (USD)</div><div class="v">U$D ${fmtMoney(now.total_usd)}</div></div>`
+    : '<div class="empty"><div class="ico">📈</div>Cotización no disponible</div>';
+
+  // serie + punto en vivo al final
+  const series = (d.series || []).slice();
+  const labels = series.map(s => s.day);
+  const valsArs = series.map(s => s.total_ars);
+  if (now) { labels.push('ahora'); valsArs.push(now.total_ars); }
+
+  document.getElementById('nw-title').textContent = 'Patrimonio total (ARS) — ' + (series.length ? series.length+' snapshots' : 'sin historial aún');
+  if (nwChart) nwChart.destroy();
+  if (labels.length) {
+    nwChart = new Chart(document.getElementById('nw-chart'), {
+      type: 'line',
+      data: { labels, datasets: [{
+        label: 'Patrimonio (ARS)', data: valsArs,
+        borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,.15)',
+        fill: true, tension: .25, pointRadius: 3 }] },
+      options: { maintainAspectRatio:false,
+        plugins:{ legend:{ labels:{ color:'#cbd5e1' } } },
+        scales:{ x:{ ticks:{ color:'#94a3b8', font:{size:10}, maxRotation:0, autoSkip:true } },
+                 y:{ ticks:{ color:'#94a3b8', callback:v=>'$'+Number(v).toLocaleString('es-AR') } } } }
+    });
+  }
+
+  document.getElementById('nw-detail').innerHTML = (now && now.detail.length)
+    ? now.detail.map(x => {
+        const eq = x.currency!=='ARS' ? ` <span class="muted">(≈ $${fmtMoney(x.value_ars)} ARS${x.rate_type!=='blue'?' @'+x.rate_type:''})</span>` : '';
+        return `<div class="account-card"><div class="name">${x.icon||''} ${esc(x.name)}</div><div class="bal pos">${x.currency}: ${fmtMoney(x.balance)}${eq}</div></div>`;
+      }).join('')
+    : '<div class="empty"><div class="ico">📂</div>Sin saldos</div>';
+}
+
+// ===== Filtros de moneda dinámicos =====
+// Las monedas disponibles se derivan de los datos reales (/api/currencies),
+// así el filtro incluye ARS/USD/EUR (o cualquier otra que aparezca) sin
+// hardcodear. Se llama una vez al iniciar y al cambiar de scope.
+let CURRENCIES = null;
+async function loadCurrencies(force=false){
+  if (CURRENCIES && !force) return CURRENCIES;
+  try { CURRENCIES = (await api('/api/currencies')).currencies || ['ARS']; }
+  catch(e){ CURRENCIES = ['ARS','USD','EUR']; }
+  if (!CURRENCIES.length) CURRENCIES = ['ARS'];
+  populateCurrencyFilters();
+  return CURRENCIES;
+}
+function fillCurSelect(sel, withTodas){
+  if (!sel) return;
+  const cur = sel.value;
+  const opts = (withTodas ? ['<option value="">Todas</option>'] : [])
+    .concat(CURRENCIES.map(c=>`<option value="${c}">${c}</option>`));
+  sel.innerHTML = opts.join('');
+  // preservar selección previa si sigue siendo válida
+  if ([...sel.options].some(o=>o.value===cur)) sel.value = cur;
+}
+function populateCurrencyFilters(){
+  fillCurSelect(document.getElementById('tr-cur'), false);   // Tendencias
+  fillCurSelect(document.getElementById('t-currency'), true); // Movimientos
+}
+
+// ===== Tendencias =====
+let trendChart;
+const PALETTE = ['#60a5fa','#f87171','#34d399','#fbbf24','#a78bfa','#fb923c','#f472b6','#22d3ee','#94a3b8','#84cc16','#ec4899','#6366f1'];
+async function loadTrends(){
+  await loadCurrencies();
+  const months = document.getElementById('tr-months').value;
+  const by = document.getElementById('tr-by').value;
+  const cur = document.getElementById('tr-cur').value;
+  const d = await api(`/api/trends?months=${months}&by=${by}&currency=${cur}`);
+  document.getElementById('tr-title').textContent =
+    by==='category' ? `Gastos por categoría (${cur}) — últimos ${months} meses`
+                     : `Gastos vs ingresos — últimos ${months} meses`;
+  const datasets = [];
+  if (by==='category'){
+    Object.entries(d.series).forEach(([name,arr],i)=>datasets.push(
+      {label:name,data:arr,borderColor:PALETTE[i%PALETTE.length],backgroundColor:'transparent',tension:.3}));
+  } else {
+    const colors={gasto:'#f87171',ingreso:'#34d399'};
+    ['gasto','ingreso'].forEach(tp=>{
+      const byc=(d.series||{})[tp]||{};
+      Object.entries(byc).forEach(([curr,arr])=>{
+        if (curr!==cur) return;
+        datasets.push({label:`${tp} ${curr}`,data:arr,borderColor:colors[tp],backgroundColor:'transparent',tension:.3});
+      });
+    });
+  }
+  if (trendChart) trendChart.destroy();
+  trendChart = new Chart(document.getElementById('trend-chart'),{type:'line',
+    data:{labels:d.labels,datasets},
+    options:{maintainAspectRatio:false,plugins:{legend:{labels:{color:'#cbd5e1',font:{size:11}}}},
+      scales:{x:{ticks:{color:'#94a3b8',font:{size:10}}},y:{ticks:{color:'#94a3b8'}}}}});
+}
+
+// ===== Calendario: pagos (plata) y agenda (vida) separados =====
+const CAL_ICO = {recurrente:'🔁',tarjeta:'💳',recordatorio:'⏰',evento:'📅'};
+const CAL_KIND = {recurrente:'Recurrente',tarjeta:'Tarjeta',recordatorio:'Recordatorio',evento:'Evento'};
+function calRow(x, today, showTime){
+  const dt = parseDT(x.datetime || x.date);
+  const amt = x.amount!=null ? `<span class="amt gasto">${fmtMoney(x.amount)} ${x.currency}</span>` : '';
+  const overdue = x.date < today;
+  const sub = x.sub ? esc(x.sub) : (CAL_KIND[x.kind]||x.kind);
+  const time = showTime && (x.datetime||'').length>=16 ? `<div>${esc(x.datetime.slice(11,16))}</div>` : '';
+  return `<div class="ev"><div class="d"><div>${MESES[dt.getMonth()]}</div><div class="day">${dt.getDate()}</div>${time}</div>
+    <div class="b"><div class="t">${CAL_ICO[x.kind]||''} ${esc(x.title)}${overdue?' <span class="priority-alta">(vencido)</span>':''}</div>
+    <div class="m">${sub}</div></div>${amt}</div>`;
+}
+async function loadCalendar(){
+  const days = document.getElementById('cal-days').value;
+  const d = await api(`/api/upcoming?days=${days}`);
+  const pagos = d.pagos || [], agenda = d.agenda || [];
+  const pEl = document.getElementById('cal-pagos'), aEl = document.getElementById('cal-agenda');
+  pEl.innerHTML = pagos.length
+    ? pagos.map(x=>calRow(x, d.today, false)).join('')
+    : '<div class="empty"><div class="ico">💸</div>Sin pagos por vencer</div>';
+  aEl.innerHTML = agenda.length
+    ? agenda.map(x=>calRow(x, d.today, true)).join('')
+    : '<div class="empty"><div class="ico">🗓️</div>Sin eventos ni recordatorios</div>';
+}
+
+function loadTab(id) {
+  const fn = {overview:loadOverview, transacciones:loadTx, recurrentes:loadRec, cuentas:loadAccTable, categorias:loadCatTable, cotizacion:loadCot, patrimonio:loadPatrimonio, tendencias:loadTrends, calendario:loadCalendar, eventos:loadEv, tareas:loadTar, listas:loadListas, habitos:loadHabitos, recordatorios:loadRecs, notas:loadNotas}[id] || (()=>{});
+  // Si el fetch falla (API caída, sesión vencida, sin internet) mostramos un aviso en vez de una pestaña en blanco.
+  Promise.resolve().then(fn).catch(e => {
+    const msg = (e && e.message) ? e.message : 'Error de conexión';
+    toast('No se pudo cargar «' + id + '»: ' + msg, 'error');
+  });
+}
+
+// ===== Card-stack en mobile: copia los <th> como data-label en cada <td> =====
+function cardizeTable(tbl) {
+  const ths = [...tbl.querySelectorAll('thead th')].map(th => th.textContent.trim());
+  if (!ths.length) return;
+  tbl.querySelectorAll('tbody tr').forEach(tr => {
+    [...tr.children].forEach((td, i) => {
+      if (td.hasAttribute('colspan')) return;
+      if (ths[i]) td.setAttribute('data-label', ths[i]);
+    });
+  });
+}
+(function initCardize() {
+  const main = document.querySelector('main');
+  if (!main || !('MutationObserver' in window)) return;
+  const run = () => main.querySelectorAll('table').forEach(cardizeTable);
+  new MutationObserver(run).observe(main, { childList: true, subtree: true });
+  run();
+})();
+
+loadOverview();
+loadCurrencies();
+</script></body></html>
