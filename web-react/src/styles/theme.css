@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@theme {
+  --color-linen: #fafffa;
+  --color-obsidian-ink: #121613;
+  --color-pure-black: #000000;
+  --color-bark: #232924;
+  --color-sage: #516254;
+  --color-mist: #c8d2c8;
+  --color-voltage: #2bee4b;
+  --color-moss-glow: #93b799;
+  --color-pollen: #c4e4c9;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Fraunces", Georgia, serif;
+
+  --radius-card: 14px;
+  --radius-btn: 10px;
+  --radius-sm: 5px;
+
+  --shadow-cta: rgba(16,94,29,0.45) 1px 8px 20px 0px, rgba(18,146,39,0.25) 1px 8px 20px 0px;
+}
+
+:root {
+  --voltage-on-dark: #0f3d18; /* texto sobre fondo voltage */
+}
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--color-linen);
+  color: var(--color-obsidian-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+.cap {
+  font-size: 11px; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--color-sage); font-weight: 500;
+}
+.num-serif { font-family: var(--font-serif); font-weight: 300; line-height: 0.92; }
