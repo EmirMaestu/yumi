@@ -1,4 +1,4 @@
-import { useForm } from 'react-hook-form'
+import { type SubmitHandler, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import Sheet from './ui/Sheet'
@@ -13,17 +13,18 @@ const schema = z.object({
   account_id: z.coerce.number().int(),
   category_id: z.coerce.number().int().optional(),
 })
-type Form = z.infer<typeof schema>
+type FormInput = z.input<typeof schema>
+type FormOutput = z.output<typeof schema>
 
 export default function QuickAddSheet({ onClose }: { onClose: () => void }) {
   const accounts = useAccounts()
   const categories = useCategories()
   const { create } = useTxMutations()
-  const { register, handleSubmit, formState: { errors } } = useForm<Form>({
+  const { register, handleSubmit, formState: { errors } } = useForm<FormInput, unknown, FormOutput>({
     resolver: zodResolver(schema), defaultValues: { type: 'gasto' },
   })
 
-  const onSubmit = (v: Form) => create.mutate(v, { onSuccess: onClose })
+  const onSubmit: SubmitHandler<FormOutput> = (v) => create.mutate(v, { onSuccess: onClose })
 
   return (
     <Sheet title="Agregar gasto" onClose={onClose}>
