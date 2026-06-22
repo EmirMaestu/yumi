@@ -12,6 +12,7 @@ const schema = z.object({
   description: z.string().min(1, 'Falta descripción'),
   account_id: z.coerce.number().int(),
   category_id: z.coerce.number().int().optional(),
+  occurred_at: z.string(),
 })
 type FormInput = z.input<typeof schema>
 type FormOutput = z.output<typeof schema>
@@ -21,7 +22,7 @@ export default function QuickAddSheet({ onClose }: { onClose: () => void }) {
   const categories = useCategories()
   const { create } = useTxMutations()
   const { register, handleSubmit, formState: { errors } } = useForm<FormInput, unknown, FormOutput>({
-    resolver: zodResolver(schema), defaultValues: { type: 'gasto' },
+    resolver: zodResolver(schema), defaultValues: { type: 'gasto', occurred_at: new Date().toISOString().slice(0, 16) },
   })
 
   const onSubmit: SubmitHandler<FormOutput> = (v) => create.mutate(v, { onSuccess: onClose })
@@ -29,6 +30,7 @@ export default function QuickAddSheet({ onClose }: { onClose: () => void }) {
   return (
     <Sheet title="Agregar gasto" onClose={onClose}>
       <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'grid', gap: 12 }}>
+        <input type="hidden" {...register('occurred_at')} />
         <select {...register('type')} style={field}><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select>
         <input {...register('amount')} inputMode="decimal" placeholder="Monto" style={field} />
         {errors.amount && <small style={err}>{errors.amount.message}</small>}

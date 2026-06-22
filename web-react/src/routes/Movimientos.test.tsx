@@ -7,9 +7,10 @@ afterEach(() => vi.restoreAllMocks())
 
 test('lista transacciones', async () => {
   vi.stubGlobal('fetch', vi.fn((url: string) => {
-    if (String(url).includes('/api/transactions')) return Promise.resolve(new Response(JSON.stringify([
-      { id: 1, type: 'gasto', amount: 5000, currency: 'ARS', description: 'Coca', occurred_at: '2026-06-20', account_id: 1, account_name: 'MP', category_name: 'Comida' },
-    ]), { status: 200 }))
+    if (String(url).includes('/api/transactions')) return Promise.resolve(new Response(JSON.stringify({
+      items: [{ id: 1, type: 'gasto', amount: 5000, currency: 'ARS', description: 'Coca', occurred_at: '2026-06-20', account_id: 1, acc_name: 'MP', cat_name: 'Comida' }],
+      total: 1,
+    }), { status: 200 }))
     return Promise.resolve(new Response('[]', { status: 200 }))
   }))
   renderWithProviders(<Movimientos />)

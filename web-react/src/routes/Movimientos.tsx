@@ -7,7 +7,7 @@ import { formatMoney } from '../lib/format'
 import Skeleton from '../components/ui/Skeleton'
 import EmptyState from '../components/ui/EmptyState'
 
-const PERIODS = ['hoy', 'semana', 'mes', 'mes pasado', 'año']
+const PERIODS = ['mes', 'mes pasado', 'año', 'todo']
 
 export default function Movimientos() {
   const [filters, setFilters] = useState<TxFilters>({ period: 'mes' })
@@ -40,7 +40,7 @@ export default function Movimientos() {
         <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--color-mist)' }}>
           <span>
             <span style={{ fontSize: 14, fontWeight: 500 }}>{t.description}</span><br />
-            <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>{t.category_name ?? 'sin categoría'} · {t.account_name ?? ''} · {t.occurred_at.slice(0, 10)}</span>
+            <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>{t.cat_name ?? 'sin categoría'} · {t.acc_name ?? ''} · {t.occurred_at.slice(0, 10)}</span>
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 15, fontWeight: 500, color: t.type === 'ingreso' ? '#3b6d11' : 'var(--color-obsidian-ink)' }}>

@@ -1,16 +1,33 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiGet, apiPost, apiPatch, apiDelete } from '../lib/api'
-import { type Transaction } from '../lib/types'
+import type { Transaction } from '../lib/types'
 
 export interface TxFilters { period?: string; account_id?: number; category_id?: number; currency?: string; q?: string }
 
-export function useTransactions(filters: TxFilters = {}) {
+function buildQuery(filters: TxFilters): string {
   const qs = new URLSearchParams()
-  Object.entries(filters).forEach(([k, v]) => { if (v !== undefined && v !== '') qs.set(k, String(v)) })
-  const query = qs.toString()
+  const now = new Date()
+  const period = filters.period ?? 'mes'
+  if (period === 'mes') {
+    qs.set('year', String(now.getFullYear())); qs.set('month', String(now.getMonth() + 1))
+  } else if (period === 'mes pasado') {
+    const d = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    qs.set('year', String(d.getFullYear())); qs.set('month', String(d.getMonth() + 1))
+  } else if (period === 'año') {
+    qs.set('year', String(now.getFullYear()))
+  }
+  if (filters.account_id) qs.set('account_id', String(filters.account_id))
+  if (filters.category_id) qs.set('category_id', String(filters.category_id))
+  if (filters.currency) qs.set('currency', filters.currency)
+  if (filters.q) qs.set('q', filters.q)
+  return qs.toString()
+}
+
+export function useTransactions(filters: TxFilters = {}) {
+  const query = buildQuery(filters)
   return useQuery({
     queryKey: ['transactions', filters],
-    queryFn: () => apiGet<Transaction[]>(`/api/transactions${query ? `?${query}` : ''}`),
+    queryFn: () => apiGet<{ items: Transaction[]; total: number }>(`/api/transactions${query ? `?${query}` : ''}`).then((r) => r.items),
   })
 }
 

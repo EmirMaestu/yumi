@@ -61,6 +61,8 @@ export interface Transaction {
   account_name?: string
   category_id?: number | null
   category_name?: string | null
+  acc_name?: string | null
+  cat_name?: string | null
 }
 
 export interface Category {
