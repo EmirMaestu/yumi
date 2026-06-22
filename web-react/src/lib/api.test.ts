@@ -35,3 +35,8 @@ test('un 401 dispara el handler y lanza ApiError', async () => {
   await expect(apiGet('/api/me')).rejects.toBeInstanceOf(ApiError)
   expect(handler).toHaveBeenCalledOnce()
 })
+
+test('un 204 devuelve undefined sin parsear body', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 204 })))
+  await expect(apiGet('/api/transactions/1')).resolves.toBeUndefined()
+})

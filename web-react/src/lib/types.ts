@@ -27,20 +27,27 @@ export interface CategoryTotal { cat: string; color?: string; total: number }
 
 export interface HoyItem { tipo: string; titulo: string; sub: string; hora: string }
 
+export interface Overview2Kpis {
+  gasto_mes: number
+  gasto_prev_alt: number
+  ingreso_mes: number
+  deuda_tarjetas: number
+  cuotas_futuras: number
+  cuotas_n: number
+  disponible: number
+}
+
 export interface Overview2 {
   patrimonio_ars: number
   patrimonio_usd: number | null
   blue: number
-  gasto_mes: number
-  gasto_prev_alt: number
-  ingreso_mes: number
-  cuotas_futuras: number
-  cuotas_n: number
+  kpis: Overview2Kpis
   cashflow: { ym: string; ingresos: number; gastos: number }[]
-  hoy_items: HoyItem[]
+  hoy: HoyItem[]
   por_categoria: CategoryTotal[]
   mes_nombre?: string
   year?: number
+  dia?: number
 }
 
 export interface Transaction {
@@ -75,11 +82,17 @@ export interface Recurring {
   installments_fired?: number | null
 }
 
+export interface CicloTotal { currency: Currency; total: number }
+
 export interface VencimientoCard {
   account_id: number
   account_name: string
-  due_date: string
-  closing_date?: string
-  amount: number
-  cycle_accumulated?: number
+  icon?: string | null
+  user_id?: number
+  last_closing?: string
+  next_closing?: string
+  next_due?: string
+  ciclo_cerrado: CicloTotal[]
+  ciclo_abierto: CicloTotal[]
+  error?: string
 }
