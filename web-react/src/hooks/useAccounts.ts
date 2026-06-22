@@ -13,3 +13,12 @@ export function useAccountMutations() {
     remove: useMutation({ mutationFn: (id: number) => apiDelete(`/api/accounts/${id}`), onSuccess: inval }),
   }
 }
+export function useAccountsWithBalances() {
+  return useQuery({
+    queryKey: ['accounts-balances'],
+    queryFn: async () => {
+      const o = await apiGet<{ accounts: Account[] }>('/api/overview')
+      return o.accounts
+    },
+  })
+}
