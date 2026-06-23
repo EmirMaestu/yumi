@@ -45,11 +45,11 @@ export default function Movimientos() {
   const [deleteTx, setDeleteTx] = useState<Transaction | null>(null)
 
   const accountOpts = [
-    { value: '', label: 'Toda cuenta' },
+    { value: 'all', label: 'Toda cuenta' },
     ...(accounts.data ?? []).map((a) => ({ value: String(a.id), label: a.name })),
   ]
   const categoryOpts = [
-    { value: '', label: 'Toda categoría' },
+    { value: 'all', label: 'Toda categoría' },
     ...(categories.data ?? []).map((c) => ({ value: String(c.id), label: c.name })),
   ]
   const moveAccountOpts = (accounts.data ?? []).map((a) => ({ value: String(a.id), label: a.name }))
@@ -67,14 +67,14 @@ export default function Movimientos() {
           ariaLabel="Período"
         />
         <Select
-          value={filters.account_id ? String(filters.account_id) : ''}
-          onValueChange={(v) => setFilters((f) => ({ ...f, account_id: v ? Number(v) : undefined }))}
+          value={filters.account_id ? String(filters.account_id) : 'all'}
+          onValueChange={(v) => setFilters((f) => ({ ...f, account_id: v === 'all' ? undefined : Number(v) }))}
           options={accountOpts}
           ariaLabel="Cuenta"
         />
         <Select
-          value={filters.category_id ? String(filters.category_id) : ''}
-          onValueChange={(v) => setFilters((f) => ({ ...f, category_id: v ? Number(v) : undefined }))}
+          value={filters.category_id ? String(filters.category_id) : 'all'}
+          onValueChange={(v) => setFilters((f) => ({ ...f, category_id: v === 'all' ? undefined : Number(v) }))}
           options={categoryOpts}
           ariaLabel="Categoría"
         />
@@ -89,7 +89,7 @@ export default function Movimientos() {
       {/* Selection toolbar */}
       {sel.size > 0 && (
         <div style={{ position: 'sticky', top: 0, zIndex: 20, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--color-mist)', background: 'var(--color-linen)', marginBottom: 8 }}>
-          <span style={{ fontSize: 14, fontWeight: 500, flex: 1 }}>{sel.size} seleccionados</span>
+          <span style={{ fontSize: 14, fontWeight: 500, flex: 1 }}>{sel.size} seleccionado{sel.size === 1 ? '' : 's'}</span>
           <button onClick={() => setMoveOpen(true)} style={ghostBtn}>Mover</button>
           <button onClick={() => setBulkDeleteOpen(true)} style={ghostBtn}>Borrar</button>
           <button onClick={() => setSel(new Set())} aria-label="Limpiar selección" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--color-sage)' }}>×</button>
@@ -153,7 +153,7 @@ export default function Movimientos() {
             }}
             style={ctaBtn}
           >
-            Mover {sel.size} movimientos →
+            Mover {sel.size} movimiento{sel.size === 1 ? '' : 's'} →
           </button>
         </div>
       </Modal>
@@ -162,7 +162,7 @@ export default function Movimientos() {
       <ConfirmDialog
         open={bulkDeleteOpen}
         onOpenChange={setBulkDeleteOpen}
-        title={`¿Borrar ${sel.size} gastos?`}
+        title={`¿Borrar ${sel.size} gasto${sel.size === 1 ? '' : 's'}?`}
         description="Esta acción no se puede deshacer."
         onConfirm={() => {
           bulkDelete.mutate([...sel])
