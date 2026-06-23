@@ -6,7 +6,7 @@ import { useAccounts } from '../hooks/useAccounts'
 import { useCategories } from '../hooks/useCategories'
 import { formatMoney } from '../lib/format'
 import { type Transaction } from '../lib/types'
-import Skeleton from '../components/ui/Skeleton'
+import { MovimientosSkeleton } from '../components/ui/skeletons'
 import EmptyState from '../components/ui/EmptyState'
 import Select from '../components/ui/Select'
 import Modal from '../components/ui/Modal'
@@ -103,7 +103,7 @@ export default function Movimientos() {
         </div>
       )}
 
-      {isLoading && <div style={{ display: 'grid', gap: 8 }}>{[0, 1, 2].map((i) => <Skeleton key={i} h={44} />)}</div>}
+      {isLoading && <MovimientosSkeleton />}
       {data && data.length === 0 && <EmptyState>Sin movimientos para este filtro.</EmptyState>}
       {data?.map((t) => (
         <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 0', borderBottom: '1px solid var(--color-mist)' }}>

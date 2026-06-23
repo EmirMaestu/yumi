@@ -10,7 +10,7 @@ import Card from '../components/ui/Card'
 import Modal from '../components/ui/Modal'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import CardActions from '../components/ui/CardActions'
-import Skeleton from '../components/ui/Skeleton'
+import { TarjetaDetalleSkeleton } from '../components/ui/skeletons'
 import EmptyState from '../components/ui/EmptyState'
 import AccountForm from '../components/AccountForm'
 
@@ -19,6 +19,7 @@ interface CuotaForm {
   description: string
   amount: number
   total_installments: number
+  installments_fired: number
 }
 
 function CuotaModal({
@@ -34,9 +35,10 @@ function CuotaModal({
   title: string
   onSubmit: (data: CuotaForm) => void
 }) {
-  const { register, handleSubmit, reset } = useForm<CuotaForm>({
-    defaultValues: { description: '', amount: 0, total_installments: 1, ...initial },
+  const { register, handleSubmit, reset, watch } = useForm<CuotaForm>({
+    defaultValues: { description: '', amount: 0, total_installments: 1, installments_fired: 0, ...initial },
   })
+  const totalWatched = watch('total_installments')
   const submit = (data: CuotaForm) => { onSubmit(data); reset() }
   return (
     <Modal open={open} onClose={() => { onClose(); reset() }} title={title}>
@@ -61,6 +63,17 @@ function CuotaModal({
             {...register('total_installments', { valueAsNumber: true, min: 1 })}
             style={inputStyle}
           />
+        </label>
+        <label style={labelStyle}>
+          Cuotas ya pagadas
+          <input
+            type="number"
+            {...register('installments_fired', { valueAsNumber: true, min: 0, max: totalWatched })}
+            style={inputStyle}
+          />
+          <span style={{ fontSize: 11, color: 'var(--color-sage)', marginTop: 2 }}>
+            Cuántas de las {totalWatched ?? '?'} ya pagaste
+          </span>
         </label>
         <button type="submit" style={ctaBtn}>Guardar</button>
       </form>
@@ -88,13 +101,7 @@ export default function TarjetaDetalle() {
   const isLoading = accounts.isLoading || vencimientos.isLoading || recurring.isLoading
 
   if (isLoading) {
-    return (
-      <div style={{ padding: 18, display: 'grid', gap: 12 }}>
-        <Skeleton h={40} />
-        <Skeleton h={120} />
-        <Skeleton h={80} />
-      </div>
-    )
+    return <TarjetaDetalleSkeleton />
   }
 
   const account = accounts.data?.find((a) => a.id === accId) ?? null
@@ -257,6 +264,7 @@ export default function TarjetaDetalle() {
             account_id: accId,
             day_of_month: 1,
             total_installments: data.total_installments,
+            installments_fired: data.installments_fired,
             currency: 'ARS',
           })
           setAddCuotaOpen(false)
@@ -274,6 +282,7 @@ export default function TarjetaDetalle() {
               description: editCuota.description,
               amount: editCuota.amount,
               total_installments: editCuota.total_installments ?? 1,
+              installments_fired: editCuota.installments_fired ?? 0,
             }
             : undefined
         }
@@ -284,6 +293,7 @@ export default function TarjetaDetalle() {
               description: data.description,
               amount: data.amount,
               total_installments: data.total_installments,
+              installments_fired: data.installments_fired,
             })
           }
           setEditCuota(null)

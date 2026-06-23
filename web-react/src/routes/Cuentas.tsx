@@ -3,11 +3,12 @@ import { useAccountsWithBalances, useAccountMutations } from '../hooks/useAccoun
 import { type Account } from '../lib/types'
 import { formatMoney } from '../lib/format'
 import Card from '../components/ui/Card'
-import Skeleton from '../components/ui/Skeleton'
+import { CuentasSkeleton } from '../components/ui/skeletons'
 import EmptyState from '../components/ui/EmptyState'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import CardActions from '../components/ui/CardActions'
 import AccountForm from '../components/AccountForm'
+import AdjustBalanceModal from '../components/AdjustBalanceModal'
 
 const TYPE_LABEL: Record<string, string> = {
   efectivo: 'Efectivo',
@@ -24,8 +25,9 @@ export default function Cuentas() {
   const [createOpen, setCreateOpen] = useState(false)
   const [editAccount, setEditAccount] = useState<Account | null>(null)
   const [deleteAccount, setDeleteAccount] = useState<Account | null>(null)
+  const [adjustAccount, setAdjustAccount] = useState<Account | null>(null)
 
-  if (isLoading) return <div style={{ padding: 18 }}><Skeleton h={80} /></div>
+  if (isLoading) return <CuentasSkeleton />
 
   return (
     <div style={{ padding: '14px 18px 24px', display: 'grid', gap: 12 }}>
@@ -61,6 +63,12 @@ export default function Cuentas() {
               </div>
             ))}
           </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); setAdjustAccount(a) }}
+            style={adjustBtn}
+          >
+            Ajustar saldo
+          </button>
         </Card>
       ))}
 
@@ -85,6 +93,15 @@ export default function Cuentas() {
           setDeleteAccount(null)
         }}
       />
+
+      {/* Adjust balance modal */}
+      {adjustAccount && (
+        <AdjustBalanceModal
+          account={adjustAccount}
+          open={adjustAccount !== null}
+          onClose={() => setAdjustAccount(null)}
+        />
+      )}
     </div>
   )
 }
@@ -96,4 +113,15 @@ const ghostBtn: React.CSSProperties = {
   padding: '7px 14px',
   fontSize: 13,
   cursor: 'pointer',
+}
+const adjustBtn: React.CSSProperties = {
+  background: 'transparent',
+  border: 'none',
+  padding: '6px 0 0',
+  fontSize: 12,
+  color: 'var(--color-sage)',
+  cursor: 'pointer',
+  textAlign: 'left',
+  textDecoration: 'underline',
+  textDecorationStyle: 'dotted',
 }

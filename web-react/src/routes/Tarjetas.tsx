@@ -7,7 +7,7 @@ import { formatMoney } from '../lib/format'
 import { type Account, type CicloTotal } from '../lib/types'
 import Card from '../components/ui/Card'
 import AlertPill from '../components/ui/AlertPill'
-import Skeleton from '../components/ui/Skeleton'
+import { TarjetasSkeleton } from '../components/ui/skeletons'
 import EmptyState from '../components/ui/EmptyState'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import CardActions from '../components/ui/CardActions'
@@ -29,7 +29,7 @@ export default function Tarjetas() {
   const cuotasByAccount = (id: number) =>
     (recurring.data ?? []).filter((r) => r.account_id === id && r.total_installments)
 
-  if (accounts.isLoading) return <div style={{ padding: 18 }}><Skeleton h={120} /></div>
+  if (accounts.isLoading) return <TarjetasSkeleton />
   if (cards.length === 0) return <EmptyState>No tenés tarjetas de crédito cargadas.</EmptyState>
 
   return (

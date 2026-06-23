@@ -12,6 +12,7 @@ interface RecurringCreate {
   account_id: number
   day_of_month: number
   total_installments?: number | null
+  installments_fired?: number | null
   currency?: string
   category_id?: number | null
 }
@@ -21,6 +22,7 @@ interface RecurringUpdate {
   description?: string
   amount?: number
   total_installments?: number | null
+  installments_fired?: number | null
   active?: number
   day_of_month?: number
 }

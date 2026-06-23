@@ -33,7 +33,7 @@ export function useTransactions(filters: TxFilters = {}) {
 
 export function useTxMutations() {
   const qc = useQueryClient()
-  const inval = () => { qc.invalidateQueries({ queryKey: ['transactions'] }); qc.invalidateQueries({ queryKey: ['overview2'] }) }
+  const inval = () => { qc.invalidateQueries({ queryKey: ['transactions'] }); qc.invalidateQueries({ queryKey: ['overview2'] }); qc.invalidateQueries({ queryKey: ['accounts-balances'] }) }
   return {
     create: useMutation({ mutationFn: (b: Partial<Transaction>) => apiPost('/api/transactions', b), onSuccess: inval }),
     update: useMutation({ mutationFn: ({ id, ...b }: { id: number } & Partial<Transaction>) => apiPatch(`/api/transactions/${id}`, b), onSuccess: inval }),

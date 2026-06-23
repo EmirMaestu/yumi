@@ -53,3 +53,6 @@ body {
 .nf-pop { animation: nf-pop-in 140ms ease-out }
 .nf-item[data-highlighted] { background: rgba(43,238,75,0.14); outline: none }
 .nf-item[data-state="checked"] { font-weight: 500 }
+
+@keyframes nf-shimmer { 0% { background-position: -200% 0 } 100% { background-position: 200% 0 } }
+.nf-skel { background: linear-gradient(90deg, var(--color-mist) 25%, #e9efe9 37%, var(--color-mist) 63%); background-size: 200% 100%; animation: nf-shimmer 1.4s ease-in-out infinite; border-radius: 8px; display: block; }

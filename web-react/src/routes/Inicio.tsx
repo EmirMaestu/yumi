@@ -7,13 +7,13 @@ import TickMark from '../components/ui/TickMark'
 import StatNumber from '../components/ui/StatNumber'
 import CategoryBar from '../components/ui/CategoryBar'
 import AlertPill from '../components/ui/AlertPill'
-import Skeleton from '../components/ui/Skeleton'
+import { InicioSkeleton } from '../components/ui/skeletons'
 import EmptyState from '../components/ui/EmptyState'
 
 export default function Inicio() {
   const { data, isLoading, isError } = useOverview()
   const venc = useVencimientos()
-  if (isLoading) return <div style={{ padding: 22, display: 'grid', gap: 12 }}><Skeleton h={56} /><Skeleton h={120} /></div>
+  if (isLoading) return <InicioSkeleton />
   if (isError || !data) return <EmptyState>No pudimos cargar tus datos. Reintentá.</EmptyState>
   const k = data.kpis
   const delta = k.gasto_mes - k.gasto_prev_alt
@@ -41,7 +41,7 @@ export default function Inicio() {
             <div className="num-serif" style={{ fontSize: 32, marginTop: 4 }}>{formatMoney(k.cuotas_futuras)}</div>
           </div>
           <div style={{ height: 1, background: 'var(--color-mist)', margin: '16px 0' }} />
-          {venc.isLoading && <Skeleton h={48} />}
+          {venc.isLoading && <span aria-hidden className="nf-skel" style={{ height: 48, display: 'block' }} />}
           {venc.data && venc.data.length === 0 && <EmptyState>Sin vencimientos próximos.</EmptyState>}
           {venc.data?.map((v) => {
             const dias = daysUntil(v.next_closing)
