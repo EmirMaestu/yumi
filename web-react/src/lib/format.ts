@@ -8,7 +8,9 @@ const MESES = [
 ]
 
 export function formatMoney(amount: number, currency: Currency = 'ARS'): string {
-  return `${SYMBOL[currency]}${grouper.format(Math.round(amount))}`
+  const rounded = Math.round(amount)
+  const sign = rounded < 0 ? '-' : ''
+  return `${sign}${SYMBOL[currency]}${grouper.format(Math.abs(rounded))}`
 }
 
 export function formatUsdApprox(amountArs: number, blue: number | null): string | null {

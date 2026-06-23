@@ -50,7 +50,7 @@ export default function Inicio() {
                 <span>
                   <span style={{ fontSize: 14, fontWeight: 500 }}>{v.account_name}</span><br />
                   {dias !== null && dias >= 0 && dias <= 5
-                    ? <AlertPill>cierra en {dias} días</AlertPill>
+                    ? <AlertPill>cierra en {dias} día{dias === 1 ? '' : 's'}</AlertPill>
                     : <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>{formatDue(v.next_due)}</span>}
                 </span>
                 <span style={{ fontSize: 15, fontWeight: 500 }}>{formatMoney(cicloTotal(v.ciclo_cerrado))}</span>

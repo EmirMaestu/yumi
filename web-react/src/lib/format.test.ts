@@ -4,6 +4,7 @@ test('formatMoney ARS: miles con punto, sin decimales', () => {
   expect(formatMoney(1140000)).toBe('$1.140.000')
   expect(formatMoney(0)).toBe('$0')
   expect(formatMoney(612300.7)).toBe('$612.301')
+  expect(formatMoney(-207000)).toBe('-$207.000')
 })
 
 test('formatMoney USD y EUR con prefijo propio', () => {
