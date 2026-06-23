@@ -28,6 +28,7 @@ export default function Movimientos() {
   const { remove, bulkDelete, bulkMove } = useTxMutations()
 
   // Selection
+  const [selectMode, setSelectMode] = useState(false)
   const [sel, setSel] = useState<Set<number>>(new Set())
   const toggleSel = (id: number) => setSel((prev) => {
     const next = new Set(prev)
@@ -56,7 +57,13 @@ export default function Movimientos() {
 
   return (
     <div style={{ padding: '14px 18px 24px' }}>
-      <div className="cap" style={{ marginBottom: 12 }}>Movimientos</div>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+        <div className="cap" style={{ flex: 1 }}>Movimientos</div>
+        {!selectMode
+          ? <button onClick={() => setSelectMode(true)} style={selectModeBtn}>Seleccionar</button>
+          : <button onClick={() => { setSelectMode(false); setSel(new Set()) }} style={selectModeBtn}>Cancelar</button>
+        }
+      </div>
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
@@ -100,17 +107,19 @@ export default function Movimientos() {
       {data && data.length === 0 && <EmptyState>Sin movimientos para este filtro.</EmptyState>}
       {data?.map((t) => (
         <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 0', borderBottom: '1px solid var(--color-mist)' }}>
-          {/* Checkbox */}
-          <Checkbox.Root
-            checked={sel.has(t.id)}
-            onCheckedChange={() => toggleSel(t.id)}
-            aria-label={`Seleccionar ${t.description}`}
-            style={{ width: 18, height: 18, border: '1px solid var(--color-mist)', borderRadius: 5, background: sel.has(t.id) ? 'var(--color-voltage)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
-          >
-            <Checkbox.Indicator>
-              <i className="ti ti-check" style={{ fontSize: 13, color: 'var(--voltage-on-dark)' }} aria-hidden />
-            </Checkbox.Indicator>
-          </Checkbox.Root>
+          {/* Checkbox — only in selectMode */}
+          {selectMode && (
+            <Checkbox.Root
+              checked={sel.has(t.id)}
+              onCheckedChange={() => toggleSel(t.id)}
+              aria-label={`Seleccionar ${t.description}`}
+              style={{ width: 18, height: 18, border: '1px solid var(--color-mist)', borderRadius: 5, background: sel.has(t.id) ? 'var(--color-voltage)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+            >
+              <Checkbox.Indicator>
+                <i className="ti ti-check" style={{ fontSize: 13, color: 'var(--voltage-on-dark)' }} aria-hidden />
+              </Checkbox.Indicator>
+            </Checkbox.Root>
+          )}
 
           {/* Content */}
           <span style={{ flex: 1, minWidth: 0 }}>
@@ -196,3 +205,4 @@ export default function Movimientos() {
 const iconBtn: React.CSSProperties = { background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-sage)', fontSize: 16, padding: 2 }
 const ghostBtn: React.CSSProperties = { background: 'transparent', border: '1px solid var(--color-mist)', borderRadius: 10, padding: '7px 14px', fontSize: 13, cursor: 'pointer' }
 const ctaBtn: React.CSSProperties = { background: 'var(--color-voltage)', color: 'var(--voltage-on-dark)', border: 'none', borderRadius: 10, padding: '14px', fontWeight: 500, cursor: 'pointer' }
+const selectModeBtn: React.CSSProperties = { background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-sage)', fontSize: 13 }

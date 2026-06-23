@@ -44,11 +44,12 @@ body {
 @keyframes nf-slide-up { from { transform: translateY(100%) } to { transform: translateY(0) } }
 @keyframes nf-slide-down { from { transform: translateY(0) } to { transform: translateY(100%) } }
 @keyframes nf-pop-in { from { opacity: 0; transform: translateY(8px) scale(.98) } to { opacity: 1; transform: none } }
+@keyframes nf-modal-in { from { opacity: 0; transform: translate(-50%, -48%) scale(.98) } to { opacity: 1; transform: translate(-50%, -50%) scale(1) } }
 .nf-overlay[data-state="open"] { animation: nf-fade-in 160ms ease-out }
 .nf-overlay[data-state="closed"] { animation: nf-fade-out 160ms ease-in }
 .nf-sheet[data-state="open"] { animation: nf-slide-up 240ms cubic-bezier(.22,1,.36,1) }
 .nf-sheet[data-state="closed"] { animation: nf-slide-down 200ms ease-in }
-.nf-modal[data-state="open"] { animation: nf-pop-in 180ms ease-out }
+.nf-modal[data-state="open"] { animation: nf-modal-in 180ms ease-out }
 .nf-pop { animation: nf-pop-in 140ms ease-out }
 .nf-item[data-highlighted] { background: rgba(43,238,75,0.14); outline: none }
 .nf-item[data-state="checked"] { font-weight: 500 }

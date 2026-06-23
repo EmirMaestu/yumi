@@ -6,7 +6,12 @@ export function useAccounts() {
 }
 export function useAccountMutations() {
   const qc = useQueryClient()
-  const inval = () => qc.invalidateQueries({ queryKey: ['accounts'] })
+  const inval = () => Promise.all([
+    qc.invalidateQueries({ queryKey: ['accounts'] }),
+    qc.invalidateQueries({ queryKey: ['accounts-balances'] }),
+    qc.invalidateQueries({ queryKey: ['overview2'] }),
+    qc.invalidateQueries({ queryKey: ['vencimientos'] }),
+  ])
   return {
     create: useMutation({ mutationFn: (b: Partial<Account>) => apiPost('/api/accounts', b), onSuccess: inval }),
     update: useMutation({ mutationFn: ({ id, ...b }: { id: number } & Partial<Account>) => apiPatch(`/api/accounts/${id}`, b), onSuccess: inval }),
