@@ -38,3 +38,17 @@ body {
   color: var(--color-sage); font-weight: 500;
 }
 .num-serif { font-family: var(--font-serif); font-weight: 300; line-height: 0.92; }
+
+@keyframes nf-fade-in { from { opacity: 0 } to { opacity: 1 } }
+@keyframes nf-fade-out { from { opacity: 1 } to { opacity: 0 } }
+@keyframes nf-slide-up { from { transform: translateY(100%) } to { transform: translateY(0) } }
+@keyframes nf-slide-down { from { transform: translateY(0) } to { transform: translateY(100%) } }
+@keyframes nf-pop-in { from { opacity: 0; transform: translateY(8px) scale(.98) } to { opacity: 1; transform: none } }
+.nf-overlay[data-state="open"] { animation: nf-fade-in 160ms ease-out }
+.nf-overlay[data-state="closed"] { animation: nf-fade-out 160ms ease-in }
+.nf-sheet[data-state="open"] { animation: nf-slide-up 240ms cubic-bezier(.22,1,.36,1) }
+.nf-sheet[data-state="closed"] { animation: nf-slide-down 200ms ease-in }
+.nf-modal[data-state="open"] { animation: nf-pop-in 180ms ease-out }
+.nf-pop { animation: nf-pop-in 140ms ease-out }
+.nf-item[data-highlighted] { background: rgba(43,238,75,0.14); outline: none }
+.nf-item[data-state="checked"] { font-weight: 500 }

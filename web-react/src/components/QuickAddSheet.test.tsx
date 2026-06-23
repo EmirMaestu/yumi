@@ -8,7 +8,7 @@ afterEach(() => vi.restoreAllMocks())
 
 test('exige descripción y monto válido', async () => {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('[]', { status: 200 })))
-  renderWithProviders(<QuickAddSheet onClose={() => {}} />)
+  renderWithProviders(<QuickAddSheet open={true} onClose={() => {}} />)
   await userEvent.click(screen.getByRole('button', { name: /guardar/i }))
   expect(await screen.findByText('Falta descripción')).toBeInTheDocument()
 })

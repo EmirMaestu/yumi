@@ -1,11 +1,12 @@
 import { type SubmitHandler, useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import Sheet from './ui/Sheet'
+import Modal from './ui/Modal'
 import Select from './ui/Select'
 import { useAccounts } from '../hooks/useAccounts'
 import { useCategories } from '../hooks/useCategories'
 import { useTxMutations } from '../hooks/useTransactions'
+import { type Transaction } from '../lib/types'
 
 const schema = z.object({
   type: z.enum(['gasto', 'ingreso']),
@@ -13,7 +14,6 @@ const schema = z.object({
   description: z.string().min(1, 'Falta descripción'),
   account_id: z.coerce.number().int(),
   category_id: z.coerce.number().int().optional(),
-  occurred_at: z.string(),
 })
 type FormInput = z.input<typeof schema>
 type FormOutput = z.output<typeof schema>
@@ -23,23 +23,33 @@ const tipoOpts = [
   { value: 'ingreso', label: 'Ingreso' },
 ]
 
-export default function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function EditTxModal({ tx, open, onClose }: { tx: Transaction | null; open: boolean; onClose: () => void }) {
   const accounts = useAccounts()
   const categories = useCategories()
-  const { create } = useTxMutations()
-  const { register, handleSubmit, control, formState: { errors } } = useForm<FormInput, unknown, FormOutput>({
-    resolver: zodResolver(schema), defaultValues: { type: 'gasto', occurred_at: new Date().toISOString().slice(0, 16) },
-  })
+  const { update } = useTxMutations()
 
-  const onSubmit: SubmitHandler<FormOutput> = (v) => create.mutate(v, { onSuccess: onClose })
+  const { register, handleSubmit, control, formState: { errors } } = useForm<FormInput, unknown, FormOutput>({
+    resolver: zodResolver(schema),
+    values: tx ? {
+      type: tx.type,
+      amount: String(tx.amount),
+      description: tx.description,
+      account_id: String(tx.account_id),
+      category_id: tx.category_id ? String(tx.category_id) : undefined,
+    } : undefined,
+  })
 
   const accountOpts = (accounts.data ?? []).map((a) => ({ value: String(a.id), label: a.name }))
   const categoryOpts = (categories.data ?? []).map((c) => ({ value: String(c.id), label: c.name }))
 
+  const onSubmit: SubmitHandler<FormOutput> = (v) => {
+    if (!tx) return
+    update.mutate({ id: tx.id, ...v }, { onSuccess: onClose })
+  }
+
   return (
-    <Sheet open={open} onClose={onClose} title="Agregar gasto">
+    <Modal open={open} onClose={onClose} title="Editar movimiento">
       <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'grid', gap: 12 }}>
-        <input type="hidden" {...register('occurred_at')} />
         <Controller
           name="type"
           control={control}
@@ -86,10 +96,9 @@ export default function QuickAddSheet({ open, onClose }: { open: boolean; onClos
             />
           )}
         />
-        <button type="submit" disabled={create.isPending} style={ctaStyle}>{create.isPending ? 'Guardando…' : 'Guardar →'}</button>
-        <p style={{ fontSize: 12, color: 'var(--color-sage)', textAlign: 'center', margin: 0 }}>También podés mandarle un mensaje al bot.</p>
+        <button type="submit" disabled={update.isPending} style={ctaStyle}>{update.isPending ? 'Guardando…' : 'Guardar cambios →'}</button>
       </form>
-    </Sheet>
+    </Modal>
   )
 }
 

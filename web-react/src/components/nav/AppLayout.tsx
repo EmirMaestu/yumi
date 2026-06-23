@@ -23,7 +23,7 @@ export default function AppLayout({ children }: { children?: ReactNode }) {
       <div style={{ display: 'flex', maxWidth: 1100, margin: '0 auto', minHeight: '100vh' }}>
         <Sidebar onAdd={() => setAddOpen(true)} />
         <main style={{ flex: 1, padding: 24 }}>{children ?? <Outlet />}</main>
-        {addOpen && <QuickAddSheet onClose={() => setAddOpen(false)} />}
+        <QuickAddSheet open={addOpen} onClose={() => setAddOpen(false)} />
       </div>
     )
   }
@@ -35,7 +35,7 @@ export default function AppLayout({ children }: { children?: ReactNode }) {
       <main style={{ paddingBottom: 96 }}>{children ?? <Outlet />}</main>
       <BottomNav onAdd={() => setAddOpen(true)} />
       <MenuDrawer open={menuOpen} onClose={() => setMenuOpen(false)} />
-      {addOpen && <QuickAddSheet onClose={() => setAddOpen(false)} />}
+      <QuickAddSheet open={addOpen} onClose={() => setAddOpen(false)} />
     </div>
   )
 }

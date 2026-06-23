@@ -1,59 +1,198 @@
 import { useState } from 'react'
+import * as Checkbox from '@radix-ui/react-checkbox'
 import { useTransactions, useTxMutations } from '../hooks/useTransactions'
 import { type TxFilters } from '../hooks/useTransactions'
 import { useAccounts } from '../hooks/useAccounts'
 import { useCategories } from '../hooks/useCategories'
 import { formatMoney } from '../lib/format'
+import { type Transaction } from '../lib/types'
 import Skeleton from '../components/ui/Skeleton'
 import EmptyState from '../components/ui/EmptyState'
+import Select from '../components/ui/Select'
+import Modal from '../components/ui/Modal'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
+import EditTxModal from '../components/EditTxModal'
 
-const PERIODS = ['mes', 'mes pasado', 'año', 'todo']
+const PERIOD_OPTS = [
+  { value: 'mes', label: 'Mes' },
+  { value: 'mes pasado', label: 'Mes pasado' },
+  { value: 'año', label: 'Año' },
+  { value: 'todo', label: 'Todo' },
+]
 
 export default function Movimientos() {
   const [filters, setFilters] = useState<TxFilters>({ period: 'mes' })
   const { data, isLoading } = useTransactions(filters)
   const accounts = useAccounts()
   const categories = useCategories()
-  const { remove } = useTxMutations()
+  const { remove, bulkDelete, bulkMove } = useTxMutations()
+
+  // Selection
+  const [sel, setSel] = useState<Set<number>>(new Set())
+  const toggleSel = (id: number) => setSel((prev) => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
+
+  // Modals
+  const [moveOpen, setMoveOpen] = useState(false)
+  const [moveAccountId, setMoveAccountId] = useState<string | undefined>(undefined)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+
+  // Per-row actions
+  const [editTx, setEditTx] = useState<Transaction | null>(null)
+  const [deleteTx, setDeleteTx] = useState<Transaction | null>(null)
+
+  const accountOpts = [
+    { value: '', label: 'Toda cuenta' },
+    ...(accounts.data ?? []).map((a) => ({ value: String(a.id), label: a.name })),
+  ]
+  const categoryOpts = [
+    { value: '', label: 'Toda categoría' },
+    ...(categories.data ?? []).map((c) => ({ value: String(c.id), label: c.name })),
+  ]
+  const moveAccountOpts = (accounts.data ?? []).map((a) => ({ value: String(a.id), label: a.name }))
 
   return (
     <div style={{ padding: '14px 18px 24px' }}>
       <div className="cap" style={{ marginBottom: 12 }}>Movimientos</div>
+
+      {/* Filters */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-        <select value={filters.period} onChange={(e) => setFilters((f) => ({ ...f, period: e.target.value }))} style={sel}>
-          {PERIODS.map((p) => <option key={p} value={p}>{p}</option>)}
-        </select>
-        <select value={filters.account_id ?? ''} onChange={(e) => setFilters((f) => ({ ...f, account_id: e.target.value ? Number(e.target.value) : undefined }))} style={sel}>
-          <option value="">Toda cuenta</option>
-          {accounts.data?.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-        </select>
-        <select value={filters.category_id ?? ''} onChange={(e) => setFilters((f) => ({ ...f, category_id: e.target.value ? Number(e.target.value) : undefined }))} style={sel}>
-          <option value="">Toda categoría</option>
-          {categories.data?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-        <input placeholder="Buscar…" value={filters.q ?? ''} onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))} style={{ ...sel, flex: 1 }} />
+        <Select
+          value={filters.period ?? 'mes'}
+          onValueChange={(v) => setFilters((f) => ({ ...f, period: v }))}
+          options={PERIOD_OPTS}
+          ariaLabel="Período"
+        />
+        <Select
+          value={filters.account_id ? String(filters.account_id) : ''}
+          onValueChange={(v) => setFilters((f) => ({ ...f, account_id: v ? Number(v) : undefined }))}
+          options={accountOpts}
+          ariaLabel="Cuenta"
+        />
+        <Select
+          value={filters.category_id ? String(filters.category_id) : ''}
+          onValueChange={(v) => setFilters((f) => ({ ...f, category_id: v ? Number(v) : undefined }))}
+          options={categoryOpts}
+          ariaLabel="Categoría"
+        />
+        <input
+          placeholder="Buscar…"
+          value={filters.q ?? ''}
+          onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
+          style={{ border: '1px solid var(--color-mist)', borderRadius: 10, padding: '9px 12px', fontSize: 14, background: 'var(--color-linen)', flex: 1, minWidth: 120 }}
+        />
       </div>
+
+      {/* Selection toolbar */}
+      {sel.size > 0 && (
+        <div style={{ position: 'sticky', top: 0, zIndex: 20, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--color-mist)', background: 'var(--color-linen)', marginBottom: 8 }}>
+          <span style={{ fontSize: 14, fontWeight: 500, flex: 1 }}>{sel.size} seleccionados</span>
+          <button onClick={() => setMoveOpen(true)} style={ghostBtn}>Mover</button>
+          <button onClick={() => setBulkDeleteOpen(true)} style={ghostBtn}>Borrar</button>
+          <button onClick={() => setSel(new Set())} aria-label="Limpiar selección" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--color-sage)' }}>×</button>
+        </div>
+      )}
 
       {isLoading && <div style={{ display: 'grid', gap: 8 }}>{[0, 1, 2].map((i) => <Skeleton key={i} h={44} />)}</div>}
       {data && data.length === 0 && <EmptyState>Sin movimientos para este filtro.</EmptyState>}
       {data?.map((t) => (
-        <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--color-mist)' }}>
-          <span>
+        <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 0', borderBottom: '1px solid var(--color-mist)' }}>
+          {/* Checkbox */}
+          <Checkbox.Root
+            checked={sel.has(t.id)}
+            onCheckedChange={() => toggleSel(t.id)}
+            aria-label={`Seleccionar ${t.description}`}
+            style={{ width: 18, height: 18, border: '1px solid var(--color-mist)', borderRadius: 5, background: sel.has(t.id) ? 'var(--color-voltage)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+          >
+            <Checkbox.Indicator>
+              <i className="ti ti-check" style={{ fontSize: 13, color: 'var(--voltage-on-dark)' }} aria-hidden />
+            </Checkbox.Indicator>
+          </Checkbox.Root>
+
+          {/* Content */}
+          <span style={{ flex: 1, minWidth: 0 }}>
             <span style={{ fontSize: 14, fontWeight: 500 }}>{t.description}</span><br />
             <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>{t.cat_name ?? 'sin categoría'} · {t.acc_name ?? ''} · {t.occurred_at.slice(0, 10)}</span>
           </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+
+          {/* Amount + actions */}
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <span style={{ fontSize: 15, fontWeight: 500, color: t.type === 'ingreso' ? '#3b6d11' : 'var(--color-obsidian-ink)' }}>
               {t.type === 'ingreso' ? '+' : '−'}{formatMoney(t.amount, t.currency)}
             </span>
-            <button aria-label={`Borrar ${t.description}`} onClick={() => remove.mutate(t.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-sage)' }}>
+            <button aria-label={`Editar ${t.description}`} onClick={() => setEditTx(t)} style={iconBtn}>
+              <i className="ti ti-edit" aria-hidden />
+            </button>
+            <button aria-label={`Borrar ${t.description}`} onClick={() => setDeleteTx(t)} style={iconBtn}>
               <i className="ti ti-trash" aria-hidden />
             </button>
           </span>
         </div>
       ))}
+
+      {/* Bulk move modal */}
+      <Modal open={moveOpen} onClose={() => setMoveOpen(false)} title="Mover a cuenta">
+        <div style={{ display: 'grid', gap: 12 }}>
+          <Select
+            value={moveAccountId}
+            onValueChange={setMoveAccountId}
+            options={moveAccountOpts}
+            placeholder="Seleccionar cuenta…"
+            ariaLabel="Cuenta destino"
+            style={{ width: '100%' }}
+          />
+          <button
+            onClick={() => {
+              if (!moveAccountId) return
+              bulkMove.mutate({ ids: [...sel], account_id: Number(moveAccountId) })
+              setSel(new Set())
+              setMoveOpen(false)
+            }}
+            style={ctaBtn}
+          >
+            Mover {sel.size} movimientos →
+          </button>
+        </div>
+      </Modal>
+
+      {/* Bulk delete confirm */}
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title={`¿Borrar ${sel.size} gastos?`}
+        description="Esta acción no se puede deshacer."
+        onConfirm={() => {
+          bulkDelete.mutate([...sel])
+          setSel(new Set())
+          setBulkDeleteOpen(false)
+        }}
+      />
+
+      {/* Per-row edit modal */}
+      <EditTxModal
+        tx={editTx}
+        open={editTx !== null}
+        onClose={() => setEditTx(null)}
+      />
+
+      {/* Per-row delete confirm */}
+      <ConfirmDialog
+        open={deleteTx !== null}
+        onOpenChange={(o) => { if (!o) setDeleteTx(null) }}
+        title="¿Borrar este gasto?"
+        description={deleteTx ? `Se eliminará "${deleteTx.description}".` : ''}
+        onConfirm={() => {
+          if (deleteTx) remove.mutate(deleteTx.id)
+          setDeleteTx(null)
+        }}
+      />
     </div>
   )
 }
 
-const sel: React.CSSProperties = { border: '1px solid var(--color-mist)', borderRadius: 9999, padding: '6px 12px', fontSize: 13, background: 'transparent' }
+const iconBtn: React.CSSProperties = { background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-sage)', fontSize: 16, padding: 2 }
+const ghostBtn: React.CSSProperties = { background: 'transparent', border: '1px solid var(--color-mist)', borderRadius: 10, padding: '7px 14px', fontSize: 13, cursor: 'pointer' }
+const ctaBtn: React.CSSProperties = { background: 'var(--color-voltage)', color: 'var(--voltage-on-dark)', border: 'none', borderRadius: 10, padding: '14px', fontWeight: 500, cursor: 'pointer' }
