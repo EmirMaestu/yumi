@@ -1,0 +1,8 @@
+# Pegar DENTRO del bloque del sitio asistente.emir-maestu.site { ... } en el Caddyfile.
+# Sirve el SPA React (Juntu) en /app con fallback de rutas (SPA). No toca /api ni /.
+
+	handle_path /app/* {
+		root * /home/emir/asistente/webapp
+		try_files {path} /index.html
+		file_server
+	}
