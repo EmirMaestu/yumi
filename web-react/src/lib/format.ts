@@ -1,16 +1,15 @@
 type Currency = 'ARS' | 'USD' | 'EUR'
 
 const SYMBOL: Record<Currency, string> = { ARS: '$', USD: 'US$', EUR: '€' }
-const grouper = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 })
+const formatter = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const MESES = [
   'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
   'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
 ]
 
 export function formatMoney(amount: number, currency: Currency = 'ARS'): string {
-  const rounded = Math.round(amount)
-  const sign = rounded < 0 ? '-' : ''
-  return `${sign}${SYMBOL[currency]}${grouper.format(Math.abs(rounded))}`
+  const sign = amount < 0 ? '-' : ''
+  return `${sign}${SYMBOL[currency]}${formatter.format(Math.abs(amount))}`
 }
 
 export function formatUsdApprox(amountArs: number, blue: number | null): string | null {

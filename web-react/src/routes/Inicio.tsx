@@ -21,7 +21,7 @@ export default function Inicio() {
   return (
     <div style={{ padding: '8px 4px 24px' }}>
       <section style={{ padding: '8px 18px 6px' }}>
-        <div className="cap">Gasto del mes</div>
+        <div className="cap">Gastado este mes</div>
         <div className="num-serif" style={{ fontSize: 'clamp(44px, 13vw, 56px)', marginTop: 8 }}>{formatMoney(k.gasto_mes)}</div>
         <div style={{ fontSize: 13, color: 'var(--color-sage)', marginTop: 6 }}>{delta >= 0 ? '▲' : '▼'} {formatMoney(Math.abs(delta))} vs mes pasado</div>
         <div style={{ marginTop: 16 }}><TickMark /></div>
@@ -37,8 +37,9 @@ export default function Inicio() {
             <span style={{ fontSize: 15, fontWeight: 500 }}><i className="ti ti-credit-card" style={{ marginRight: 7 }} aria-hidden />Cuotas y tarjetas</span>
           </div>
           <div style={{ marginTop: 14 }}>
-            <div className="cap">Comprometido este mes</div>
-            <div className="num-serif" style={{ fontSize: 32, marginTop: 4 }}>{formatMoney(k.cuotas_futuras)}</div>
+            <div className="cap">A pagar este mes</div>
+            <div className="num-serif" style={{ fontSize: 32, marginTop: 4 }}>{formatMoney((venc.data ?? []).reduce((s, v) => s + cicloTotal(v.ciclo_cerrado), 0))}</div>
+            <div style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 4 }}>Comprometido a futuro: {formatMoney(k.cuotas_futuras)}</div>
           </div>
           <div style={{ height: 1, background: 'var(--color-mist)', margin: '16px 0' }} />
           {venc.isLoading && <span aria-hidden className="nf-skel" style={{ height: 48, display: 'block' }} />}

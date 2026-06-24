@@ -15,5 +15,5 @@ test('lista transacciones', async () => {
   }))
   renderWithProviders(<Movimientos />)
   expect(await screen.findByText('Coca')).toBeInTheDocument()
-  expect(screen.getByText('−$5.000')).toBeInTheDocument()
+  expect(screen.getByText('−$5.000,00')).toBeInTheDocument()
 })

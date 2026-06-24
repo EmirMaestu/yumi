@@ -13,6 +13,6 @@ test('muestra el gasto del mes como hero', async () => {
     return Promise.resolve(new Response('[]', { status: 200 }))
   }))
   renderWithProviders(<Inicio />)
-  expect(await screen.findByText('$612.300')).toBeInTheDocument()
+  expect(await screen.findByText('$612.300,00')).toBeInTheDocument()
   expect(screen.getByText('Comida')).toBeInTheDocument()
 })

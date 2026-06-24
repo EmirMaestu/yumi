@@ -165,7 +165,7 @@ export default function TarjetaDetalle() {
             <div className="num-serif" style={{ fontSize: 16, marginTop: 2 }}>{formatMoney(cicloAbierto)}</div>
           </div>
           <div>
-            <div className="cap" style={{ fontSize: 10 }}>En cuotas</div>
+            <div className="cap" style={{ fontSize: 10 }}>Comprometido a futuro</div>
             <div className="num-serif" style={{ fontSize: 16, marginTop: 2 }}>{formatMoney(enCuotas)}</div>
           </div>
           <div>

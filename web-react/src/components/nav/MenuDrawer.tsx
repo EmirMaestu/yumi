@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 export default function MenuDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   if (!open) return null
   const links = [
+    { to: '/recurrentes', label: 'Recurrentes y cuotas' },
     { to: '/categorias', label: 'Categorías y presupuestos' },
     { to: '/perfil', label: 'Perfil y cuenta' },
   ]

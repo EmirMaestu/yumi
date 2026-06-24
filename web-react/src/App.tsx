@@ -8,6 +8,7 @@ import TarjetaDetalle from './routes/TarjetaDetalle'
 import Cuentas from './routes/Cuentas'
 import Categorias from './routes/Categorias'
 import Perfil from './routes/Perfil'
+import Recurrentes from './routes/Recurrentes'
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/cuentas" element={<Cuentas />} />
         <Route path="/categorias" element={<Categorias />} />
         <Route path="/perfil" element={<Perfil />} />
+        <Route path="/recurrentes" element={<Recurrentes />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

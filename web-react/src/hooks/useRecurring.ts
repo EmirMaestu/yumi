@@ -2,8 +2,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiGet, apiPost, apiPatch, apiDelete } from '../lib/api'
 import { type Recurring } from '../lib/types'
 
-export function useRecurring() {
-  return useQuery({ queryKey: ['recurring'], queryFn: () => apiGet<Recurring[]>('/api/recurring') })
+export function useRecurring(includeInactive = false) {
+  return useQuery({
+    queryKey: ['recurring', includeInactive],
+    queryFn: () => apiGet<Recurring[]>(`/api/recurring${includeInactive ? '?include_inactive=true' : ''}`),
+  })
 }
 
 interface RecurringCreate {

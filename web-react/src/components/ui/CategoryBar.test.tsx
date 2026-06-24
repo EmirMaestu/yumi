@@ -5,5 +5,5 @@ import CategoryBar from './CategoryBar'
 test('renderiza label y total formateado', () => {
   renderWithProviders(<CategoryBar label="Comida" total={210000} max={210000} />)
   expect(screen.getByText('Comida')).toBeInTheDocument()
-  expect(screen.getByText('$210.000')).toBeInTheDocument()
+  expect(screen.getByText('$210.000,00')).toBeInTheDocument()
 })

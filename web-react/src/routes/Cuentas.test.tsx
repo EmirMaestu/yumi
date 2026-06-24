@@ -9,5 +9,5 @@ test('lista cuentas con saldo', async () => {
   }), { status: 200 })))
   renderWithProviders(<Cuentas />)
   expect(await screen.findByText('MP')).toBeInTheDocument()
-  expect(screen.getByText('$250.000')).toBeInTheDocument()
+  expect(screen.getByText('$250.000,00')).toBeInTheDocument()
 })
