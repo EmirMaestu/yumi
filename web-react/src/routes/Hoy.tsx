@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
 import { useOverview } from '../hooks/useOverview'
 import { useTareas } from '../hooks/useTareas'
+import { useVencimientos } from '../hooks/useVencimientos'
+import { aPagarTotal } from '../lib/cards'
 import { formatMoney } from '../lib/format'
 import { type HoyItem } from '../lib/types'
 import Card from '../components/ui/Card'
@@ -65,6 +67,7 @@ function HoySkeleton() {
 export default function Hoy() {
   const overview = useOverview()
   const tareas = useTareas('pendiente')
+  const venc = useVencimientos()
 
   if (overview.isLoading) return <HoySkeleton />
   if (overview.isError || !overview.data) return <EmptyState>No pudimos cargar tus datos. Reintentá.</EmptyState>
@@ -125,7 +128,7 @@ export default function Hoy() {
               </div>
               <div>
                 <div className="cap" style={{ fontSize: 10 }}>A pagar</div>
-                <div className="num-serif" style={{ fontSize: 18, marginTop: 2 }}>{formatMoney(k.deuda_tarjetas)}</div>
+                <div className="num-serif" style={{ fontSize: 18, marginTop: 2 }}>{formatMoney(aPagarTotal(venc.data))}</div>
               </div>
               <div>
                 <div className="cap" style={{ fontSize: 10 }}>Disponible</div>

@@ -5,8 +5,8 @@ import { useAccountsWithBalances, useAccountMutations } from '../hooks/useAccoun
 import { useVencimientos } from '../hooks/useVencimientos'
 import { useRecurring, useRecurringMutations } from '../hooks/useRecurring'
 import { useTransactions } from '../hooks/useTransactions'
-import { type CicloTotal, type Recurring } from '../lib/types'
-import { arsBalance, enCuotas as calcEnCuotas, deudaTotal } from '../lib/cards'
+import { type Recurring } from '../lib/types'
+import { consumos as calcConsumos, enCuotas as calcEnCuotas, deudaTotal, cuotaActual, aPagarCard, cicloArs } from '../lib/cards'
 import { formatMoney } from '../lib/format'
 import Card from '../components/ui/Card'
 import Modal from '../components/ui/Modal'
@@ -15,8 +15,6 @@ import CardActions from '../components/ui/CardActions'
 import { TarjetaDetalleSkeleton } from '../components/ui/skeletons'
 import EmptyState from '../components/ui/EmptyState'
 import AccountForm from '../components/AccountForm'
-
-function cicloTotal(arr?: CicloTotal[]): number { return (arr ?? []).reduce((s, c) => s + c.total, 0) }
 
 // ---- Cuota form types ----
 interface CuotaForm {
@@ -157,11 +155,12 @@ export default function TarjetaDetalle() {
     )
   }
 
-  // Money calculations
-  const consumos = Math.abs(arsBalance(account))
+  // Money calculations (single source of truth in lib/cards.ts)
+  const consumos = calcConsumos(account)
   const enCuotasVal = calcEnCuotas(accId, recurring.data)
   const deuda = deudaTotal(accId, account, recurring.data)
-  const abierto = cicloTotal(venc?.ciclo_abierto)
+  const aPagar = aPagarCard(venc)        // ciclo cerrado (lo que vence)
+  const abierto = cicloArs(venc?.ciclo_abierto)  // ciclo en curso
 
   const fmtDay = (dateStr?: string) =>
     dateStr ? `${dateStr.slice(8, 10)}/${dateStr.slice(5, 7)}` : '—'
@@ -188,31 +187,31 @@ export default function TarjetaDetalle() {
           <div className="num-serif" style={{ fontSize: 34 }}>{formatMoney(deuda)}</div>
         </div>
         <div style={{ height: 1, background: 'var(--color-mist)', marginBottom: 14 }} />
-        {/* Stats row: 3 columns */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+        {/* A pagar ahora (ciclo cerrado) vs ciclo en curso */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           <div>
-            <div className="cap" style={{ fontSize: 10 }}>Consumos</div>
-            <div className="num-serif" style={{ fontSize: 16, marginTop: 2 }}>{formatMoney(consumos)}</div>
-          </div>
-          <div>
-            <div className="cap" style={{ fontSize: 10 }}>En cuotas (faltan)</div>
-            <div className="num-serif" style={{ fontSize: 16, marginTop: 2 }}>{formatMoney(enCuotasVal)}</div>
+            <div className="cap" style={{ fontSize: 10 }}>
+              A pagar ahora{venc?.next_due ? ` (vence ${fmtDay(venc.next_due)})` : ''}
+            </div>
+            <div className="num-serif" style={{ fontSize: 18, marginTop: 2 }}>{formatMoney(aPagar)}</div>
+            <div style={{ fontSize: 10, color: 'var(--color-sage)', marginTop: 2 }}>resumen cerrado</div>
           </div>
           <div>
             <div className="cap" style={{ fontSize: 10 }}>
-              Próximo resumen{venc?.next_closing ? ` (cierra ${fmtDay(venc.next_closing)})` : ''}
+              Ciclo en curso{venc?.next_closing ? ` (cierra ${fmtDay(venc.next_closing)})` : ''}
             </div>
-            <div className="num-serif" style={{ fontSize: 16, marginTop: 2 }}>{formatMoney(abierto)}</div>
-            {venc?.next_due && (
-              <div style={{ fontSize: 10, color: 'var(--color-sage)', marginTop: 2 }}>
-                vence {fmtDay(venc.next_due)}
-              </div>
-            )}
+            <div className="num-serif" style={{ fontSize: 18, marginTop: 2 }}>{formatMoney(abierto)}</div>
+            <div style={{ fontSize: 10, color: 'var(--color-sage)', marginTop: 2 }}>todavía no vence</div>
           </div>
         </div>
+        <div style={{ height: 1, background: 'var(--color-mist)', margin: '12px 0' }} />
+        {/* Breakdown of deuda total */}
+        <div style={{ fontSize: 12, color: 'var(--color-sage)' }}>
+          Consumos {formatMoney(consumos)} · En cuotas {formatMoney(enCuotasVal)}
+        </div>
         {/* Explainer */}
-        <div style={{ marginTop: 12, fontSize: 11, color: 'var(--color-sage)', fontStyle: 'italic' }}>
-          Lo que gastás en el ciclo en curso pasa a "a pagar" cuando la tarjeta cierra.
+        <div style={{ marginTop: 10, fontSize: 11, color: 'var(--color-sage)', fontStyle: 'italic' }}>
+          Deuda total = consumos + cuotas por venir. "A pagar ahora" es solo el resumen que ya cerró.
         </div>
       </Card>
 
@@ -231,8 +230,8 @@ export default function TarjetaDetalle() {
               // Installment plan row
               const fired = r.installments_fired ?? 0
               const total = r.total_installments
-              const restante = r.amount * (total - fired)
-              const pagado = fired * r.amount
+              const actual = cuotaActual(r)
+              const restante = r.amount * Math.max(0, total - fired)
               return (
                 <Card
                   key={r.id}
@@ -242,10 +241,10 @@ export default function TarjetaDetalle() {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 14, fontWeight: 500 }}>{r.description}</div>
                       <div style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 2 }}>
-                        {fired}/{total} cuotas · {formatMoney(r.amount, r.currency)} c/u
+                        Cuota {actual} de {total} · {formatMoney(r.amount, r.currency)} c/u
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--color-sage)', marginTop: 2 }}>
-                        pagado {formatMoney(pagado, r.currency)} · falta {formatMoney(restante, r.currency)}
+                        pagadas {fired}/{total} · falta {formatMoney(restante, r.currency)}
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>

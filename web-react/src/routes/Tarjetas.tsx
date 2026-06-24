@@ -4,8 +4,8 @@ import { useVencimientos } from '../hooks/useVencimientos'
 import { useAccountsWithBalances, useAccountMutations } from '../hooks/useAccounts'
 import { useRecurring } from '../hooks/useRecurring'
 import { formatMoney } from '../lib/format'
-import { type Account, type CicloTotal } from '../lib/types'
-import { arsBalance, enCuotas, deudaTotal } from '../lib/cards'
+import { type Account } from '../lib/types'
+import { consumos as calcConsumos, enCuotas, deudaTotal, aPagarCard, cicloArs } from '../lib/cards'
 import Card from '../components/ui/Card'
 import AlertPill from '../components/ui/AlertPill'
 import { TarjetasSkeleton } from '../components/ui/skeletons'
@@ -14,7 +14,7 @@ import ConfirmDialog from '../components/ui/ConfirmDialog'
 import CardActions from '../components/ui/CardActions'
 import AccountForm from '../components/AccountForm'
 
-function cicloTotal(arr?: CicloTotal[]): number { return (arr ?? []).reduce((s, c) => s + c.total, 0) }
+function fmtDay(d?: string): string { return d ? `${d.slice(8, 10)}/${d.slice(5, 7)}` : '—' }
 
 export default function Tarjetas() {
   const navigate = useNavigate()
@@ -37,8 +37,10 @@ export default function Tarjetas() {
       {cards.map((card) => {
         const v = venc.data?.find((x) => x.account_id === card.id)
         const deuda = deudaTotal(card.id, card, recurring.data)
-        const consumos = Math.abs(arsBalance(card))
+        const consumos = calcConsumos(card)
         const cuotasFaltan = enCuotas(card.id, recurring.data)
+        const aPagar = aPagarCard(v)
+        const enCurso = cicloArs(v?.ciclo_abierto)
         const dias = v?.next_closing ? Math.ceil((new Date(v.next_closing).getTime() - Date.now()) / 86_400_000) : null
         const hasVenc = !!v
         return (
@@ -66,14 +68,18 @@ export default function Tarjetas() {
             </div>
             {/* Vencimiento / cierre line */}
             {hasVenc ? (
-              <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 12, color: 'var(--color-sage)' }}>
-                  Próximo resumen · cierra {v!.next_closing!.slice(8, 10)}/{v!.next_closing!.slice(5, 7)}{' '}
-                  {formatMoney(cicloTotal(v!.ciclo_abierto))}
+              <div style={{ marginTop: 8, display: 'grid', gap: 2 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 12, color: 'var(--color-obsidian-ink)' }}>
+                    A pagar {formatMoney(aPagar)}{v!.next_due ? ` · vence ${fmtDay(v!.next_due)}` : ''}
+                  </span>
+                  {dias !== null && dias >= 0 && dias <= 5 && (
+                    <AlertPill>cierra en {dias} día{dias === 1 ? '' : 's'}</AlertPill>
+                  )}
+                </div>
+                <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>
+                  En curso {formatMoney(enCurso)}{v!.next_closing ? ` · cierra ${fmtDay(v!.next_closing)}` : ''}
                 </span>
-                {dias !== null && dias >= 0 && dias <= 5 && (
-                  <AlertPill>cierra en {dias} día{dias === 1 ? '' : 's'}</AlertPill>
-                )}
               </div>
             ) : (
               <div style={{ marginTop: 6, fontSize: 12, color: 'var(--color-sage)' }}>

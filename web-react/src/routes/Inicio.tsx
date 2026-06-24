@@ -44,7 +44,7 @@ export default function Inicio() {
       <section style={{ display: 'flex', gap: 6, padding: '16px 18px 6px' }}>
         <StatNumber label="Ingresos">{formatMoney(k.ingreso_mes)}</StatNumber>
         <StatNumber label="Patrimonio">{formatMoney(data.patrimonio_ars)}</StatNumber>
-        <StatNumber label="En cuotas">{formatMoney(k.cuotas_futuras)}</StatNumber>
+        <StatNumber label="En cuotas">{formatMoney(totalEnCuotas)}</StatNumber>
       </section>
       <div style={{ padding: '12px 18px 0' }}>
         <Card>

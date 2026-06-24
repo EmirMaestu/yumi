@@ -6,6 +6,18 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-06-24
+Coherencia del modelo de plata de las tarjetas: una sola fuente de verdad en `lib/cards.ts`.
+
+### Fixed
+- **Contador de cuotas desfasado**: mostraba las cuotas pagadas (1/6) en vez de la cuota actual (2/6). Ahora cuenta igual que el bot: cuota actual = pagadas + 1.
+- **“A pagar” inconsistente entre pantallas**: Hoy mostraba el saldo total mientras Tarjetas mostraba la deuda con cuotas. Ahora “A pagar” = ciclo cerrado (lo que vence) en todos lados, y “Deuda total” = consumos + cuotas por venir, por separado.
+- **“En cuotas” no coincidía**: el stat de Inicio usaba un cálculo del backend (excluía las pausadas) distinto al de las tarjetas. Unificado: las cuotas pausadas también cuentan como deuda.
+
+### Changed
+- El detalle de la tarjeta muestra “A pagar ahora” (resumen cerrado + fecha de vencimiento) además del ciclo en curso.
+- Todos los montos de tarjeta se calculan en un solo lugar (`lib/cards.ts`): consumos, cuotas por venir, deuda total, a pagar y cuota actual, con tests unitarios que lo blindan.
+
 ## [0.3.0] - 2026-06-24
 ### Added
 - **App instalable (PWA)**: Yumi se puede "Agregar a inicio" en el celular y abre en pantalla completa, con su ícono propio. Incluye Web App Manifest, service worker (Workbox, `registerType: autoUpdate`, scope `/app/` — no toca `/api`), íconos 192/512 (`any maskable`) y `apple-touch-icon` para iOS. Precache del *app shell* (~1.5 MB) → carga aunque haya mala señal. En Android/Chrome aparece "Instalar"; en iPhone, Compartir → Agregar a inicio.
