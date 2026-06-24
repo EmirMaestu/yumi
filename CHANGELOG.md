@@ -6,6 +6,10 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-24
+### Added
+- **App instalable (PWA)**: Yumi se puede "Agregar a inicio" en el celular y abre en pantalla completa, con su ícono propio. Incluye Web App Manifest, service worker (Workbox, `registerType: autoUpdate`, scope `/app/` — no toca `/api`), íconos 192/512 (`any maskable`) y `apple-touch-icon` para iOS. Precache del *app shell* (~1.5 MB) → carga aunque haya mala señal. En Android/Chrome aparece "Instalar"; en iPhone, Compartir → Agregar a inicio.
+
 ## [0.2.1] - 2026-06-24
 ### Fixed
 - **Notas crasheaba** contra el backend real: `tags` se guarda como string JSON (`json.dumps`) y el front lo trataba como array (`tags.map is not a function`). Ahora `useNotas` normaliza `tags` a `string[]` (parsea el JSON, tolera `null` o coma-separado). Único campo JSON-string que consume la web (verificado contra `vps_current`).
