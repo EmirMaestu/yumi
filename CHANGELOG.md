@@ -6,6 +6,10 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-06-24
+### Fixed
+- **Notas crasheaba** contra el backend real: `tags` se guarda como string JSON (`json.dumps`) y el front lo trataba como array (`tags.map is not a function`). Ahora `useNotas` normaliza `tags` a `string[]` (parsea el JSON, tolera `null` o coma-separado). Único campo JSON-string que consume la web (verificado contra `vps_current`).
+
 ## [0.2.0] - 2026-06-24
 Yumi deja de ser solo finanzas: llega **el asistente**. Se suman las 6 secciones del bot a la app y un **Home "Hoy"** que unifica el día.
 

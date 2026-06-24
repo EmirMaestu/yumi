@@ -76,10 +76,11 @@ const routes = {
     { id: 203, text: 'Renovar la SUBE', priority: 'baja', due_at: null, status: 'pendiente', completed_at: null, shared: 1, user_id: 1, created_at: fmt(now - 3 * day) },
     { id: 204, text: 'Sacar turno médico', priority: 'media', due_at: null, status: 'hecha', completed_at: fmt(now - day), shared: 0, user_id: 1, created_at: fmt(now - 5 * day) },
   ],
+  // tags stored as a JSON string by the backend (json.dumps), mirror that here
   'GET /api/notas': [
-    { id: 301, text: 'Wifi vecino: ClaroAR_8821 / clave 5tg9hh2k', tags: ['claves'], shared: 1, user_id: 1, created_at: fmt(now - day) },
-    { id: 302, text: 'Idea: planear viaje a Bariloche en septiembre', tags: ['viajes', 'ideas'], shared: 1, user_id: 1, created_at: fmt(now - 6 * day) },
-    { id: 303, text: 'Talle de zapatillas de Lisa: 38', tags: [], shared: 0, user_id: 1, created_at: fmt(now - 10 * day) },
+    { id: 301, text: 'Wifi vecino: ClaroAR_8821 / clave 5tg9hh2k', tags: '["claves"]', shared: 1, user_id: 1, created_at: fmt(now - day) },
+    { id: 302, text: 'Idea: planear viaje a Bariloche en septiembre', tags: '["viajes","ideas"]', shared: 1, user_id: 1, created_at: fmt(now - 6 * day) },
+    { id: 303, text: 'Talle de zapatillas de Lisa: 38', tags: null, shared: 0, user_id: 1, created_at: fmt(now - 10 * day) },
   ],
   'GET /api/eventos': [
     { id: 401, title: 'Cena con los viejos', starts_at: fmt(now) + 'T21:00', location: 'Casa de mamá', notes: '', user_id: 1 },
