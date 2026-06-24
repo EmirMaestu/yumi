@@ -7,9 +7,10 @@
   <meta name="description" content="Yumi ordena los gastos, las cuotas y las tarjetas de tu pareja. Le hablás por chat —Telegram o WhatsApp— y listo." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300;1,9..144,400&family=Inter:wght@350;400;500;600&display=swap" rel="stylesheet" />
+
   <style>
-    /* ── Reset & Base ─────────────────────────────────────────── */
+    /* ── Reset ─────────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
@@ -17,854 +18,1441 @@
       --obsidian: #121613;
       --sage:     #516254;
       --mist:     #c8d2c8;
+      --bark:     #232924;
       --voltage:  #2bee4b;
-      --content-w: 1080px;
-      --section-gap: clamp(64px, 9vw, 112px);
+      --v-text:   #0f3d18;
+      --r: clamp(48px, 11vw, 150px);
+      --w: min(1100px, 94vw);
     }
 
-    html { scroll-behavior: smooth; }
+    html { scroll-behavior: auto; }
 
     body {
-      background-color: var(--canvas);
+      background: var(--canvas);
       color: var(--obsidian);
       font-family: 'Inter', sans-serif;
       font-weight: 400;
       line-height: 1.6;
+      overflow-x: hidden;
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ── Utility ──────────────────────────────────────────────── */
-    .wrap {
-      max-width: var(--content-w);
-      margin: 0 auto;
-      padding: 0 clamp(20px, 5vw, 48px);
-    }
+    /* Progressive enhancement: hide-then-reveal only when JS loaded */
+    html.js .js-hide { opacity: 0; }
 
-    .eyebrow {
-      font-family: 'Inter', sans-serif;
-      font-weight: 500;
-      font-size: 11px;
-      letter-spacing: .09em;
-      text-transform: uppercase;
-      color: var(--sage);
-      display: block;
-      margin-bottom: 20px;
-    }
-
-    .display {
-      font-family: 'Fraunces', serif;
-      font-weight: 300;
-      line-height: 0.95;
-      letter-spacing: -.02em;
-    }
-
-    .tick {
-      display: inline-block;
-      width: 50px;
-      height: 2px;
+    /* ── Scroll Progress Bar ────────────────────────────────────── */
+    #progress-bar {
+      position: fixed;
+      top: 0; left: 0;
+      height: 3px;
+      width: 0%;
       background: var(--voltage);
-      vertical-align: middle;
+      z-index: 9999;
+      transition: width 0.05s linear;
+      transform-origin: left;
     }
 
-    /* ── Nav ──────────────────────────────────────────────────── */
-    nav {
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      background: var(--canvas);
-      border-bottom: 1px solid var(--mist);
-      padding: 18px 0;
-    }
-
-    .nav-inner {
+    /* ── Top Bar ─────────────────────────────────────────────────── */
+    #topbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 900;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      padding: 16px 32px;
+      pointer-events: none;
     }
-
-    .wordmark {
+    #topbar .wordmark {
+      pointer-events: all;
       font-family: 'Fraunces', serif;
-      font-weight: 300;
       font-size: 22px;
-      letter-spacing: -.02em;
+      font-weight: 400;
+      letter-spacing: -0.02em;
       text-decoration: none;
       color: var(--obsidian);
-      display: flex;
-      align-items: center;
-      gap: 6px;
     }
-
-    .wordmark-bars {
-      display: flex;
-      gap: 3px;
-      align-items: center;
-    }
-
-    .wordmark-bars span {
-      display: block;
-      width: 2px;
-      height: 16px;
-      background: var(--voltage);
-      border-radius: 1px;
-    }
-
-    .wordmark-yu { color: var(--obsidian); }
-    .wordmark-mi { color: var(--voltage); }
-
-    .nav-actions {
-      display: flex;
-      align-items: center;
-      gap: 24px;
-    }
-
-    .link-ghost {
-      font-family: 'Inter', sans-serif;
+    #topbar .wordmark span { color: var(--voltage); }
+    #topbar .tb-cta {
+      pointer-events: all;
       font-size: 14px;
-      font-weight: 400;
+      font-weight: 500;
       color: var(--sage);
       text-decoration: none;
-      transition: color .15s;
+      transition: color 0.2s;
+    }
+    #topbar .tb-cta:hover { color: var(--obsidian); }
+
+    /* ── Floating Pill Nav ───────────────────────────────────────── */
+    #pill-nav {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 950;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--canvas);
+      border: 1px solid var(--mist);
+      border-radius: 84px;
+      padding: 8px 10px 8px 16px;
+      box-shadow: 0 8px 40px rgba(18,22,19,0.10), 0 2px 8px rgba(18,22,19,0.06);
+      white-space: nowrap;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    #pill-nav .pn-mark {
+      font-family: 'Fraunces', serif;
+      font-size: 16px;
+      font-weight: 400;
+      letter-spacing: -0.01em;
+      color: var(--obsidian);
+      margin-right: 8px;
+      text-decoration: none;
+    }
+    #pill-nav .pn-mark span { color: var(--voltage); }
+    #pill-nav .pn-links {
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+    #pill-nav .pn-links a {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--sage);
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: 60px;
+      transition: color 0.2s, background 0.2s;
+    }
+    #pill-nav .pn-links a:hover {
+      color: var(--obsidian);
+      background: rgba(18,22,19,0.05);
+    }
+    #pill-nav .pn-sep {
+      color: var(--mist);
+      font-size: 13px;
+      user-select: none;
+    }
+    #pill-nav .pn-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--voltage);
+      color: var(--v-text);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 18px;
+      border-radius: 60px;
+      text-decoration: none;
+      margin-left: 6px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    #pill-nav .pn-cta:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 0 20px rgba(43,238,75,0.45);
     }
 
-    .link-ghost:hover { color: var(--obsidian); }
+    /* ── Section base ────────────────────────────────────────────── */
+    section { position: relative; }
 
+    /* ── Hero ────────────────────────────────────────────────────── */
+    #hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: clamp(100px, 14vw, 160px) 0 clamp(80px, 10vw, 120px);
+      overflow: hidden;
+    }
+    #hero .hero-inner {
+      width: var(--w);
+      margin: 0 auto;
+      position: relative;
+      z-index: 2;
+    }
+    #hero .hero-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--sage);
+      margin-bottom: 28px;
+    }
+    #hero .hero-tag .dot {
+      width: 7px; height: 7px;
+      background: var(--voltage);
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .hero-headline {
+      font-family: 'Fraunces', serif;
+      font-size: var(--r);
+      font-weight: 300;
+      line-height: 1.0;
+      letter-spacing: -0.03em;
+      margin-left: -0.04em; /* bleed left */
+      margin-bottom: 32px;
+      max-width: 14ch;
+    }
+    .hero-headline .accent { color: var(--voltage); }
+    .hero-sub {
+      font-size: clamp(15px, 2vw, 19px);
+      color: var(--sage);
+      max-width: 48ch;
+      line-height: 1.65;
+      margin-bottom: 44px;
+      font-weight: 400;
+    }
     .btn-voltage {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       background: var(--voltage);
-      color: var(--obsidian);
-      font-family: 'Inter', sans-serif;
-      font-size: 14px;
-      font-weight: 500;
+      color: var(--v-text);
+      font-size: 15px;
+      font-weight: 600;
+      padding: 15px 30px;
+      border-radius: 60px;
       text-decoration: none;
-      padding: 9px 20px;
-      border-radius: 99px;
-      transition: opacity .15s, transform .12s;
-      box-shadow: rgba(16,94,29,0.35) 1px 8px 20px 0px;
-      white-space: nowrap;
+      transition: transform 0.25s cubic-bezier(.34,1.56,.64,1), box-shadow 0.25s;
+      position: relative;
+      overflow: hidden;
     }
-
-    .btn-voltage:hover { opacity: .88; transform: translateY(-1px); }
-    .btn-voltage:active { transform: translateY(0); }
-
-    /* ── Hero ─────────────────────────────────────────────────── */
-    .hero {
-      padding-top: clamp(64px, 9vw, 100px);
-      padding-bottom: clamp(64px, 9vw, 100px);
+    .btn-voltage::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: rgba(255,255,255,0.1);
+      opacity: 0;
+      transition: opacity 0.2s;
     }
-
-    .hero-inner {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 52px;
-      align-items: start;
+    .btn-voltage:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 0 32px rgba(43,238,75,0.5), 0 8px 24px rgba(18,22,19,0.12);
     }
-
-    @media (min-width: 760px) {
-      .hero-inner {
-        grid-template-columns: 1fr 340px;
-        gap: 64px;
-        align-items: center;
-      }
+    .btn-voltage:hover::after { opacity: 1; }
+    .btn-voltage .arr {
+      display: inline-block;
+      transition: transform 0.25s cubic-bezier(.34,1.56,.64,1);
     }
+    .btn-voltage:hover .arr { transform: translateX(4px); }
 
-    .hero-headline {
-      font-size: clamp(40px, 8vw, 88px);
-      margin-bottom: 28px;
+    /* Floating UI cards */
+    .float-cards {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
     }
-
-    .hero-sub {
-      font-size: clamp(16px, 2vw, 18px);
-      color: var(--sage);
-      font-weight: 300;
-      max-width: 560px;
-      line-height: 1.65;
-      margin-bottom: 36px;
-    }
-
-    .hero-actions {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 20px;
-    }
-
-    .btn-voltage.large {
-      font-size: 16px;
-      padding: 13px 28px;
-    }
-
-    .hero-anchor {
-      font-size: 14px;
-      font-weight: 400;
-      color: var(--sage);
-      text-decoration: none;
-      border-bottom: 1px solid var(--mist);
-      transition: color .15s, border-color .15s;
-    }
-
-    .hero-anchor:hover {
-      color: var(--obsidian);
-      border-color: var(--obsidian);
-    }
-
-    .hero-tick-row {
-      margin-top: 48px;
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-
-    .hero-tick-label {
-      font-size: 12px;
-      color: var(--mist);
-      font-weight: 400;
-      letter-spacing: .04em;
-    }
-
-    /* ── Chat Mockup ──────────────────────────────────────────── */
-    .chat-card {
+    .fcard {
+      position: absolute;
+      background: white;
       border: 1px solid var(--mist);
-      border-radius: 14px;
-      padding: 20px;
-      background: var(--canvas);
-      max-width: 340px;
-      width: 100%;
-    }
-
-    .chat-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 18px;
-      padding-bottom: 14px;
-      border-bottom: 1px solid var(--mist);
-    }
-
-    .chat-avatar {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      background: var(--voltage);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-
-    .chat-avatar-inner {
-      font-family: 'Fraunces', serif;
-      font-weight: 400;
-      font-size: 13px;
-      color: var(--obsidian);
-      display: flex;
-      align-items: center;
-      gap: 1px;
-    }
-
-    .chat-avatar-bars {
-      display: flex;
-      gap: 2px;
-      align-items: center;
-    }
-
-    .chat-avatar-bars span {
-      display: block;
-      width: 2px;
-      height: 9px;
-      background: var(--obsidian);
-      border-radius: 1px;
-    }
-
-    .chat-name {
+      border-radius: 18px;
+      padding: 14px 18px;
       font-size: 13px;
       font-weight: 500;
+      box-shadow: 0 4px 24px rgba(18,22,19,0.08);
+      white-space: nowrap;
+      will-change: transform;
+    }
+    .fcard .fc-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--sage);
+      margin-bottom: 4px;
+    }
+    .fcard .fc-val {
+      font-size: 18px;
+      font-weight: 600;
       color: var(--obsidian);
     }
-
-    .chat-status {
+    .fcard .fc-sub {
       font-size: 11px;
       color: var(--sage);
+      margin-top: 2px;
     }
-
-    .chat-online-dot {
-      display: inline-block;
-      width: 6px;
-      height: 6px;
+    .fcard.chat-bubble {
+      border-radius: 18px 18px 18px 4px;
+      background: var(--bark);
+      color: #e8ede8;
+      border-color: transparent;
+      font-size: 13px;
+      padding: 12px 16px;
+      max-width: 220px;
+      white-space: normal;
+      line-height: 1.4;
+    }
+    .fcard.chip {
+      border-radius: 60px;
+      padding: 9px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .fcard.chip .chip-dot {
+      width: 8px; height: 8px;
       border-radius: 50%;
       background: var(--voltage);
-      margin-right: 4px;
+      flex-shrink: 0;
+    }
+    .fcard.voltage-tile {
+      background: var(--voltage);
+      border-color: transparent;
+      color: var(--v-text);
+      border-radius: 18px;
+    }
+    /* card positions */
+    .fcard-1 { top: 14%; right: 8%;  }
+    .fcard-2 { top: 52%; right: 5%;  }
+    .fcard-3 { top: 28%; right: 28%; }
+    .fcard-4 { top: 72%; right: 18%; }
+    .fcard-5 { top: 62%; right: 36%; }
+
+    @media (max-width: 768px) {
+      .fcard-1, .fcard-2, .fcard-3 { display: none; }
+      .fcard-4 { right: 2%; top: auto; bottom: 120px; }
+      .fcard-5 { right: auto; left: 4%; top: auto; bottom: 80px; }
     }
 
-    .chat-messages {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .bubble {
-      max-width: 85%;
-      padding: 9px 13px;
-      border-radius: 12px;
-      font-size: 13px;
-      line-height: 1.45;
-    }
-
-    .bubble-user {
-      background: #e8ede8;
-      color: var(--obsidian);
-      align-self: flex-end;
-      border-bottom-right-radius: 4px;
-    }
-
-    .bubble-yumi {
-      background: var(--obsidian);
-      color: var(--canvas);
-      align-self: flex-start;
-      border-bottom-left-radius: 4px;
-    }
-
-    .bubble-yumi strong {
-      color: var(--voltage);
-    }
-
-    .bubble-meta {
-      font-size: 10px;
-      color: var(--sage);
-      margin-top: 2px;
-      text-align: right;
-    }
-
-    .bubble-meta.left { text-align: left; }
-
-    /* ── Section shared ───────────────────────────────────────── */
-    section {
-      padding-top: var(--section-gap);
-      padding-bottom: var(--section-gap);
-    }
-
-    /* ── El Problema ──────────────────────────────────────────── */
-    .problema-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 1px;
-      border: 1px solid var(--mist);
-      border-radius: 14px;
-      overflow: hidden;
-      margin-bottom: 36px;
-    }
-
-    @media (min-width: 600px) {
-      .problema-grid { grid-template-columns: repeat(3, 1fr); }
-    }
-
-    .problema-item {
-      padding: clamp(24px, 4vw, 36px) clamp(20px, 3vw, 28px);
-      border-right: 1px solid var(--mist);
-    }
-
-    .problema-item:last-child { border-right: none; }
-
-    @media (max-width: 599px) {
-      .problema-item {
-        border-right: none;
-        border-bottom: 1px solid var(--mist);
-      }
-      .problema-item:last-child { border-bottom: none; }
-    }
-
-    .problema-num {
-      font-family: 'Fraunces', serif;
-      font-weight: 300;
-      font-size: clamp(36px, 5vw, 52px);
-      color: var(--mist);
-      line-height: 1;
-      margin-bottom: 12px;
-    }
-
-    .problema-text {
-      font-size: clamp(16px, 2.2vw, 20px);
-      font-weight: 400;
-      color: var(--obsidian);
-      line-height: 1.3;
-    }
-
-    .problema-closing {
-      font-size: clamp(15px, 2vw, 17px);
-      color: var(--sage);
-      font-weight: 300;
-      font-style: italic;
-      font-family: 'Fraunces', serif;
-      margin-top: 32px;
-    }
-
-    /* ── Cómo funciona ────────────────────────────────────────── */
-    .como-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 2px;
-      margin-top: 48px;
-    }
-
-    @media (min-width: 640px) {
-      .como-grid { grid-template-columns: repeat(3, 1fr); gap: 2px; }
-    }
-
-    .como-step {
-      padding: clamp(28px, 4vw, 40px) clamp(20px, 3vw, 32px);
-      border: 1px solid var(--mist);
-      border-radius: 14px;
+    /* ── Convergence section ─────────────────────────────────────── */
+    #convergence {
       position: relative;
     }
-
-    .step-num {
-      font-family: 'Fraunces', serif;
-      font-weight: 300;
-      font-size: 13px;
-      color: var(--voltage);
-      letter-spacing: .06em;
-      margin-bottom: 20px;
-      display: block;
-    }
-
-    .step-title {
-      font-family: 'Fraunces', serif;
-      font-weight: 300;
-      font-size: clamp(22px, 3vw, 28px);
-      line-height: 1.1;
-      margin-bottom: 12px;
-    }
-
-    .step-desc {
-      font-size: 14px;
-      color: var(--sage);
-      line-height: 1.6;
-      font-weight: 300;
-    }
-
-    /* ── Features ─────────────────────────────────────────────── */
-    .features-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 1px;
-      margin-top: 48px;
-    }
-
-    @media (min-width: 540px) {
-      .features-grid { grid-template-columns: repeat(2, 1fr); }
-    }
-
-    @media (min-width: 900px) {
-      .features-grid { grid-template-columns: repeat(4, 1fr); }
-    }
-
-    .feature-card {
-      border: 1px solid var(--mist);
-      border-radius: 14px;
-      padding: clamp(24px, 3.5vw, 36px) clamp(20px, 3vw, 28px);
-    }
-
-    .feature-icon {
-      width: 36px;
-      height: 36px;
-      border: 1px solid var(--mist);
-      border-radius: 8px;
+    #conv-sticky {
+      position: relative;
+      min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: 20px;
-      font-size: 16px;
+      overflow: hidden;
+    }
+    #conv-headline {
+      position: relative;
+      z-index: 3;
+      text-align: center;
+      pointer-events: none;
+    }
+    #conv-headline h2 {
+      font-family: 'Fraunces', serif;
+      font-size: clamp(36px, 7vw, 96px);
+      font-weight: 300;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+      color: var(--obsidian);
+    }
+    #conv-headline p {
+      font-size: clamp(14px, 1.6vw, 18px);
+      color: var(--sage);
+      margin-top: 16px;
+    }
+    .conv-card {
+      position: absolute;
+      background: white;
+      border: 1px solid var(--mist);
+      border-radius: 20px;
+      padding: 16px 20px;
+      box-shadow: 0 4px 24px rgba(18,22,19,0.08);
+      z-index: 2;
+      will-change: transform, opacity;
+      min-width: 140px;
+    }
+    .conv-card .cc-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--sage);
+      margin-bottom: 4px;
+    }
+    .conv-card .cc-val {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--obsidian);
+    }
+    .conv-card .cc-sub {
+      font-size: 11px;
+      color: var(--sage);
+      margin-top: 2px;
+    }
+    .conv-card.voltage-card {
+      background: var(--voltage);
+      border-color: transparent;
+      color: var(--v-text);
+    }
+    .conv-card.voltage-card .cc-label,
+    .conv-card.voltage-card .cc-sub { color: var(--v-text); opacity: 0.7; }
+    .conv-card.voltage-card .cc-val { color: var(--v-text); }
+    .conv-card.dark-card {
+      background: var(--bark);
+      border-color: transparent;
+      color: #e8ede8;
+    }
+    .conv-card.dark-card .cc-label,
+    .conv-card.dark-card .cc-sub { color: #9aad9a; }
+    .conv-card.dark-card .cc-val { color: #e8ede8; }
+
+    /* dashboard mock center */
+    #dash-mock {
+      position: absolute;
+      z-index: 1;
+      width: clamp(240px, 36vw, 380px);
+      background: white;
+      border-radius: 28px;
+      border: 1px solid var(--mist);
+      box-shadow: 0 24px 80px rgba(18,22,19,0.14);
+      overflow: hidden;
+      opacity: 0;
+      will-change: transform, opacity;
+    }
+    .dash-header {
+      background: var(--bark);
+      color: white;
+      padding: 20px 20px 16px;
+    }
+    .dash-header .dh-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #9aad9a;
+      margin-bottom: 4px;
+    }
+    .dash-header .dh-amount {
+      font-family: 'Fraunces', serif;
+      font-size: 32px;
+      font-weight: 300;
+      letter-spacing: -0.02em;
+    }
+    .dash-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+    .dash-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: var(--canvas);
+    }
+    .dash-row .dr-left { display: flex; align-items: center; gap: 10px; }
+    .dash-row .dr-icon {
+      width: 32px; height: 32px;
+      border-radius: 10px;
+      background: var(--mist);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px;
+    }
+    .dash-row .dr-icon.v { background: var(--voltage); }
+    .dash-row .dr-name { font-size: 13px; font-weight: 500; }
+    .dash-row .dr-sub { font-size: 11px; color: var(--sage); }
+    .dash-row .dr-amt { font-size: 14px; font-weight: 600; }
+
+    /* ── 3-Word Pinned Sequence ──────────────────────────────────── */
+    #words-pin {
+      position: relative;
+    }
+    #words-sticky {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      position: relative;
+    }
+    .word-slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 clamp(24px, 5vw, 80px);
+      opacity: 0;
+      will-change: opacity, transform;
+    }
+    .word-slide-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 32px;
+      max-width: 760px;
+      width: 100%;
+    }
+    .word-tile {
+      width: clamp(64px, 10vw, 100px);
+      height: clamp(64px, 10vw, 100px);
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(28px, 4vw, 44px);
+      flex-shrink: 0;
+    }
+    .word-tile.v-tile { background: var(--voltage); }
+    .word-tile.o-tile { background: var(--obsidian); }
+    .word-big {
+      font-family: 'Fraunces', serif;
+      font-size: clamp(60px, 12vw, 130px);
+      font-weight: 300;
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+      color: var(--obsidian);
+    }
+    .word-desc {
+      font-size: clamp(14px, 1.6vw, 18px);
+      color: var(--sage);
+      line-height: 1.55;
+      max-width: 42ch;
     }
 
-    .feature-title {
+    /* ── Features Grid ───────────────────────────────────────────── */
+    #features {
+      padding: clamp(80px, 10vw, 130px) 0;
+    }
+    #features .section-label {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--sage);
+      margin-bottom: 20px;
+    }
+    #features h2 {
       font-family: 'Fraunces', serif;
+      font-size: clamp(32px, 5vw, 62px);
       font-weight: 300;
-      font-size: clamp(18px, 2.2vw, 22px);
-      line-height: 1.15;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: clamp(48px, 6vw, 80px);
+      max-width: 20ch;
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+    }
+    .feat-card {
+      background: white;
+      border: 1px solid var(--mist);
+      border-radius: 24px;
+      padding: clamp(24px, 3vw, 36px);
+      will-change: transform, opacity;
+    }
+    .feat-icon {
+      width: 52px; height: 52px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+    .feat-icon.vi { background: var(--voltage); }
+    .feat-icon.oi { background: var(--obsidian); }
+    .feat-icon.mi { background: var(--mist); }
+    .feat-card h3 {
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
       margin-bottom: 10px;
     }
-
-    .feature-desc {
+    .feat-card p {
       font-size: 14px;
       color: var(--sage);
       line-height: 1.6;
-      font-weight: 300;
     }
 
-    /* ── Diferencial ──────────────────────────────────────────── */
-    .diferencial {
-      background: transparent;
+    /* ── Chat Demo ───────────────────────────────────────────────── */
+    #chat-demo {
+      padding: clamp(80px, 10vw, 130px) 0;
+      background: var(--bark);
+      overflow: hidden;
+    }
+    #chat-demo .section-label {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #9aad9a;
+      margin-bottom: 20px;
+    }
+    #chat-demo h2 {
+      font-family: 'Fraunces', serif;
+      font-size: clamp(28px, 4.5vw, 56px);
+      font-weight: 300;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      color: #e8ede8;
+      margin-bottom: clamp(40px, 5vw, 64px);
+      max-width: 22ch;
+    }
+    .chat-phone {
+      margin: 0 auto;
+      max-width: 360px;
+      background: #1a1f1b;
+      border-radius: 36px;
+      padding: 28px 20px;
+      border: 1px solid #2e352f;
+      box-shadow: 0 40px 100px rgba(0,0,0,0.4);
+    }
+    .chat-topbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #2e352f;
+    }
+    .chat-avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--voltage);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--v-text);
+      font-family: 'Fraunces', serif;
+      flex-shrink: 0;
+    }
+    .chat-contact { font-size: 14px; font-weight: 600; color: #e8ede8; }
+    .chat-status { font-size: 11px; color: #9aad9a; }
+    .chat-msgs { display: flex; flex-direction: column; gap: 12px; min-height: 140px; }
+    .chat-msg-user {
+      align-self: flex-end;
+      background: #2b3f2c;
+      color: #d4e8d4;
+      border-radius: 18px 18px 4px 18px;
+      padding: 10px 14px;
+      font-size: 14px;
+      max-width: 85%;
+      line-height: 1.4;
+    }
+    .chat-msg-yumi {
+      align-self: flex-start;
+      background: #232924;
+      border: 1px solid #2e352f;
+      color: #e8ede8;
+      border-radius: 18px 18px 18px 4px;
+      padding: 10px 14px;
+      font-size: 14px;
+      max-width: 85%;
+      line-height: 1.4;
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    .chat-msg-yumi.confirm {
+      background: #0f2a10;
+      border-color: #1a4a1b;
+      color: #7ee88b;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .typing-cursor {
+      display: inline-block;
+      width: 2px;
+      height: 1em;
+      background: var(--voltage);
+      vertical-align: text-bottom;
+      animation: blink 1s step-end infinite;
+      opacity: 0;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    /* ── Stats band ──────────────────────────────────────────────── */
+    #stats {
+      padding: clamp(72px, 9vw, 110px) 0;
       border-top: 1px solid var(--mist);
       border-bottom: 1px solid var(--mist);
     }
-
-    .diferencial-inner {
+    .stats-grid {
       display: grid;
-      grid-template-columns: 1fr;
-      gap: 32px;
-      align-items: center;
-    }
-
-    @media (min-width: 720px) {
-      .diferencial-inner { grid-template-columns: auto 1fr; gap: 64px; }
-    }
-
-    .diferencial-label {
-      font-family: 'Fraunces', serif;
-      font-weight: 300;
-      font-style: italic;
-      font-size: clamp(13px, 1.5vw, 15px);
-      color: var(--mist);
-      writing-mode: horizontal-tb;
-    }
-
-    @media (min-width: 720px) {
-      .diferencial-label {
-        writing-mode: vertical-rl;
-        transform: rotate(180deg);
-        letter-spacing: .06em;
-        font-size: 12px;
-      }
-    }
-
-    .diferencial-text {
-      font-family: 'Fraunces', serif;
-      font-weight: 300;
-      font-size: clamp(20px, 3vw, 30px);
-      line-height: 1.45;
-      color: var(--obsidian);
-    }
-
-    .diferencial-text em {
-      font-style: italic;
-      color: var(--sage);
-    }
-
-    /* ── CTA Final ────────────────────────────────────────────── */
-    .cta-final {
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 40px;
       text-align: center;
     }
-
-    .cta-headline {
-      font-size: clamp(40px, 7vw, 76px);
-      margin-bottom: 36px;
+    .stat-item {}
+    .stat-number {
+      font-family: 'Fraunces', serif;
+      font-size: clamp(52px, 8vw, 96px);
+      font-weight: 300;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      color: var(--obsidian);
+    }
+    .stat-number .stat-unit {
+      font-size: 0.45em;
+      letter-spacing: -0.02em;
+      vertical-align: middle;
+    }
+    .stat-label {
+      font-size: 14px;
+      color: var(--sage);
+      margin-top: 8px;
+      font-weight: 400;
     }
 
-    /* ── Footer ───────────────────────────────────────────────── */
+    /* ── Editorial diferencial ───────────────────────────────────── */
+    #diferencial {
+      padding: clamp(80px, 10vw, 130px) 0;
+    }
+    .ed-block {
+      max-width: 680px;
+    }
+    .ed-block .ed-label {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--sage);
+      margin-bottom: 24px;
+    }
+    .ed-block p {
+      font-family: 'Fraunces', serif;
+      font-size: clamp(20px, 3.2vw, 36px);
+      font-weight: 300;
+      line-height: 1.4;
+      letter-spacing: -0.02em;
+      color: var(--obsidian);
+    }
+    .ed-block p + p {
+      margin-top: 24px;
+      font-family: 'Inter', sans-serif;
+      font-size: clamp(15px, 1.8vw, 19px);
+      font-weight: 400;
+      font-style: normal;
+      color: var(--sage);
+      letter-spacing: 0;
+    }
+
+    /* ── Final CTA ───────────────────────────────────────────────── */
+    #final-cta {
+      padding: clamp(100px, 12vw, 160px) 0;
+      text-align: center;
+      overflow: hidden;
+    }
+    #final-cta h2 {
+      font-family: 'Fraunces', serif;
+      font-size: clamp(40px, 9vw, 120px);
+      font-weight: 300;
+      letter-spacing: -0.04em;
+      line-height: 1.0;
+      margin-bottom: 48px;
+    }
+    #final-cta h2 .accent { color: var(--voltage); }
+    #final-cta .cta-sub {
+      font-size: clamp(14px, 1.6vw, 17px);
+      color: var(--sage);
+      margin-bottom: 40px;
+      margin-top: -28px;
+    }
+
+    /* ── Footer ──────────────────────────────────────────────────── */
     footer {
       background: var(--obsidian);
       color: var(--canvas);
-      padding: clamp(40px, 6vw, 64px) 0;
+      padding: clamp(56px, 7vw, 88px) 0 clamp(36px, 4vw, 48px);
     }
-
     .footer-inner {
+      width: var(--w);
+      margin: 0 auto;
       display: flex;
       flex-direction: column;
-      gap: 28px;
+      gap: 40px;
     }
-
-    @media (min-width: 600px) {
-      .footer-inner {
-        flex-direction: row;
-        align-items: center;
-        justify-content: space-between;
-      }
+    .footer-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 40px;
+      flex-wrap: wrap;
     }
-
-    .footer-brand {}
-
-    .footer-wordmark {
+    .footer-brand .f-wordmark {
       font-family: 'Fraunces', serif;
-      font-weight: 300;
-      font-size: 20px;
+      font-size: 24px;
+      font-weight: 400;
+      letter-spacing: -0.02em;
       text-decoration: none;
       color: var(--canvas);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 6px;
     }
-
-    .footer-wordmark-bars span { background: var(--voltage); }
-
-    .footer-tagline {
+    .footer-brand .f-wordmark span { color: var(--voltage); }
+    .footer-brand .f-tag {
       font-size: 13px;
-      color: var(--sage);
-      font-weight: 300;
+      color: #516254;
+      margin-top: 6px;
     }
-
     .footer-links {
       display: flex;
-      flex-direction: column;
-      gap: 10px;
-      align-items: flex-start;
+      gap: 32px;
+      flex-wrap: wrap;
     }
-
-    @media (min-width: 600px) {
-      .footer-links { align-items: flex-end; }
-    }
-
-    .footer-link {
+    .footer-links a {
       font-size: 13px;
-      color: var(--canvas);
+      color: #9aad9a;
       text-decoration: none;
-      opacity: .55;
-      transition: opacity .15s;
+      transition: color 0.2s;
     }
-
-    .footer-link:hover { opacity: 1; }
-
-    .footer-copy {
+    .footer-links a:hover { color: var(--canvas); }
+    .footer-bottom {
+      border-top: 1px solid #232924;
+      padding-top: 24px;
       font-size: 12px;
-      color: var(--sage);
-      opacity: .7;
-    }
-
-    /* ── Section header shared ────────────────────────────────── */
-    .section-header {
-      margin-bottom: 0;
-    }
-
-    .section-header .display {
-      font-size: clamp(32px, 5vw, 54px);
-      margin-top: 8px;
-    }
-
-    /* ── Divider with tick ────────────────────────────────────── */
-    .section-divider {
+      color: #516254;
       display: flex;
       align-items: center;
-      gap: 16px;
-      margin-bottom: 48px;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
     }
 
-    /* ── Problem section heading ──────────────────────────────── */
-    #problema .section-header {
-      margin-bottom: 40px;
+    /* ── Container util ──────────────────────────────────────────── */
+    .container {
+      width: var(--w);
+      margin: 0 auto;
     }
 
-    /* ── Responsive nav ───────────────────────────────────────── */
-    @media (max-width: 400px) {
-      .nav-actions .link-ghost { display: none; }
+    /* ── Reduced motion ──────────────────────────────────────────── */
+    @media (prefers-reduced-motion: reduce) {
+      * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
     }
 
-    /* ── Chat card mobile center ──────────────────────────────── */
-    @media (max-width: 759px) {
-      .chat-card { max-width: 100%; }
-    }
-
-    /* ── Subtle hover on cards ───────────────────────────────── */
-    .feature-card, .como-step {
-      transition: border-color .2s;
-    }
-
-    .feature-card:hover, .como-step:hover {
-      border-color: var(--sage);
+    /* ── Mobile tweaks ───────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      #pill-nav .pn-links { display: none; }
+      .footer-top { flex-direction: column; }
+      #topbar { padding: 14px 20px; }
+      .word-big { font-size: clamp(48px, 14vw, 90px); }
     }
   </style>
 </head>
-<body>
 
-  <!-- ── Nav ──────────────────────────────────────────────────── -->
-  <nav>
-    <div class="wrap">
-      <div class="nav-inner">
-        <a href="/" class="wordmark" aria-label="Yumi - inicio">
-          <div class="wordmark-bars">
-            <span></span><span></span>
-          </div>
-          <span><span class="wordmark-yu">Yu</span><span class="wordmark-mi">mi</span></span>
-        </a>
-        <div class="nav-actions">
-          <a href="/app/" class="link-ghost">Entrar</a>
-          <a href="/app/" class="btn-voltage">Probar gratis</a>
-        </div>
-      </div>
+<body>
+  <!-- Progress bar -->
+  <div id="progress-bar"></div>
+
+  <!-- Top bar -->
+  <header id="topbar" role="banner">
+    <a href="/" class="wordmark">Yu<span>mi</span></a>
+    <a href="/app/" class="tb-cta">Entrar →</a>
+  </header>
+
+  <!-- Pill nav -->
+  <nav id="pill-nav" aria-label="Navegación principal">
+    <a href="/" class="pn-mark">Yu<span>mi</span></a>
+    <div class="pn-links">
+      <a href="#hero">Inicio</a>
+      <span class="pn-sep">·</span>
+      <a href="#features">Cómo funciona</a>
+      <span class="pn-sep">·</span>
+      <a href="#stats">Precios</a>
     </div>
+    <a href="/app/" class="pn-cta">Entrar <span class="arr">→</span></a>
   </nav>
 
-  <!-- ── Hero ─────────────────────────────────────────────────── -->
-  <section class="hero">
-    <div class="wrap">
-      <div class="hero-inner">
-        <div class="hero-content">
-          <span class="eyebrow">PARA PAREJAS Y FAMILIAS · ARGENTINA</span>
-          <h1 class="display hero-headline">La plata de los dos, sin planillas y sin peleas.</h1>
-          <p class="hero-sub">Yumi ordena los gastos, las cuotas y las tarjetas de tu pareja. Le hablás por chat —Telegram o WhatsApp— y listo.</p>
-          <div class="hero-actions">
-            <a href="/app/" class="btn-voltage large">Probar Yumi →</a>
-            <a href="#como" class="hero-anchor">Ver cómo funciona</a>
-          </div>
-          <div class="hero-tick-row">
-            <span class="tick"></span>
-            <span class="hero-tick-label">Sin tarjeta de crédito · Gratis para empezar</span>
-          </div>
-        </div>
+  <!-- ═══ HERO ════════════════════════════════════════════════════ -->
+  <section id="hero" aria-labelledby="hero-h1">
+    <!-- Floating ambient cards -->
+    <div class="float-cards" aria-hidden="true">
+      <div class="fcard fcard-1 chat-bubble" data-float="1">
+        "pagué 5 lucas de súper con el Galicia 🛒"
+      </div>
+      <div class="fcard fcard-2" data-float="2">
+        <div class="fc-label">Deuda total</div>
+        <div class="fc-val">$340.000</div>
+        <div class="fc-sub">Saldo a favor: ella → él</div>
+      </div>
+      <div class="fcard fcard-3" data-float="3">
+        <div class="fc-label">Cuota</div>
+        <div class="fc-val">4 / 12</div>
+        <div class="fc-sub">Ropa · Naranja X</div>
+      </div>
+      <div class="fcard fcard-4 voltage-tile" data-float="4">
+        <div class="fc-label" style="color:var(--v-text);opacity:0.7;">Acción rápida</div>
+        <div class="fc-val" style="color:var(--v-text); font-size:14px;">+ Cargar gasto</div>
+      </div>
+      <div class="fcard fcard-5 chip" data-float="5">
+        <span class="chip-dot"></span>
+        Dólar blue $1.355
+      </div>
+    </div>
 
-        <!-- Chat Mockup -->
-        <div class="chat-card" aria-label="Ejemplo de conversación con Yumi">
-          <div class="chat-header">
-            <div class="chat-avatar" aria-hidden="true">
-              <div class="chat-avatar-inner">
-                <div class="chat-avatar-bars">
-                  <span></span><span></span>
-                </div>
+    <div class="hero-inner">
+      <div class="hero-tag js-hide">
+        <span class="dot"></span>
+        Tu asistente de finanzas compartidas
+      </div>
+      <h1 id="hero-h1" class="hero-headline js-hide">
+        La plata de<br><span class="accent">los dos.</span>
+      </h1>
+      <p class="hero-sub js-hide">
+        Yumi ordena gastos, cuotas y tarjetas de tu pareja.<br>
+        Le hablás por chat —Telegram o WhatsApp— y listo.
+      </p>
+      <a href="/app/" class="btn-voltage js-hide">
+        Probar gratis <span class="arr">→</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- ═══ CONVERGENCE ══════════════════════════════════════════════ -->
+  <section id="convergence" aria-label="Todo en un lugar">
+    <div id="conv-sticky">
+      <!-- Scattered cards that converge -->
+      <div class="conv-card" id="cc1" aria-hidden="true" style="top:18%;left:6%;">
+        <div class="cc-label">Este mes</div>
+        <div class="cc-val">$284.000</div>
+        <div class="cc-sub">Gastos compartidos</div>
+      </div>
+      <div class="conv-card voltage-card" id="cc2" aria-hidden="true" style="top:12%;right:8%;">
+        <div class="cc-label">Cuotas activas</div>
+        <div class="cc-val">7</div>
+        <div class="cc-sub">Total: $1.890.000</div>
+      </div>
+      <div class="conv-card dark-card" id="cc3" aria-hidden="true" style="top:55%;left:4%;">
+        <div class="cc-label">Dólar blue</div>
+        <div class="cc-val">$1.355</div>
+        <div class="cc-sub">Actualizado ahora</div>
+      </div>
+      <div class="conv-card" id="cc4" aria-hidden="true" style="top:65%;right:6%;">
+        <div class="cc-label">Próximo vencimiento</div>
+        <div class="cc-val">28 jun</div>
+        <div class="cc-sub">BBVA — $42.000</div>
+      </div>
+      <div class="conv-card voltage-card" id="cc5" aria-hidden="true" style="top:35%;right:3%;">
+        <div class="cc-label">Deuda entre ustedes</div>
+        <div class="cc-val">$17.500</div>
+        <div class="cc-sub">Él → ella</div>
+      </div>
+
+      <!-- Dashboard mock (destination) -->
+      <div id="dash-mock" aria-hidden="true">
+        <div class="dash-header">
+          <div class="dh-label">Saldo compartido · Junio</div>
+          <div class="dh-amount">$284.000</div>
+        </div>
+        <div class="dash-body">
+          <div class="dash-row">
+            <div class="dr-left">
+              <div class="dr-icon">🛒</div>
+              <div>
+                <div class="dr-name">Súper</div>
+                <div class="dr-sub">Galicia · Ayer</div>
               </div>
             </div>
-            <div>
-              <div class="chat-name">Yumi</div>
-              <div class="chat-status"><span class="chat-online-dot"></span>activo ahora</div>
-            </div>
+            <div class="dr-amt">$5.000</div>
           </div>
-          <div class="chat-messages">
-            <div>
-              <div class="bubble bubble-user">pagué 5 lucas de súper con el Galicia</div>
-              <div class="bubble-meta">vos · ahora</div>
+          <div class="dash-row">
+            <div class="dr-left">
+              <div class="dr-icon v">🎬</div>
+              <div>
+                <div class="dr-name">Netflix</div>
+                <div class="dr-sub">Cuota 4/12</div>
+              </div>
             </div>
-            <div>
-              <div class="bubble bubble-yumi">✓ Cargado: <strong>$5.000</strong> · Comida · Galicia</div>
-              <div class="bubble-meta left">Yumi · ahora</div>
+            <div class="dr-amt">$8.799</div>
+          </div>
+          <div class="dash-row">
+            <div class="dr-left">
+              <div class="dr-icon">🍕</div>
+              <div>
+                <div class="dr-name">Delivery</div>
+                <div class="dr-sub">Personal · Sáb</div>
+              </div>
             </div>
+            <div class="dr-amt">$14.200</div>
           </div>
         </div>
       </div>
+
+      <!-- Headline -->
+      <div id="conv-headline">
+        <h2>Todo junto,<br><em>sin planillas.</em></h2>
+        <p>Un vistazo, dos personas, cero fricción.</p>
+      </div>
     </div>
   </section>
 
-  <!-- ── El Problema ───────────────────────────────────────────── -->
-  <section id="problema">
-    <div class="wrap">
-      <div id="problema" class="section-header">
-        <span class="eyebrow">EL QUILOMBO DE SIEMPRE</span>
-        <h2 class="display" style="font-size: clamp(30px, 4.5vw, 48px); margin-bottom: 40px;">Las mismas tres preguntas, cada mes.</h2>
-      </div>
-      <div class="problema-grid">
-        <div class="problema-item">
-          <div class="problema-num">01</div>
-          <div class="problema-text">¿Quién pagó qué?</div>
-        </div>
-        <div class="problema-item">
-          <div class="problema-num">02</div>
-          <div class="problema-text">¿Cuánto debemos en cuotas?</div>
-        </div>
-        <div class="problema-item">
-          <div class="problema-num">03</div>
-          <div class="problema-text">¿Llegamos a fin de mes?</div>
+  <!-- ═══ 3-WORD PIN ═══════════════════════════════════════════════ -->
+  <section id="words-pin" aria-label="Hablá, Compartí, Controlá">
+    <div id="words-sticky">
+      <!-- Word 1: Hablá -->
+      <div class="word-slide" id="ws-1">
+        <div class="word-slide-inner">
+          <div class="word-tile v-tile" aria-hidden="true">💬</div>
+          <div class="word-big">Hablá.</div>
+          <p class="word-desc">Le hablás por chat, audio o foto del ticket —en español rioplatense— y Yumi lo interpreta en segundos.</p>
         </div>
       </div>
-      <p class="problema-closing">La plata en pareja no debería ser un dolor de cabeza.</p>
-    </div>
-  </section>
-
-  <!-- ── Cómo funciona ─────────────────────────────────────────── -->
-  <section id="como">
-    <div class="wrap">
-      <div class="section-header">
-        <span class="eyebrow">CÓMO FUNCIONA</span>
-        <h2 class="display" style="font-size: clamp(30px, 4.5vw, 48px);">Tres pasos, y ya.</h2>
+      <!-- Word 2: Compartí -->
+      <div class="word-slide" id="ws-2">
+        <div class="word-slide-inner">
+          <div class="word-tile o-tile" aria-hidden="true" style="color:#e8ede8;">🤝</div>
+          <div class="word-big">Compartí.</div>
+          <p class="word-desc">Vista de a dos: lo tuyo, lo de tu pareja y los gastos de ambos. Sin confusiones ni peleas.</p>
+        </div>
       </div>
-      <div class="como-grid">
-        <div class="como-step">
-          <span class="step-num">01 —</span>
-          <h3 class="step-title">Le hablás</h3>
-          <p class="step-desc">Chat, audio o foto del ticket. En el idioma que usás todos los días: luca, palo, cuota, todo.</p>
-        </div>
-        <div class="como-step">
-          <span class="step-num">02 —</span>
-          <h3 class="step-title">Yumi lo ordena</h3>
-          <p class="step-desc">Detecta el monto, la cuenta, la categoría y si es en cuotas. Sin que tengas que completar nada a mano.</p>
-        </div>
-        <div class="como-step">
-          <span class="step-num">03 —</span>
-          <h3 class="step-title">Lo ven los dos</h3>
-          <p class="step-desc">Todo claro en el dashboard compartido. Sin mensajes confusos, sin planillas, sin cuentas pendientes.</p>
+      <!-- Word 3: Controlá -->
+      <div class="word-slide" id="ws-3">
+        <div class="word-slide-inner">
+          <div class="word-tile v-tile" aria-hidden="true">📊</div>
+          <div class="word-big">Controlá.</div>
+          <p class="word-desc">Deuda entre ustedes, cuotas y vencimientos —claros, siempre—. Sin planillas que se abandonan en febrero.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ── Features ──────────────────────────────────────────────── -->
-  <section id="features">
-    <div class="wrap">
-      <div class="section-header">
-        <span class="eyebrow">QUÉ HACE YUMI</span>
-        <h2 class="display" style="font-size: clamp(30px, 4.5vw, 48px);">Hecho para la vida real, la argentina.</h2>
-      </div>
+  <!-- ═══ FEATURES ════════════════════════════════════════════════ -->
+  <section id="features" aria-labelledby="features-h2">
+    <div class="container">
+      <p class="section-label">Por qué Yumi</p>
+      <h2 id="features-h2">Hecho para la vida real.<br>Hecho para Argentina.</h2>
       <div class="features-grid">
-        <div class="feature-card">
-          <div class="feature-icon" aria-hidden="true">💬</div>
-          <h3 class="feature-title">Le hablás, y listo</h3>
-          <p class="feature-desc">Entiende lenguaje natural y modismos: luca, palo, verde, cuotas sin interés. Acepta audios y fotos de tickets y resúmenes bancarios.</p>
+        <div class="feat-card">
+          <div class="feat-icon vi">💬</div>
+          <h3>Le hablás, y listo</h3>
+          <p>Lenguaje natural, modismos argentinos (luca, palo, mango). Mandás audios, fotos de tickets y resúmenes de tarjeta.</p>
         </div>
-        <div class="feature-card">
-          <div class="feature-icon" aria-hidden="true">🇦🇷</div>
-          <h3 class="feature-title">Entiende Argentina</h3>
-          <p class="feature-desc">Cuotas, cierres y vencimientos de tarjeta. Dólar blue y MEP. Mercado Pago. El contexto que ninguna app gringa tiene.</p>
+        <div class="feat-card">
+          <div class="feat-icon oi" style="color:#e8ede8;">🇦🇷</div>
+          <h3>Entiende Argentina</h3>
+          <p>Cuotas, cierres y vencimientos de tarjeta, dólar blue y MEP, Mercado Pago. Todo lo que las apps del norte ignoran.</p>
         </div>
-        <div class="feature-card">
-          <div class="feature-icon" aria-hidden="true">👫</div>
-          <h3 class="feature-title">Hecho para dos</h3>
-          <p class="feature-desc">Vista compartida: cada uno ve lo suyo y lo de ambos. La deuda entre ustedes siempre clara, sin peleas por quién puso qué.</p>
+        <div class="feat-card">
+          <div class="feat-icon mi">👫</div>
+          <h3>Hecho para dos</h3>
+          <p>Vista compartida con tu pareja. Deuda entre ustedes siempre clara: quién le debe a quién y cuánto.</p>
         </div>
-        <div class="feature-card">
-          <div class="feature-icon" aria-hidden="true">📊</div>
-          <h3 class="feature-title">Todo en un lugar</h3>
-          <p class="feature-desc">Deuda total, gasto del mes, próximos vencimientos y cuotas. Un solo dashboard para no perder de vista nada.</p>
+        <div class="feat-card">
+          <div class="feat-icon vi">📍</div>
+          <h3>Todo en un lugar</h3>
+          <p>Deuda total, gasto del mes, próximos vencimientos y cuotas activas. Un solo vistazo, sin abrir Excel.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ── Diferencial ───────────────────────────────────────────── -->
-  <section class="diferencial">
-    <div class="wrap">
-      <div class="diferencial-inner">
-        <div class="diferencial-label">diferencial</div>
-        <blockquote class="diferencial-text">
-          No es otra planilla que abandonás en febrero.<br />
-          No es Splitwise <em>(que no sabe de cuotas ni del dólar)</em>.<br />
-          Es tu asistente de plata, en el chat que ya usás.
-        </blockquote>
+  <!-- ═══ CHAT DEMO ════════════════════════════════════════════════ -->
+  <section id="chat-demo" aria-labelledby="chat-h2">
+    <div class="container">
+      <p class="section-label">En acción</p>
+      <h2 id="chat-h2">Así de fácil es cargar un gasto.</h2>
+      <div class="chat-phone">
+        <div class="chat-topbar">
+          <div class="chat-avatar">Y</div>
+          <div>
+            <div class="chat-contact">Yumi</div>
+            <div class="chat-status">● en línea</div>
+          </div>
+        </div>
+        <div class="chat-msgs" id="chat-msgs">
+          <div class="chat-msg-user" id="chat-user-msg">
+            <span id="chat-typed-text"></span><span class="typing-cursor" id="chat-cursor"></span>
+          </div>
+          <div class="chat-msg-yumi confirm" id="chat-yumi-reply" aria-live="polite">
+            ✓ Cargado: $5.000 · Comida · Galicia
+          </div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- ── CTA Final ─────────────────────────────────────────────── -->
-  <section class="cta-final">
-    <div class="wrap">
-      <span class="eyebrow" style="text-align: center;">EMPEZÁ HOY</span>
-      <h2 class="display cta-headline">Empezá hoy, juntos.</h2>
-      <div style="display:flex; justify-content:center; gap:12px; align-items:center; flex-wrap:wrap;">
-        <a href="/app/" class="btn-voltage" style="font-size:17px; padding:14px 32px;">Crear cuenta →</a>
+  <!-- ═══ STATS ════════════════════════════════════════════════════ -->
+  <section id="stats" aria-labelledby="stats-h2">
+    <div class="container">
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-number">
+            <span class="stat-count" data-target="3">0</span><span class="stat-unit">seg</span>
+          </div>
+          <div class="stat-label">para cargar un gasto</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number">
+            <span class="stat-count" data-target="0">0</span>
+          </div>
+          <div class="stat-label">planillas que llenar</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number">
+            <span class="stat-count" data-target="2">0</span>
+          </div>
+          <div class="stat-label">personas, un solo lugar</div>
+        </div>
       </div>
-      <div style="margin-top:32px; display:flex; justify-content:center;">
-        <span class="tick"></span>
-      </div>
-      <p style="margin-top:16px; font-size:13px; color:var(--sage); text-align:center; font-weight:300;">Gratis para empezar · Sin tarjeta · Telegram o WhatsApp</p>
     </div>
   </section>
 
-  <!-- ── Footer ────────────────────────────────────────────────── -->
-  <footer>
-    <div class="wrap">
-      <div class="footer-inner">
+  <!-- ═══ DIFERENCIAL ══════════════════════════════════════════════ -->
+  <section id="diferencial" aria-labelledby="dif-p">
+    <div class="container">
+      <div class="ed-block">
+        <div class="ed-label">Por qué no otra app</div>
+        <p id="dif-p">No es otra planilla que abandonás en febrero. No es Splitwise —que no sabe de cuotas ni del dólar.</p>
+        <p>Es tu asistente de plata, en el chat que ya usás. Sin fricción, sin curva de aprendizaje, sin excusas.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ FINAL CTA ════════════════════════════════════════════════ -->
+  <section id="final-cta" aria-labelledby="cta-h2">
+    <div class="container">
+      <h2 id="cta-h2">Empezá hoy,<br><span class="accent">juntos.</span></h2>
+      <p class="cta-sub">Gratis para siempre en el plan esencial. Sin tarjeta de crédito.</p>
+      <a href="/app/" class="btn-voltage">
+        Crear cuenta <span class="arr">→</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- ═══ FOOTER ═══════════════════════════════════════════════════ -->
+  <footer role="contentinfo">
+    <div class="footer-inner">
+      <div class="footer-top">
         <div class="footer-brand">
-          <a href="/" class="footer-wordmark">
-            <div class="wordmark-bars footer-wordmark-bars">
-              <span></span><span></span>
-            </div>
-            <span><span class="wordmark-yu" style="color:var(--canvas);">Yu</span><span class="wordmark-mi">mi</span></span>
-          </a>
-          <div class="footer-tagline">la plata de los dos</div>
+          <a href="/" class="f-wordmark">Yu<span>mi</span></a>
+          <div class="f-tag">la plata de los dos</div>
         </div>
-        <div class="footer-links">
-          <a href="/app/" class="footer-link">Iniciar sesión</a>
-          <span class="footer-copy">© 2026 Yumi</span>
-        </div>
+        <nav class="footer-links" aria-label="Links del pie">
+          <a href="/app/">Iniciar sesión</a>
+          <a href="/app/">Registrarse</a>
+          <a href="#features">Cómo funciona</a>
+        </nav>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 Yumi. Todos los derechos reservados.</span>
+        <span>Buenos Aires, Argentina</span>
       </div>
     </div>
   </footer>
 
+  <!-- ═══ SCRIPTS ══════════════════════════════════════════════════ -->
+
+  <!-- Lenis smooth scroll -->
+  <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.9/dist/lenis.min.js"></script>
+
+  <!-- GSAP + ScrollTrigger -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+
+  <script>
+  (function() {
+    'use strict';
+
+    /* ── Reduced motion guard ─────────────────────────────────── */
+    var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    /* ── Mark JS present → reveal .js-hide elements ───────────── */
+    document.documentElement.classList.add('js');
+
+    /* ── Scroll progress bar (works without GSAP) ─────────────── */
+    var bar = document.getElementById('progress-bar');
+    function updateProgress() {
+      var scrolled = window.scrollY;
+      var total = document.body.scrollHeight - window.innerHeight;
+      if (total > 0 && bar) bar.style.width = (scrolled / total * 100) + '%';
+    }
+    window.addEventListener('scroll', updateProgress, { passive: true });
+    updateProgress();
+
+    /* ── Exit early if GSAP not loaded ────────────────────────── */
+    if (!window.gsap || !window.ScrollTrigger) {
+      // Reveal all hidden elements
+      document.querySelectorAll('.js-hide').forEach(function(el) {
+        el.style.opacity = '1';
+      });
+      document.querySelectorAll('.word-slide').forEach(function(el) {
+        el.style.opacity = '1';
+        el.style.position = 'relative';
+        el.style.minHeight = 'auto';
+      });
+      return;
+    }
+
+    /* ── Exit early for reduced motion ────────────────────────── */
+    if (reduced) {
+      document.querySelectorAll('.js-hide').forEach(function(el) { el.style.opacity = '1'; });
+      document.querySelectorAll('.word-slide').forEach(function(el) {
+        el.style.opacity = '1';
+        el.style.position = 'relative';
+        el.style.minHeight = 'auto';
+      });
+      document.querySelectorAll('.conv-card').forEach(function(el) { el.style.opacity = '1'; });
+      document.getElementById('dash-mock') && (document.getElementById('dash-mock').style.opacity = '1');
+      document.getElementById('conv-headline') && (document.getElementById('conv-headline').style.opacity = '1');
+      return;
+    }
+
+    gsap.registerPlugin(ScrollTrigger);
+
+    /* ── Lenis ─────────────────────────────────────────────────── */
+    var lenis;
+    if (window.Lenis) {
+      lenis = new window.Lenis({ lerp: 0.09, smoothWheel: true });
+      lenis.on('scroll', ScrollTrigger.update);
+      gsap.ticker.add(function(time) { lenis.raf(time * 1000); });
+      gsap.ticker.lagSmoothing(0);
+    }
+
+    /* ── Hero reveals ──────────────────────────────────────────── */
+    var heroEls = document.querySelectorAll('#hero .js-hide');
+    gsap.fromTo(heroEls,
+      { opacity: 0, y: 36 },
+      {
+        opacity: 1, y: 0,
+        duration: 1.1,
+        ease: 'power3.out',
+        stagger: 0.14,
+        delay: 0.15,
+        onComplete: function() {
+          heroEls.forEach(function(el) { el.classList.remove('js-hide'); });
+        }
+      }
+    );
+
+    /* ── Floating card idle float ──────────────────────────────── */
+    var fcards = document.querySelectorAll('.fcard[data-float]');
+    fcards.forEach(function(card, i) {
+      var amp = 10 + (i % 3) * 5;
+      var dur = 3.5 + i * 0.7;
+      gsap.to(card, {
+        y: amp,
+        duration: dur,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+        delay: i * 0.4
+      });
+    });
+
+    /* ── Mouse parallax on hero cards ─────────────────────────── */
+    var heroSection = document.getElementById('hero');
+    var mParallax = { x: 0, y: 0 };
+    document.addEventListener('mousemove', function(e) {
+      mParallax.x = (e.clientX / window.innerWidth - 0.5) * 2;
+      mParallax.y = (e.clientY / window.innerHeight - 0.5) * 2;
+      fcards.forEach(function(card, i) {
+        var depth = 0.4 + (i % 3) * 0.3;
+        gsap.to(card, {
+          x: mParallax.x * 18 * depth,
+          y: '+=' + 0, // let idle float handle Y
+          duration: 1.4,
+          ease: 'power2.out',
+          overwrite: 'auto'
+        });
+      });
+    });
+
+    /* ── Convergence section ───────────────────────────────────── */
+    var convSection = document.getElementById('convergence');
+    var convSticky  = document.getElementById('conv-sticky');
+    var dashMock    = document.getElementById('dash-mock');
+    var convHead    = document.getElementById('conv-headline');
+    var convCards   = [
+      document.getElementById('cc1'),
+      document.getElementById('cc2'),
+      document.getElementById('cc3'),
+      document.getElementById('cc4'),
+      document.getElementById('cc5')
+    ];
+
+    // Initially hide headline
+    gsap.set(convHead, { opacity: 0, y: 24 });
+    gsap.set(dashMock, { opacity: 0, scale: 0.88 });
+
+    var convTl = gsap.timeline({
+      scrollTrigger: {
+        trigger: convSection,
+        start: 'top top',
+        end: '+=200%',
+        pin: convSticky,
+        scrub: 1.2,
+        anticipatePin: 1
+      }
+    });
+
+    // Phase 1: cards scatter → center
+    var centerX = 0, centerY = 0;
+    convCards.forEach(function(card, i) {
+      convTl.to(card, {
+        left: '50%',
+        top: '50%',
+        xPercent: -50,
+        yPercent: -50,
+        scale: 0.7,
+        opacity: 0,
+        duration: 0.5,
+        ease: 'power2.in'
+      }, i * 0.08);
+    });
+
+    // Phase 2: dash mock appears
+    convTl.to(dashMock, { opacity: 1, scale: 1, duration: 0.4, ease: 'back.out(1.4)' }, 0.5);
+
+    // Phase 3: headline appears
+    convTl.to(convHead, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out' }, 0.7);
+
+    /* ── 3-Word pinned sequence ────────────────────────────────── */
+    var wordPin = document.getElementById('words-pin');
+    var wordSticky = document.getElementById('words-sticky');
+    var wordSlides = [
+      document.getElementById('ws-1'),
+      document.getElementById('ws-2'),
+      document.getElementById('ws-3')
+    ];
+
+    // Set initial states
+    gsap.set(wordSlides[0], { opacity: 1, y: 0 });
+    gsap.set(wordSlides[1], { opacity: 0, y: 30 });
+    gsap.set(wordSlides[2], { opacity: 0, y: 30 });
+
+    var wordTl = gsap.timeline({
+      scrollTrigger: {
+        trigger: wordPin,
+        start: 'top top',
+        end: '+=300%',
+        pin: wordSticky,
+        scrub: 1,
+        anticipatePin: 1
+      }
+    });
+
+    // slide 0 → 1
+    wordTl.to(wordSlides[0], { opacity: 0, y: -30, duration: 0.3, ease: 'power2.in' }, 0.1);
+    wordTl.to(wordSlides[1], { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' }, 0.25);
+    // slide 1 → 2
+    wordTl.to(wordSlides[1], { opacity: 0, y: -30, duration: 0.3, ease: 'power2.in' }, 0.55);
+    wordTl.to(wordSlides[2], { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' }, 0.7);
+    // hold slide 2
+    wordTl.to({}, { duration: 0.3 }, 1.0);
+
+    /* ── Feature cards stagger reveal ─────────────────────────── */
+    gsap.set('.feat-card', { opacity: 0, y: 44 });
+    ScrollTrigger.batch('.feat-card', {
+      onEnter: function(els) {
+        gsap.to(els, {
+          opacity: 1,
+          y: 0,
+          duration: 0.8,
+          stagger: 0.12,
+          ease: 'power3.out'
+        });
+      },
+      start: 'top 88%',
+      once: true
+    });
+
+    /* ── Section reveals (generic fade+slide) ──────────────────── */
+    var revealEls = document.querySelectorAll(
+      '#features h2, #features .section-label, ' +
+      '#chat-demo h2, #chat-demo .section-label, ' +
+      '#diferencial .ed-block, #final-cta h2, #final-cta .cta-sub, #final-cta .btn-voltage, ' +
+      '#stats .stat-item'
+    );
+    gsap.set(revealEls, { opacity: 0, y: 32 });
+    revealEls.forEach(function(el) {
+      ScrollTrigger.create({
+        trigger: el,
+        start: 'top 88%',
+        once: true,
+        onEnter: function() {
+          gsap.to(el, { opacity: 1, y: 0, duration: 0.85, ease: 'power3.out' });
+        }
+      });
+    });
+
+    /* ── Typewriter chat demo ──────────────────────────────────── */
+    var chatSection   = document.getElementById('chat-demo');
+    var typedText     = document.getElementById('chat-typed-text');
+    var typingCursor  = document.getElementById('chat-cursor');
+    var yumiReply     = document.getElementById('chat-yumi-reply');
+    var fullMsg       = 'pagué 5 lucas de súper con el Galicia 🛒';
+    var typingDone    = false;
+
+    function runTypewriter() {
+      if (typingDone) return;
+      typingDone = true;
+      typingCursor.style.opacity = '1';
+      var i = 0;
+      var speed = 38;
+      function type() {
+        if (i < fullMsg.length) {
+          typedText.textContent += fullMsg[i];
+          i++;
+          setTimeout(type, speed);
+        } else {
+          // cursor blink then hide
+          setTimeout(function() {
+            typingCursor.style.opacity = '0';
+            // Yumi reply pop in
+            gsap.to(yumiReply, {
+              opacity: 1,
+              y: 0,
+              duration: 0.45,
+              ease: 'back.out(1.6)',
+              delay: 0.15
+            });
+          }, 400);
+        }
+      }
+      type();
+    }
+
+    ScrollTrigger.create({
+      trigger: chatSection,
+      start: 'top 65%',
+      onEnter: runTypewriter,
+      once: true
+    });
+
+    /* ── Count-up stats ────────────────────────────────────────── */
+    var statCountEls = document.querySelectorAll('.stat-count');
+    statCountEls.forEach(function(el) {
+      var target = parseInt(el.dataset.target, 10);
+      ScrollTrigger.create({
+        trigger: el,
+        start: 'top 85%',
+        once: true,
+        onEnter: function() {
+          gsap.fromTo(el,
+            { innerText: 0 },
+            {
+              innerText: target,
+              duration: target === 0 ? 0.01 : 1.6,
+              ease: 'power2.out',
+              snap: { innerText: 1 },
+              onUpdate: function() {
+                el.textContent = Math.round(parseFloat(el.textContent));
+              }
+            }
+          );
+        }
+      });
+    });
+
+    /* ── Pill nav hide/show (subtle on hero, visible after) ────── */
+    var pillNav = document.getElementById('pill-nav');
+    gsap.set(pillNav, { opacity: 0, y: 20 });
+    setTimeout(function() {
+      gsap.to(pillNav, { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' });
+    }, 800);
+
+    /* ── ScrollTrigger refresh ─────────────────────────────────── */
+    ScrollTrigger.refresh();
+
+  })();
+  </script>
 </body>
 </html>
