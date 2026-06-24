@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Yumi · La plata de los dos</title>
-  <meta name="description" content="Yumi ordena los gastos, las cuotas y las tarjetas de tu pareja. Le hablás por chat —Telegram o WhatsApp— y listo." />
+  <title>Yumi · El asistente de los dos</title>
+  <meta name="description" content="Yumi se ocupa de la plata, la agenda, las tareas, las listas y los hábitos de tu pareja o familia. Le hablás por chat —WhatsApp o Telegram— y listo." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300;1,9..144,400&family=Inter:wght@350;400;500;600&display=swap" rel="stylesheet" />
@@ -1172,6 +1172,86 @@
     }
 
     /* ── Container util ──────────────────────────────────────────── */
+    /* ── New sections: shared header ─────────────────────────────── */
+    #capacidades, #privacidad, #precios, #whatsapp { padding: clamp(80px, 10vw, 130px) 0; }
+    #capacidades .section-label, #privacidad .section-label, #precios .section-label, #whatsapp .section-label {
+      font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sage); margin-bottom: 20px;
+    }
+    #capacidades h2, #precios h2 {
+      font-family: 'Fraunces', serif; font-size: clamp(32px, 5vw, 62px); font-weight: 300;
+      letter-spacing: -0.03em; line-height: 1.1; margin-bottom: clamp(40px, 5vw, 64px); max-width: 18ch;
+    }
+
+    /* ── Capacidades (editorial list) ────────────────────────────── */
+    .cap-list { border-top: 1px solid var(--mist); }
+    .cap-row {
+      display: grid; grid-template-columns: minmax(150px, 230px) 1fr; gap: clamp(16px, 4vw, 48px);
+      align-items: baseline; padding: clamp(20px, 2.4vw, 30px) 0; border-bottom: 1px solid var(--mist);
+      transition: padding-left 0.3s ease;
+    }
+    .cap-row:hover { padding-left: 12px; }
+    .cap-word {
+      font-family: 'Fraunces', serif; font-size: clamp(28px, 4.4vw, 46px); font-weight: 300;
+      letter-spacing: -0.02em; color: var(--obsidian); transition: color 0.3s ease;
+    }
+    .cap-row:hover .cap-word { color: var(--sage); }
+    .cap-desc { font-size: clamp(15px, 1.6vw, 18px); color: var(--sage); line-height: 1.55; max-width: 46ch; }
+
+    /* ── Privacidad ──────────────────────────────────────────────── */
+    .priv-inner { display: grid; grid-template-columns: 0.85fr 1.15fr; gap: clamp(32px, 6vw, 80px); align-items: center; }
+    .priv-visual { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+    .priv-visual-cap { display: flex; gap: 30px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sage); }
+    .priv-copy h2 { font-family: 'Fraunces', serif; font-size: clamp(30px, 4.6vw, 56px); font-weight: 300; letter-spacing: -0.03em; line-height: 1.08; margin-bottom: 18px; }
+    .priv-lead { font-size: clamp(16px, 1.8vw, 20px); color: var(--obsidian); margin-bottom: 24px; }
+    .priv-points { list-style: none; display: grid; gap: 14px; }
+    .priv-points li { position: relative; padding-left: 28px; color: var(--sage); font-size: 15px; line-height: 1.5; }
+    .priv-points li::before { content: ''; position: absolute; left: 0; top: 7px; width: 10px; height: 10px; border-radius: 50%; background: var(--voltage); }
+
+    /* ── Precios ─────────────────────────────────────────────────── */
+    #precios h2 { margin-bottom: 22px; }
+    .price-toggle { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--mist); border-radius: 999px; margin-bottom: clamp(32px, 4vw, 48px); background: white; }
+    .pt-btn { border: none; background: transparent; border-radius: 999px; padding: 8px 18px; font-size: 14px; font-weight: 500; color: var(--sage); cursor: pointer; font-family: inherit; }
+    .pt-btn.active { background: var(--obsidian); color: var(--canvas); }
+    .pt-save { font-size: 11px; color: var(--voltage); margin-left: 4px; }
+    .price-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; align-items: start; }
+    .price-card { background: white; border: 1px solid var(--mist); border-radius: 24px; padding: clamp(24px, 3vw, 34px); display: flex; flex-direction: column; }
+    .price-card.featured { border-color: var(--obsidian); border-width: 1.5px; position: relative; box-shadow: 0 18px 40px -24px rgba(18,22,19,0.35); }
+    .pc-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--voltage); color: var(--v-text); font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 4px 12px; border-radius: 999px; white-space: nowrap; }
+    .pc-name { font-size: 15px; font-weight: 600; color: var(--sage); margin-bottom: 14px; }
+    .pc-price { display: flex; align-items: baseline; gap: 6px; margin-bottom: 6px; }
+    .pc-amount { font-family: 'Fraunces', serif; font-size: clamp(34px, 4.6vw, 50px); font-weight: 300; letter-spacing: -0.02em; color: var(--obsidian); }
+    .pc-per { font-size: 13px; color: var(--sage); }
+    .pc-desc { font-size: 14px; color: var(--sage); margin-bottom: 22px; }
+    .pc-feats { list-style: none; display: grid; gap: 11px; margin-bottom: 26px; }
+    .pc-feats li { position: relative; padding-left: 24px; font-size: 14px; color: var(--obsidian); line-height: 1.45; }
+    .pc-feats li::before { content: '✓'; position: absolute; left: 0; top: 0; color: var(--voltage); font-weight: 600; }
+    .pc-cta { margin-top: auto; text-align: center; padding: 13px; border-radius: 12px; border: 1px solid var(--mist); color: var(--obsidian); text-decoration: none; font-weight: 500; font-size: 15px; transition: background 0.2s, border-color 0.2s; }
+    .pc-cta:hover { border-color: var(--obsidian); }
+    .pc-cta.primary { background: var(--voltage); color: var(--v-text); border-color: var(--voltage); box-shadow: 0 10px 24px -12px rgba(43,238,75,0.7); }
+    .price-note { text-align: center; font-size: 13px; color: var(--sage); margin-top: 24px; }
+
+    /* ── WhatsApp ────────────────────────────────────────────────── */
+    .wa-inner { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: clamp(32px, 6vw, 72px); align-items: center; }
+    .wa-copy h2 { font-family: 'Fraunces', serif; font-size: clamp(32px, 5vw, 60px); font-weight: 300; letter-spacing: -0.03em; line-height: 1.08; margin-bottom: 18px; }
+    .wa-lead { font-size: clamp(16px, 1.8vw, 19px); color: var(--sage); line-height: 1.6; margin-bottom: 26px; max-width: 42ch; }
+    .wa-badges { display: flex; gap: 12px; flex-wrap: wrap; }
+    .wa-badge { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--mist); border-radius: 999px; padding: 9px 16px; font-size: 14px; font-weight: 500; color: var(--obsidian); }
+    .wa-dot { width: 9px; height: 9px; border-radius: 50%; }
+    .wa-green { background: #25D366; }
+    .wa-blue { background: #29A9EB; }
+    .wa-soon { font-size: 11px; color: var(--sage); }
+    .wa-live { font-size: 11px; color: var(--voltage); }
+    .wa-chat { background: white; border: 1px solid var(--mist); border-radius: 24px; padding: 22px; display: grid; gap: 12px; }
+    .wa-msg { font-size: 14px; line-height: 1.45; padding: 11px 14px; border-radius: 16px; max-width: 85%; }
+    .wa-out { background: var(--obsidian); color: var(--canvas); justify-self: end; border-bottom-right-radius: 4px; }
+    .wa-in { background: var(--mist); color: var(--obsidian); justify-self: start; border-bottom-left-radius: 4px; }
+
+    @media (max-width: 760px) {
+      .priv-inner, .wa-inner { grid-template-columns: 1fr; }
+      .cap-row { grid-template-columns: 1fr; gap: 6px; }
+      .cap-row:hover { padding-left: 0; }
+    }
+
     .container {
       width: var(--w);
       margin: 0 auto;
@@ -1219,11 +1299,11 @@
   <nav id="pill-nav" aria-label="Navegación principal">
     <a href="/" class="pn-mark">Yu<span>mi</span></a>
     <div class="pn-links">
-      <a href="#hero">Inicio</a>
+      <a href="#capacidades">Qué hace</a>
       <span class="pn-sep">·</span>
-      <a href="#features">Cómo funciona</a>
+      <a href="#privacidad">Privacidad</a>
       <span class="pn-sep">·</span>
-      <a href="#stats">Precios</a>
+      <a href="#precios">Precios</a>
     </div>
     <a href="/app/" class="pn-cta">Entrar <span class="arr">→</span></a>
   </nav>
@@ -1236,39 +1316,39 @@
         "pagué 5 lucas de súper con el Galicia 🛒"
       </div>
       <div class="fcard fcard-2" data-float="2">
-        <div class="fc-label">Deuda total</div>
-        <div class="fc-val">$340.000</div>
-        <div class="fc-sub">Saldo a favor: ella → él</div>
+        <div class="fc-label">Mañana 21:00</div>
+        <div class="fc-val">Cena con los viejos</div>
+        <div class="fc-sub">Agendado · les avisa a los dos</div>
       </div>
       <div class="fcard fcard-3" data-float="3">
-        <div class="fc-label">Cuota</div>
-        <div class="fc-val">4 / 12</div>
-        <div class="fc-sub">Ropa · Naranja X</div>
+        <div class="fc-label">Lista del súper</div>
+        <div class="fc-val">3 de 7</div>
+        <div class="fc-sub">Leche · pan · huevos…</div>
       </div>
       <div class="fcard fcard-4 voltage-tile" data-float="4">
-        <div class="fc-label" style="color:var(--v-text);opacity:0.7;">Acción rápida</div>
-        <div class="fc-val" style="color:var(--v-text); font-size:14px;">+ Cargar gasto</div>
+        <div class="fc-label" style="color:var(--v-text);opacity:0.7;">Recordatorio</div>
+        <div class="fc-val" style="color:var(--v-text); font-size:14px;">Pagar el alquiler</div>
       </div>
       <div class="fcard fcard-5 chip" data-float="5">
         <span class="chip-dot"></span>
-        Dólar blue $1.355
+        Cuota 2/6 · Naranja
       </div>
     </div>
 
     <div class="hero-inner">
       <div class="hero-tag js-hide">
         <span class="dot"></span>
-        Tu asistente de finanzas compartidas
+        Tu asistente personal, de a dos
       </div>
       <h1 id="hero-h1" class="hero-headline js-hide">
-        La plata de<br><span class="accent">los dos.</span>
+        El asistente<br><span class="accent">de los dos.</span>
       </h1>
       <p class="hero-sub js-hide">
-        Yumi ordena gastos, cuotas y tarjetas de tu pareja.<br>
-        Le hablás por chat —Telegram o WhatsApp— y listo.
+        Plata, agenda, tareas, listas y hábitos.<br>
+        Le hablás por chat —WhatsApp o Telegram— y Yumi se ocupa.
       </p>
       <a href="/app/" class="btn-voltage js-hide">
-        Probar gratis <span class="arr">→</span>
+        Empezar gratis <span class="arr">→</span>
       </a>
     </div>
   </section>
@@ -1515,7 +1595,7 @@
             </svg>
           </div>
           <h3>Hecho para dos</h3>
-          <p>Vista compartida con tu pareja. Deuda entre ustedes siempre clara: quién le debe a quién y cuánto.</p>
+          <p>Vista compartida con tu pareja o familia. La plata, los pendientes y los planes sincronizados para los dos, sin reenviar nada.</p>
         </div>
         <div class="feat-card">
           <div class="feat-icon vi" aria-hidden="true">
@@ -1526,7 +1606,41 @@
             </svg>
           </div>
           <h3>Todo en un lugar</h3>
-          <p>Deuda total, gasto del mes, próximos vencimientos y cuotas activas. Un solo vistazo, sin abrir Excel.</p>
+          <p>Plata, agenda, tareas, listas y hábitos en un solo vistazo. Lo que antes vivía en cinco apps distintas.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ CAPACIDADES ══════════════════════════════════════════════ -->
+  <section id="capacidades" aria-labelledby="cap-h2">
+    <div class="container">
+      <p class="section-label">Todo, de a dos</p>
+      <h2 id="cap-h2">Una sola app<br>para la vida en común.</h2>
+      <div class="cap-list">
+        <div class="cap-row">
+          <span class="cap-word">Plata</span>
+          <span class="cap-desc">Gastos, cuotas, tarjetas y dólar. Quién le debe a quién, siempre claro.</span>
+        </div>
+        <div class="cap-row">
+          <span class="cap-word">Agenda</span>
+          <span class="cap-desc">Eventos y recordatorios para los dos. Yumi avisa antes de que se pase.</span>
+        </div>
+        <div class="cap-row">
+          <span class="cap-word">Tareas</span>
+          <span class="cap-desc">Pendientes compartidos, por prioridad. Sin reenviar capturas.</span>
+        </div>
+        <div class="cap-row">
+          <span class="cap-word">Listas</span>
+          <span class="cap-desc">La del súper, la de la farmacia. Tachás desde el chat, en vivo.</span>
+        </div>
+        <div class="cap-row">
+          <span class="cap-word">Hábitos</span>
+          <span class="cap-desc">Lo que quieren sostener juntos, con seguimiento simple.</span>
+        </div>
+        <div class="cap-row">
+          <span class="cap-word">Notas</span>
+          <span class="cap-desc">Las claves, las ideas, lo que no se puede olvidar. A mano.</span>
         </div>
       </div>
     </div>
@@ -1536,7 +1650,7 @@
   <section id="chat-demo" aria-labelledby="chat-h2">
     <div class="container">
       <p class="section-label">En acción</p>
-      <h2 id="chat-h2">Así de fácil es cargar un gasto.</h2>
+      <h2 id="chat-h2">Decile cualquier cosa.<br>Yumi se ocupa.</h2>
       <div class="chat-demo-inner">
         <!-- Faithful Yumi phone mock (dark variant for dark section) -->
         <div class="yumi-phone" aria-hidden="true">
@@ -1692,13 +1806,111 @@
     </div>
   </section>
 
+  <!-- ═══ PRIVACIDAD ═══════════════════════════════════════════════ -->
+  <section id="privacidad" aria-labelledby="priv-h2">
+    <div class="container priv-inner">
+      <div class="priv-visual" aria-hidden="true">
+        <svg viewBox="0 0 120 80" width="160" height="107">
+          <circle cx="48" cy="40" r="34" fill="var(--obsidian)"/>
+          <circle cx="72" cy="40" r="34" fill="var(--voltage)"/>
+          <clipPath id="privov"><circle cx="48" cy="40" r="34"/></clipPath>
+          <circle cx="72" cy="40" r="34" fill="var(--v-text)" clip-path="url(#privov)"/>
+        </svg>
+        <div class="priv-visual-cap"><span>lo tuyo</span><span>lo compartido</span></div>
+      </div>
+      <div class="priv-copy">
+        <p class="section-label">Privacidad</p>
+        <h2 id="priv-h2">Lo de los dos<br>es de los dos.</h2>
+        <p class="priv-lead">Tu plata y tu vida en común son tuyas. De nadie más.</p>
+        <ul class="priv-points">
+          <li>Elegís qué compartís con el otro y qué queda solo tuyo.</li>
+          <li>No vendemos tus datos ni los usamos para publicidad.</li>
+          <li>Conexión cifrada. Exportás o borrás todo cuando quieras.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ PRECIOS ══════════════════════════════════════════════════ -->
+  <section id="precios" aria-labelledby="precios-h2">
+    <div class="container">
+      <p class="section-label">Precios</p>
+      <h2 id="precios-h2">Simple. Como todo en Yumi.</h2>
+      <div class="price-toggle" role="group" aria-label="Forma de facturación">
+        <button type="button" class="pt-btn active" data-period="mensual">Mensual</button>
+        <button type="button" class="pt-btn" data-period="anual">Anual <span class="pt-save">−20%</span></button>
+      </div>
+      <div class="price-grid">
+        <div class="price-card">
+          <div class="pc-name">Gratis</div>
+          <div class="pc-price"><span class="pc-amount" data-mensual="$0" data-anual="$0">$0</span><span class="pc-per">para siempre</span></div>
+          <div class="pc-desc">Para arrancar, vos solo.</div>
+          <ul class="pc-feats">
+            <li>Plata, tareas y notas</li>
+            <li>1 persona</li>
+            <li>Por chat y web</li>
+          </ul>
+          <a href="/app/" class="pc-cta">Empezar gratis</a>
+        </div>
+        <div class="price-card featured">
+          <div class="pc-badge">Recomendado</div>
+          <div class="pc-name">Pareja</div>
+          <div class="pc-price"><span class="pc-amount" data-mensual="$4.990" data-anual="$3.990">$4.990</span><span class="pc-per" data-mensual="/mes" data-anual="/mes · anual">/mes</span></div>
+          <div class="pc-desc">Todo, sincronizado para los dos.</div>
+          <ul class="pc-feats">
+            <li>Las 6 secciones, sin límites</li>
+            <li>2 personas, vista compartida</li>
+            <li>Cuotas, dólar y vencimientos</li>
+            <li>Recordatorios y listas en vivo</li>
+          </ul>
+          <a href="/app/" class="pc-cta primary">Empezar</a>
+        </div>
+        <div class="price-card">
+          <div class="pc-name">Familia</div>
+          <div class="pc-price"><span class="pc-amount" data-mensual="$7.990" data-anual="$6.490">$7.990</span><span class="pc-per" data-mensual="/mes" data-anual="/mes · anual">/mes</span></div>
+          <div class="pc-desc">Para toda la casa.</div>
+          <ul class="pc-feats">
+            <li>Todo lo de Pareja</li>
+            <li>Hasta 5 personas</li>
+            <li>Gastos por integrante</li>
+          </ul>
+          <a href="/app/" class="pc-cta">Empezar</a>
+        </div>
+      </div>
+      <p class="price-note">Precios en pesos, IVA incluido. Cancelás cuando quieras.</p>
+    </div>
+  </section>
+
+  <!-- ═══ WHATSAPP ═════════════════════════════════════════════════ -->
+  <section id="whatsapp" aria-labelledby="wa-h2">
+    <div class="container wa-inner">
+      <div class="wa-copy">
+        <p class="section-label">Donde ya estás</p>
+        <h2 id="wa-h2">Yumi vive<br>en tu chat.</h2>
+        <p class="wa-lead">Sin instalar nada nuevo. Le escribís por WhatsApp o Telegram —texto, audio o foto del ticket— y se ocupa. La web es el tablero; el chat es el día a día.</p>
+        <div class="wa-badges">
+          <span class="wa-badge"><span class="wa-dot wa-green"></span>WhatsApp <span class="wa-soon">pronto</span></span>
+          <span class="wa-badge"><span class="wa-dot wa-blue"></span>Telegram <span class="wa-live">ya disponible</span></span>
+        </div>
+      </div>
+      <div class="wa-visual" aria-hidden="true">
+        <div class="wa-chat">
+          <div class="wa-msg wa-out">acordame de sacar turno el lunes</div>
+          <div class="wa-msg wa-in">⏰ Listo. Te aviso el lunes a la mañana.</div>
+          <div class="wa-msg wa-out">cuánto gastamos en comida este mes?</div>
+          <div class="wa-msg wa-in">🍽️ $348.914 en comida — 22% más que el mes pasado.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ═══ DIFERENCIAL ══════════════════════════════════════════════ -->
   <section id="diferencial" aria-labelledby="dif-p">
     <div class="container">
       <div class="ed-block">
         <div class="ed-label">Por qué no otra app</div>
-        <p id="dif-p">No es otra planilla que abandonás en febrero. No es Splitwise —que no sabe de cuotas ni del dólar.</p>
-        <p>Es tu asistente de plata, en el chat que ya usás. Sin fricción, sin curva de aprendizaje, sin excusas.</p>
+        <p id="dif-p">No es otra app que abandonás en febrero. No son cinco apps sueltas que nadie sincroniza.</p>
+        <p>Es un asistente para la vida en común, en el chat que ya usás. Sin fricción, sin curva, sin excusas.</p>
       </div>
     </div>
   </section>
@@ -1720,12 +1932,13 @@
       <div class="footer-top">
         <div class="footer-brand">
           <a href="/" class="f-wordmark">Yu<span>mi</span></a>
-          <div class="f-tag">la plata de los dos</div>
+          <div class="f-tag">el asistente de los dos</div>
         </div>
         <nav class="footer-links" aria-label="Links del pie">
-          <a href="/app/">Iniciar sesión</a>
-          <a href="/app/">Registrarse</a>
-          <a href="#features">Cómo funciona</a>
+          <a href="#capacidades">Qué hace</a>
+          <a href="#precios">Precios</a>
+          <a href="#privacidad">Privacidad</a>
+          <a href="/app/">Entrar</a>
         </nav>
       </div>
       <div class="footer-bottom">
@@ -1961,7 +2174,11 @@
     /* ── Section reveals (generic fade+slide) ──────────────────── */
     var revealEls = document.querySelectorAll(
       '#features h2, #features .section-label, ' +
+      '#capacidades h2, #capacidades .section-label, #capacidades .cap-row, ' +
       '#chat-demo h2, #chat-demo .section-label, ' +
+      '#privacidad .priv-visual, #privacidad .priv-copy, ' +
+      '#precios h2, #precios .section-label, #precios .price-toggle, #precios .price-card, ' +
+      '#whatsapp .wa-copy, #whatsapp .wa-visual, ' +
       '#diferencial .ed-block, #final-cta h2, #final-cta .cta-sub, #final-cta .btn-voltage, ' +
       '#stats .stat-item'
     );
@@ -1982,36 +2199,39 @@
     var typedText    = document.getElementById('chat-typed-text');
     var typingCursor = document.getElementById('chat-cursor');
     var yumiReply    = document.getElementById('chat-yumi-reply');
-    var fullMsg      = 'pagué 5 lucas de súper con el Galicia 🛒';
+    var chatMsgs = [
+      { m: 'pagué 5 lucas de súper con el Galicia 🛒', r: '✓ Gasto: $5.000 · Comida · Galicia' },
+      { m: 'acordame de pagar el alquiler el 5', r: '⏰ Recordatorio: pagar el alquiler · el 5' },
+      { m: 'agendá cena con los viejos mañana 9pm', r: '📅 Evento: Cena con los viejos · mañana 21:00' },
+      { m: 'sumá leche y pan a la lista del súper', r: '🛒 Lista: +leche +pan · te toca a vos' }
+    ];
+    var mIdx = 0;
     var typingDone   = false;
 
     function runTypewriter() {
       if (typingDone) return;
       typingDone = true;
+      typeCycle();
+    }
+    function typeCycle() {
+      var cur = chatMsgs[mIdx];
+      typedText.textContent = '';
+      gsap.set(yumiReply, { opacity: 0, y: 8 });
       typingCursor.style.opacity = '1';
-      var i = 0;
-      var speed = 38;
-      function type() {
-        if (i < fullMsg.length) {
-          typedText.textContent += fullMsg[i];
-          i++;
+      var i = 0, speed = 36;
+      (function type() {
+        if (i < cur.m.length) {
+          typedText.textContent += cur.m[i++];
           setTimeout(type, speed);
         } else {
-          // cursor blink then hide
           setTimeout(function() {
             typingCursor.style.opacity = '0';
-            // Yumi reply pop in
-            gsap.to(yumiReply, {
-              opacity: 1,
-              y: 0,
-              duration: 0.45,
-              ease: 'back.out(1.6)',
-              delay: 0.15
-            });
+            yumiReply.textContent = cur.r;
+            gsap.to(yumiReply, { opacity: 1, y: 0, duration: 0.45, ease: 'back.out(1.6)', delay: 0.1 });
+            setTimeout(function() { mIdx = (mIdx + 1) % chatMsgs.length; typeCycle(); }, 2400);
           }, 400);
         }
-      }
-      type();
+      })();
     }
 
     ScrollTrigger.create({
@@ -2052,6 +2272,20 @@
     setTimeout(function() {
       gsap.to(pillNav, { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' });
     }, 800);
+
+    /* ── Pricing toggle (mensual / anual) ──────────────────────── */
+    var ptBtns = document.querySelectorAll('.pt-btn');
+    var pcVals = document.querySelectorAll('#precios [data-mensual]');
+    ptBtns.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var period = btn.dataset.period;
+        ptBtns.forEach(function(b) { b.classList.toggle('active', b === btn); });
+        pcVals.forEach(function(el) {
+          var val = el.dataset[period];
+          if (val != null) el.textContent = val;
+        });
+      });
+    });
 
     /* ── ScrollTrigger refresh ─────────────────────────────────── */
     ScrollTrigger.refresh();
