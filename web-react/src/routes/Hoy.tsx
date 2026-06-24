@@ -4,7 +4,8 @@ import { useTareas } from '../hooks/useTareas'
 import { useVencimientos } from '../hooks/useVencimientos'
 import { useEventos } from '../hooks/useEventos'
 import { useRecordatorios } from '../hooks/useRecordatorios'
-import { aPagarTotal } from '../lib/cards'
+import { useRecurring } from '../hooks/useRecurring'
+import { cicloEnCursoTotal } from '../lib/cards'
 import { formatMoney, cleanReminderText } from '../lib/format'
 import { type HoyItem } from '../lib/types'
 import Card from '../components/ui/Card'
@@ -79,6 +80,7 @@ export default function Hoy() {
   const overview = useOverview()
   const tareas = useTareas('pendiente')
   const venc = useVencimientos()
+  const recurring = useRecurring()
   const eventos = useEventos(false)
   const recordatorios = useRecordatorios(false)
 
@@ -172,7 +174,7 @@ export default function Hoy() {
               </div>
               <div>
                 <div className="cap" style={{ fontSize: 10 }}>A pagar</div>
-                <div className="num-serif" style={{ fontSize: 18, marginTop: 2 }}>{formatMoney(aPagarTotal(venc.data))}</div>
+                <div className="num-serif" style={{ fontSize: 18, marginTop: 2 }}>{formatMoney(cicloEnCursoTotal(venc.data, recurring.data))}</div>
               </div>
               <div>
                 <div className="cap" style={{ fontSize: 10 }}>Disponible</div>

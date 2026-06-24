@@ -36,9 +36,9 @@ function makeFetch(overview = baseOverview, tareas: unknown[] = []) {
       return Promise.resolve(new Response(JSON.stringify(tareas), { status: 200 }))
     }
     if (u.includes('/api/vencimientos')) {
-      // "A pagar" = ciclo cerrado (lo que vence), no el saldo total
+      // "A pagar" = ciclo en curso (compras del ciclo + cuotas del mes)
       return Promise.resolve(new Response(JSON.stringify([
-        { account_id: 1, account_name: 'Visa', next_due: '2026-07-10', next_closing: '2026-07-03', ciclo_cerrado: [{ currency: 'ARS', total: 12000 }], ciclo_abierto: [] },
+        { account_id: 1, account_name: 'Visa', next_due: '2026-07-10', next_closing: '2026-07-03', ciclo_cerrado: [], ciclo_abierto: [{ currency: 'ARS', total: 12000 }] },
       ]), { status: 200 }))
     }
     return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }))
@@ -81,6 +81,6 @@ test('muestra kpis financieros en la mini-card', async () => {
   renderWithProviders(<Hoy />)
 
   expect(await screen.findByText('$50.000,00')).toBeInTheDocument() // gastado
-  expect(screen.getByText('$12.000,00')).toBeInTheDocument()        // a pagar = ciclo cerrado
+  expect(screen.getByText('$12.000,00')).toBeInTheDocument()        // a pagar = ciclo en curso
   expect(screen.getByText('$80.000,00')).toBeInTheDocument()        // disponible
 })

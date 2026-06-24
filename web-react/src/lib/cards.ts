@@ -48,3 +48,25 @@ export function aPagarCard(venc: VencimientoCard | undefined): number {
 export function aPagarTotal(venc: VencimientoCard[] | undefined): number {
   return (venc ?? []).reduce((s, v) => s + cicloArs(v.ciclo_cerrado), 0)
 }
+
+// Carga mensual de recurrentes/cuotas de una tarjeta: UNA cuota por cada plan de
+// cuotas activo con cuotas restantes + el monto de los recurrentes fijos activos.
+// Las cuotas NO son transacciones, así que el ciclo de /api/vencimientos no las
+// incluye — por eso las sumamos acá para reflejar "lo que se paga este mes".
+export function recurrenteMensual(cardId: number, recurring: Recurring[] | undefined): number {
+  return (recurring ?? [])
+    .filter(r => r.account_id === cardId && r.active !== 0)
+    .filter(r => !r.total_installments || ((r.total_installments || 0) - (r.installments_fired || 0)) > 0)
+    .reduce((s, r) => s + r.amount, 0)
+}
+
+// "Ciclo en curso" = lo que se paga este mes por la tarjeta:
+// transacciones del ciclo abierto + una cuota de cada recurrente/cuota activo.
+export function cicloEnCurso(cardId: number, venc: VencimientoCard | undefined, recurring: Recurring[] | undefined): number {
+  return cicloArs(venc?.ciclo_abierto) + recurrenteMensual(cardId, recurring)
+}
+
+// Suma del ciclo en curso de todas las tarjetas (para Inicio / Home).
+export function cicloEnCursoTotal(venc: VencimientoCard[] | undefined, recurring: Recurring[] | undefined): number {
+  return (venc ?? []).reduce((s, v) => s + cicloArs(v.ciclo_abierto) + recurrenteMensual(v.account_id, recurring), 0)
+}

@@ -6,6 +6,11 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-06-24
+### Fixed
+- **"A pagar este mes" / "ciclo en curso" ahora incluye las cuotas del mes.** Antes mostraba **$0** en tarjetas cuyo saldo son cuotas (porque las cuotas no son transacciones y el ciclo se calculaba solo desde transacciones). Ahora = compras del ciclo abierto + **una cuota de cada plan activo**, en Inicio, Tarjetas y Hoy. La deuda total (consumos + todas las cuotas) sigue solo en el detalle.
+- **Detalle de cuota más claro:** "Cuota N de M · $X c/u" + "Te falta: $Y (N cuotas)". Se sacó el confuso "pagadas 0/M" y el "Total restante" duplicado.
+
 ## [0.5.0] - 2026-06-24
 ### Added
 - **Recordatorios vinculados a eventos.** Al crear un evento podés elegir avisos ("avisarme antes": 10 min / 1 h / 2 h / 1 día / 2 días). En la Agenda los recordatorios aparecen **anidados bajo su evento** (con "te aviso 2 días antes"), en vez de como ítems sueltos, y se pueden quitar uno por uno.

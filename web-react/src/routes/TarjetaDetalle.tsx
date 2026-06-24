@@ -6,7 +6,7 @@ import { useVencimientos } from '../hooks/useVencimientos'
 import { useRecurring, useRecurringMutations } from '../hooks/useRecurring'
 import { useTransactions } from '../hooks/useTransactions'
 import { type Recurring } from '../lib/types'
-import { consumos as calcConsumos, enCuotas as calcEnCuotas, deudaTotal, cuotaActual, aPagarCard, cicloArs } from '../lib/cards'
+import { consumos as calcConsumos, enCuotas as calcEnCuotas, deudaTotal, cuotaActual, aPagarCard, cicloEnCurso } from '../lib/cards'
 import { formatMoney } from '../lib/format'
 import Card from '../components/ui/Card'
 import Modal from '../components/ui/Modal'
@@ -159,8 +159,8 @@ export default function TarjetaDetalle() {
   const consumos = calcConsumos(account)
   const enCuotasVal = calcEnCuotas(accId, recurring.data)
   const deuda = deudaTotal(accId, account, recurring.data)
-  const aPagar = aPagarCard(venc)        // ciclo cerrado (lo que vence)
-  const abierto = cicloArs(venc?.ciclo_abierto)  // ciclo en curso
+  const aPagarAhora = aPagarCard(venc)                          // ciclo cerrado (transacciones que vencen)
+  const enCursoMes = cicloEnCurso(accId, venc, recurring.data)  // este ciclo: compras + una cuota de cada plan
 
   const fmtDay = (dateStr?: string) =>
     dateStr ? `${dateStr.slice(8, 10)}/${dateStr.slice(5, 7)}` : '—'
@@ -187,31 +187,26 @@ export default function TarjetaDetalle() {
           <div className="num-serif" style={{ fontSize: 34 }}>{formatMoney(deuda)}</div>
         </div>
         <div style={{ height: 1, background: 'var(--color-mist)', marginBottom: 14 }} />
-        {/* A pagar ahora (ciclo cerrado) vs ciclo en curso */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          <div>
-            <div className="cap" style={{ fontSize: 10 }}>
-              A pagar ahora{venc?.next_due ? ` (vence ${fmtDay(venc.next_due)})` : ''}
-            </div>
-            <div className="num-serif" style={{ fontSize: 18, marginTop: 2 }}>{formatMoney(aPagar)}</div>
-            <div style={{ fontSize: 10, color: 'var(--color-sage)', marginTop: 2 }}>resumen cerrado</div>
+        {/* A pagar este mes = ciclo en curso (compras del ciclo + una cuota de cada plan) */}
+        <div>
+          <div className="cap" style={{ fontSize: 10 }}>
+            A pagar este mes{venc?.next_closing ? ` (cierra ${fmtDay(venc.next_closing)})` : ''}
           </div>
-          <div>
-            <div className="cap" style={{ fontSize: 10 }}>
-              Ciclo en curso{venc?.next_closing ? ` (cierra ${fmtDay(venc.next_closing)})` : ''}
-            </div>
-            <div className="num-serif" style={{ fontSize: 18, marginTop: 2 }}>{formatMoney(abierto)}</div>
-            <div style={{ fontSize: 10, color: 'var(--color-sage)', marginTop: 2 }}>todavía no vence</div>
-          </div>
+          <div className="num-serif" style={{ fontSize: 24, marginTop: 4 }}>{formatMoney(enCursoMes)}</div>
         </div>
         <div style={{ height: 1, background: 'var(--color-mist)', margin: '12px 0' }} />
-        {/* Breakdown of deuda total */}
+        {/* Breakdown */}
         <div style={{ fontSize: 12, color: 'var(--color-sage)' }}>
           Consumos {formatMoney(consumos)} · En cuotas {formatMoney(enCuotasVal)}
         </div>
+        {aPagarAhora > 0 && (
+          <div style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 4 }}>
+            Resumen cerrado{venc?.next_due ? ` (vence ${fmtDay(venc.next_due)})` : ''}: {formatMoney(aPagarAhora)}
+          </div>
+        )}
         {/* Explainer */}
         <div style={{ marginTop: 10, fontSize: 11, color: 'var(--color-sage)', fontStyle: 'italic' }}>
-          Deuda total = consumos + cuotas por venir. "A pagar ahora" es solo el resumen que ya cerró.
+          A pagar este mes = compras del ciclo + una cuota de cada plan. Deuda total = todo lo que queda por pagar.
         </div>
       </Card>
 
@@ -243,9 +238,6 @@ export default function TarjetaDetalle() {
                       <div style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 2 }}>
                         Cuota {actual} de {total} · {formatMoney(r.amount, r.currency)} c/u
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--color-sage)', marginTop: 2 }}>
-                        pagadas {fired}/{total} · falta {formatMoney(restante, r.currency)}
-                      </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                       <button
@@ -260,9 +252,10 @@ export default function TarjetaDetalle() {
                       />
                     </div>
                   </div>
-                  <div style={{ marginTop: 8, fontSize: 13 }}>
-                    Total restante:{' '}
-                    <span className="num-serif" style={{ fontSize: 16 }}>{formatMoney(restante, r.currency)}</span>
+                  <div style={{ marginTop: 8, fontSize: 13, color: 'var(--color-sage)' }}>
+                    Te falta:{' '}
+                    <span className="num-serif" style={{ fontSize: 16, color: 'var(--color-obsidian-ink)' }}>{formatMoney(restante, r.currency)}</span>
+                    {' '}({Math.max(0, total - fired)} cuota{Math.max(0, total - fired) === 1 ? '' : 's'})
                   </div>
                 </Card>
               )

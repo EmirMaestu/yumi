@@ -93,12 +93,13 @@ test('hero deuda total incluye consumos + cuotas pendientes', async () => {
   // deudaTotal = abs(-100000) + (6-3)*20000 = 100000 + 60000 = 160000
   expect(await screen.findByText('$160.000,00')).toBeInTheDocument()
   expect(screen.getByText('Deuda total')).toBeInTheDocument()
-  // A pagar ahora (ciclo cerrado) vs ciclo en curso
-  expect(screen.getByText(/A pagar ahora \(vence/)).toBeInTheDocument()
-  expect(screen.getByText(/Ciclo en curso \(cierra/)).toBeInTheDocument()
-  // Cuota actual = pagadas + 1 → 3 pagadas, vas por la 4 de 6
+  // A pagar este mes = ciclo en curso (abierto 0 + 1 cuota 20000)
+  expect(screen.getByText(/A pagar este mes \(cierra/)).toBeInTheDocument()
+  expect(screen.getByText('$20.000,00')).toBeInTheDocument()
+  // Cuota actual = pagadas + 1 → 3 pagadas, vas por la 4 de 6 (sin "pagadas 3/6")
   expect(screen.getByText(/Cuota 4 de 6/)).toBeInTheDocument()
-  expect(screen.getByText(/pagadas 3\/6/)).toBeInTheDocument()
+  expect(screen.getByText(/Te falta:/)).toBeInTheDocument()
+  expect(screen.getByText(/3 cuotas/)).toBeInTheDocument()
 })
 
 test('muestra estado vacío cuando no hay movimientos', async () => {

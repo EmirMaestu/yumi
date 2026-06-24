@@ -25,7 +25,7 @@ test('muestra el gasto del mes como hero', async () => {
   expect(screen.getByText('Comida')).toBeInTheDocument()
 })
 
-test('a pagar este mes suma el ciclo cerrado de todas las tarjetas (no la deuda total)', async () => {
+test('a pagar este mes = ciclo en curso (compras del ciclo + cuotas del mes)', async () => {
   vi.stubGlobal('fetch', vi.fn((url: string) => {
     const u = String(url)
     if (u.includes('/api/overview2')) return Promise.resolve(new Response(JSON.stringify({
@@ -35,8 +35,8 @@ test('a pagar este mes suma el ciclo cerrado de todas las tarjetas (no la deuda 
     }), { status: 200 }))
     if (u.includes('/api/vencimientos')) {
       return Promise.resolve(new Response(JSON.stringify([
-        { account_id: 1, account_name: 'Visa', next_due: '2026-07-10', next_closing: '2026-07-03', ciclo_cerrado: [{ currency: 'ARS', total: 70000 }], ciclo_abierto: [] },
-        { account_id: 2, account_name: 'Master', next_due: '2026-07-12', next_closing: '2026-07-05', ciclo_cerrado: [{ currency: 'ARS', total: 30000 }], ciclo_abierto: [] },
+        { account_id: 1, account_name: 'Visa', next_due: '2026-07-10', next_closing: '2026-07-03', ciclo_cerrado: [], ciclo_abierto: [{ currency: 'ARS', total: 70000 }] },
+        { account_id: 2, account_name: 'Master', next_due: '2026-07-12', next_closing: '2026-07-05', ciclo_cerrado: [], ciclo_abierto: [{ currency: 'ARS', total: 30000 }] },
       ]), { status: 200 }))
     }
     if (u.includes('/api/overview') && !u.includes('/api/overview2')) {
@@ -55,8 +55,8 @@ test('a pagar este mes suma el ciclo cerrado de todas las tarjetas (no la deuda 
     return Promise.resolve(new Response('[]', { status: 200 }))
   }))
   renderWithProviders(<Inicio />)
-  // a pagar este mes = ciclo cerrado Visa 70000 + Master 30000 = 100000 (NO la deuda total)
-  expect(await screen.findByText('$100.000,00')).toBeInTheDocument()
+  // a pagar este mes = ciclo en curso: Visa (70000 + cuota 10000) + Master (30000) = 110000
+  expect(await screen.findByText('$110.000,00')).toBeInTheDocument()
   expect(screen.getByText('A pagar este mes')).toBeInTheDocument()
   // subline muestra las cuotas como deuda futura
   expect(screen.getByText(/En cuotas \(deuda futura\)/)).toBeInTheDocument()

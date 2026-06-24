@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVencimientos } from '../hooks/useVencimientos'
 import { useAccountsWithBalances, useAccountMutations } from '../hooks/useAccounts'
+import { useRecurring } from '../hooks/useRecurring'
 import { formatMoney } from '../lib/format'
 import { type Account } from '../lib/types'
-import { aPagarCard, cicloArs } from '../lib/cards'
+import { cicloEnCurso } from '../lib/cards'
 import Card from '../components/ui/Card'
 import AlertPill from '../components/ui/AlertPill'
 import { TarjetasSkeleton } from '../components/ui/skeletons'
@@ -19,6 +20,7 @@ export default function Tarjetas() {
   const navigate = useNavigate()
   const venc = useVencimientos()
   const accounts = useAccountsWithBalances()
+  const recurring = useRecurring()
   const { remove } = useAccountMutations()
 
   const [editCard, setEditCard] = useState<Account | null>(null)
@@ -34,8 +36,7 @@ export default function Tarjetas() {
       <div className="cap">Tarjetas y cuotas</div>
       {cards.map((card) => {
         const v = venc.data?.find((x) => x.account_id === card.id)
-        const aPagar = aPagarCard(v)
-        const enCurso = cicloArs(v?.ciclo_abierto)
+        const aPagarMes = cicloEnCurso(card.id, v, recurring.data)
         const dias = v?.next_closing ? Math.ceil((new Date(v.next_closing).getTime() - Date.now()) / 86_400_000) : null
         const hasVenc = !!v
         return (
@@ -52,29 +53,19 @@ export default function Tarjetas() {
                 onDelete={() => setDeleteCard(card)}
               />
             </div>
-            {/* A pagar — primary number (lo que vence, no la deuda total) */}
+            {/* A pagar este mes — ciclo en curso (transacciones + cuotas del mes) */}
             <div style={{ marginTop: 10 }}>
-              <div className="cap">A pagar</div>
-              <div className="num-serif" style={{ fontSize: 30, marginTop: 4 }}>{formatMoney(aPagar)}</div>
-              <div style={{ fontSize: 11, color: 'var(--color-sage)', marginTop: 3 }}>
-                {hasVenc && v!.next_due ? `vence ${fmtDay(v!.next_due)}` : 'sin resumen cerrado'}
-              </div>
-            </div>
-            {/* Ciclo en curso + cierre */}
-            {hasVenc ? (
-              <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 12, color: 'var(--color-sage)' }}>
-                  En curso {formatMoney(enCurso)}{v!.next_closing ? ` · cierra ${fmtDay(v!.next_closing)}` : ''}
+              <div className="cap">A pagar este mes</div>
+              <div className="num-serif" style={{ fontSize: 30, marginTop: 4 }}>{formatMoney(aPagarMes)}</div>
+              <div style={{ marginTop: 4, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>
+                  {hasVenc && v!.next_closing ? `cierra ${fmtDay(v!.next_closing)}` : 'cargá cierre y vencimiento'}
                 </span>
                 {dias !== null && dias >= 0 && dias <= 5 && (
                   <AlertPill>cierra en {dias} día{dias === 1 ? '' : 's'}</AlertPill>
                 )}
               </div>
-            ) : (
-              <div style={{ marginTop: 6, fontSize: 12, color: 'var(--color-sage)' }}>
-                Cargá cierre y vencimiento para ver el resumen
-              </div>
-            )}
+            </div>
           </Card>
         )
       })}

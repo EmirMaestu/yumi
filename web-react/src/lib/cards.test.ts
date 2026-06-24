@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { type Recurring, type VencimientoCard } from './types'
-import { consumos, enCuotas, deudaTotal, cuotaActual, cicloArs, aPagarCard, aPagarTotal } from './cards'
+import { consumos, enCuotas, deudaTotal, cuotaActual, cicloArs, aPagarCard, aPagarTotal, recurrenteMensual, cicloEnCurso } from './cards'
 
 const card = { balances: [{ currency: 'ARS' as const, balance: -100000 }] }
 
@@ -52,5 +52,21 @@ describe('modelo de plata de la tarjeta', () => {
     }
     expect(aPagarCard(v)).toBe(45000)        // cerrado, no abierto
     expect(aPagarTotal([v, v])).toBe(90000)  // suma de tarjetas
+  })
+
+  test('recurrenteMensual = una cuota por plan activo + fijos (excluye pausados)', () => {
+    // id1 activa $20000 + id3 fijo $9999 ; id2 PAUSADA no cuenta este mes
+    expect(recurrenteMensual(1, recurring)).toBe(29999)
+    expect(recurrenteMensual(2, recurring)).toBe(5000) // otra tarjeta, una cuota
+  })
+
+  test('cicloEnCurso = ciclo abierto (compras) + recurrente mensual (cuotas)', () => {
+    const v: VencimientoCard = {
+      account_id: 1, account_name: 'Visa',
+      ciclo_cerrado: [], ciclo_abierto: [{ currency: 'ARS', total: 5000 }],
+    }
+    expect(cicloEnCurso(1, v, recurring)).toBe(34999) // 5000 + 29999
+    // sin transacciones en el ciclo, igual muestra las cuotas (no $0)
+    expect(cicloEnCurso(1, undefined, recurring)).toBe(29999)
   })
 })

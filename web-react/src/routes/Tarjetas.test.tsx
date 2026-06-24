@@ -34,13 +34,12 @@ test('muestra "a pagar" (ciclo cerrado) como número principal, no la deuda tota
   }))
   renderWithProviders(<Tarjetas />)
   expect(await screen.findByText('Visa Galicia')).toBeInTheDocument()
-  // A pagar = ciclo cerrado = 500000 (NO la deuda total 185000)
-  expect(screen.getByText('$500.000,00')).toBeInTheDocument()
-  expect(screen.getByText('A pagar')).toBeInTheDocument()
-  expect(screen.getByText(/vence 10\/07/)).toBeInTheDocument()
-  // El ciclo en curso aparece como secundario
-  expect(screen.getByText(/En curso/)).toBeInTheDocument()
-  // La deuda total NO se muestra en la lista
+  // A pagar este mes = ciclo en curso = abierto 80000 + 1 cuota 10000 = 90000
+  expect(screen.getByText('$90.000,00')).toBeInTheDocument()
+  expect(screen.getByText('A pagar este mes')).toBeInTheDocument()
+  expect(screen.getByText(/cierra 03\/07/)).toBeInTheDocument()
+  // ni el ciclo cerrado (500000) ni la deuda total (185000) como número principal
+  expect(screen.queryByText('$500.000,00')).not.toBeInTheDocument()
   expect(screen.queryByText('$185.000,00')).not.toBeInTheDocument()
 })
 
@@ -62,7 +61,7 @@ test('muestra $0 a pagar cuando no hay resumen cerrado', async () => {
   }))
   renderWithProviders(<Tarjetas />)
   expect(await screen.findByText('Mastercard')).toBeInTheDocument()
-  // Sin vencimientos cargados → nada cerrado → a pagar $0
+  // Sin vencimientos ni cuotas → a pagar este mes $0
   expect(screen.getByText('$0,00')).toBeInTheDocument()
-  expect(screen.getByText('sin resumen cerrado')).toBeInTheDocument()
+  expect(screen.getByText('cargá cierre y vencimiento')).toBeInTheDocument()
 })
