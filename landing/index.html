@@ -2156,7 +2156,7 @@
       scrollTrigger: {
         trigger: convSection,
         start: 'top top',
-        end: '+=70%',
+        end: '+=45%',
         pin: convSticky,
         scrub: 1.2,
         anticipatePin: 1
@@ -2195,25 +2195,20 @@
       }, 0.1 + i * 0.05);
     });
 
-    /* ── 3 words: staggered elastic reveal on enter (NO pin → no blank) ── */
+    /* ── 3 words rise one-by-one as the section scrolls past (scrubbed, NO pin) ── */
     var wordPin  = document.getElementById('words-pin');
     var wordRows = [
       document.getElementById('ws-1'),
       document.getElementById('ws-2'),
       document.getElementById('ws-3')
     ];
-    gsap.set(wordRows, { opacity: 0, y: 44, scale: 0.96 });
-    ScrollTrigger.create({
-      trigger: wordPin,
-      start: 'top 78%',
-      once: true,
-      onEnter: function() {
-        gsap.to(wordRows, {
-          opacity: 1, y: 0, scale: 1,
-          duration: 0.9, stagger: 0.16, ease: 'back.out(1.5)'
-        });
-      }
+    gsap.set(wordRows, { opacity: 0, y: 60 });
+    var wordTl = gsap.timeline({
+      scrollTrigger: { trigger: wordPin, start: 'top 85%', end: 'top 22%', scrub: 1 }
     });
+    wordTl.to(wordRows[0], { opacity: 1, y: 0, ease: 'back.out(1.4)', duration: 0.4 }, 0.0)
+          .to(wordRows[1], { opacity: 1, y: 0, ease: 'back.out(1.4)', duration: 0.4 }, 0.33)
+          .to(wordRows[2], { opacity: 1, y: 0, ease: 'back.out(1.4)', duration: 0.4 }, 0.66);
 
     /* ── Manifiesto: big words rise + fade in on scroll (full color) ── */
     var mfLines = gsap.utils.toArray('#manifiesto .mf-line');
