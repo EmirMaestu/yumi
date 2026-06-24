@@ -753,23 +753,18 @@
 
     /* dashboard mock center (conv section) */
     #dash-mock {
-      position: absolute;
-      left: 50%;
-      top: 56%;
-      z-index: 2;
-      will-change: transform, opacity;
-      opacity: 0;
+      display: none;   /* el mock fiel vive en la sección del chat; la convergencia cierra en el texto centrado */
     }
 
     /* ── Convergence headline ─────────────────────────────────────── */
     #conv-headline {
-      position: absolute;
-      top: 9%;
-      left: 0;
-      right: 0;
+      position: relative;
       z-index: 10;
       text-align: center;
       pointer-events: none;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 24px;
     }
     /* Legibility backdrop behind headline text */
     .conv-headline-backdrop {
