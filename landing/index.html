@@ -754,6 +754,8 @@
     /* dashboard mock center (conv section) */
     #dash-mock {
       position: absolute;
+      left: 50%;
+      top: 56%;
       z-index: 2;
       will-change: transform, opacity;
       opacity: 0;
@@ -761,7 +763,10 @@
 
     /* ── Convergence headline ─────────────────────────────────────── */
     #conv-headline {
-      position: relative;
+      position: absolute;
+      top: 9%;
+      left: 0;
+      right: 0;
       z-index: 10;
       text-align: center;
       pointer-events: none;
@@ -769,11 +774,7 @@
     /* Legibility backdrop behind headline text */
     .conv-headline-backdrop {
       display: inline-block;
-      padding: 28px 44px 24px;
-      border-radius: 24px;
-      background: rgba(250,255,250,0.60);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
+      padding: 12px 24px;
     }
     #conv-headline h2 {
       font-family: 'Fraunces', serif;
@@ -1747,7 +1748,7 @@
       var bgLayer = document.getElementById('conv-bg-layer');
       if (bgLayer) bgLayer.style.opacity = '1';
       var dashMockEl = document.getElementById('dash-mock');
-      if (dashMockEl) dashMockEl.style.opacity = '1';
+      if (dashMockEl) { dashMockEl.style.opacity = '1'; dashMockEl.style.transform = 'translate(-50%, -50%)'; }
       var convHeadEl = document.getElementById('conv-headline');
       if (convHeadEl) convHeadEl.style.opacity = '1';
       return;
@@ -1825,24 +1826,24 @@
       document.getElementById('cc5')
     ];
 
-    // Initially hide headline and mock; show bg layer
-    gsap.set(convHead, { opacity: 0, scale: 1.25 });
-    gsap.set(dashMock, { opacity: 0, scale: 0.88 });
-    gsap.set(convBgLayer, { filter: 'blur(0px)', opacity: 1 });
+    // Stacked, no-overlap design: headline upper-center, phone lower-center.
+    // Center the phone via xPercent/yPercent (CSS sets left:50%/top:56%).
+    gsap.set(convHead, { opacity: 0, scale: 1.2, y: 12 });
+    gsap.set(dashMock, { xPercent: -50, yPercent: -50, opacity: 0, scale: 0.9, y: 24 });
+    gsap.set(convBgLayer, { opacity: 1 });
 
-    /* ── CHANGE 2: Shorter pin — +=90% of viewport height ─────── */
     var convTl = gsap.timeline({
       scrollTrigger: {
         trigger: convSection,
         start: 'top top',
-        end: '+=90%',          /* shorter pin: was +=200% */
+        end: '+=120%',
         pin: convSticky,
         scrub: 1.2,
         anticipatePin: 1
       }
     });
 
-    // Phase 1 (0 → 0.45): cards scatter → center, fade out
+    // Phase 1 (0 → ~0.4): cards converge to center + fade out
     var convCards_list = [
       document.getElementById('cc1'),
       document.getElementById('cc2'),
@@ -1856,33 +1857,30 @@
         top: '50%',
         xPercent: -50,
         yPercent: -50,
-        scale: 0.7,
+        scale: 0.55,
         opacity: 0,
-        duration: 0.4,
+        duration: 0.35,
         ease: 'power2.in'
-      }, i * 0.06);
+      }, i * 0.05);
     });
 
-    // Phase 2 (0.35 → 0.6): Yumi phone mock appears
-    convTl.to(dashMock, { opacity: 1, scale: 1, duration: 0.3, ease: 'back.out(1.4)' }, 0.35);
-
-    /* ── CHANGE 1: Blur + dim the bg layer as headline reveals ── */
-    // As mock appears, start blurring+dimming the bg layer
-    convTl.to(convBgLayer, {
-      filter: 'blur(10px)',
-      opacity: 0.35,
-      duration: 0.35,
-      ease: 'power2.inOut'
-    }, 0.45);
-
-    /* ── CHANGE 2 (scaling text): headline scales from 1.25 → 1 ─ */
-    // Headline fades in AND scales down (Jeton-style) tied to scrub
+    // Phase 2 (0.3 → 0.6): headline appears upper-center, scales 1.2 → 1, then HELD
     convTl.to(convHead, {
       opacity: 1,
-      scale: 1,       /* starts at 1.25 (set above), lands at 1 */
+      scale: 1,
+      y: 0,
+      duration: 0.3,
+      ease: 'power3.out'
+    }, 0.3);
+
+    // Phase 3 (0.45 → 0.8): faithful Yumi phone mock rises in lower-center, HELD
+    convTl.to(dashMock, {
+      opacity: 1,
+      scale: 1,
+      y: 0,
       duration: 0.35,
-      ease: 'power2.out'
-    }, 0.52);
+      ease: 'back.out(1.3)'
+    }, 0.45);
 
     /* ── 3-Word pinned sequence ────────────────────────────────── */
     var wordPin    = document.getElementById('words-pin');
