@@ -1,8 +1,9 @@
 import { useOverview } from '../hooks/useOverview'
 import { useVencimientos } from '../hooks/useVencimientos'
 import { useAccountsWithBalances } from '../hooks/useAccounts'
+import { useRecurring } from '../hooks/useRecurring'
 import { formatMoney, formatUsdApprox } from '../lib/format'
-import { type Account } from '../lib/types'
+import { enCuotas as calcEnCuotas, deudaTotal } from '../lib/cards'
 import Card from '../components/ui/Card'
 import TickMark from '../components/ui/TickMark'
 import StatNumber from '../components/ui/StatNumber'
@@ -12,14 +13,12 @@ import { InicioSkeleton } from '../components/ui/skeletons'
 import EmptyState from '../components/ui/EmptyState'
 
 function daysUntil(dateStr?: string): number | null { if (!dateStr) return null; return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86_400_000) }
-function arsBalance(acc: Account): number {
-  return (acc.balances ?? []).find((b) => b.currency === 'ARS')?.balance ?? (acc.balances?.[0]?.balance ?? 0)
-}
 
 export default function Inicio() {
   const { data, isLoading, isError } = useOverview()
   const venc = useVencimientos()
   const accounts = useAccountsWithBalances()
+  const recurring = useRecurring()
 
   if (isLoading) return <InicioSkeleton />
   if (isError || !data) return <EmptyState>No pudimos cargar tus datos. Reintentá.</EmptyState>
@@ -29,6 +28,10 @@ export default function Inicio() {
 
   // Credit cards from accounts-with-balances, matched with vencimientos
   const creditCards = accounts.data?.filter((a) => a.type === 'credito') ?? []
+
+  // Aggregate deuda total and enCuotas across all credit cards
+  const totalDeuda = creditCards.reduce((s, card) => s + deudaTotal(card.id, card, recurring.data), 0)
+  const totalEnCuotas = creditCards.reduce((s, card) => s + calcEnCuotas(card.id, recurring.data), 0)
 
   return (
     <div style={{ padding: '8px 4px 24px' }}>
@@ -48,11 +51,11 @@ export default function Inicio() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 15, fontWeight: 500 }}><i className="ti ti-credit-card" style={{ marginRight: 7 }} aria-hidden />Cuotas y tarjetas</span>
           </div>
-          {/* PRIMARY: Deuda en tarjetas */}
+          {/* PRIMARY: Deuda en tarjetas — sum of deudaTotal across cards */}
           <div style={{ marginTop: 14 }}>
             <div className="cap">Deuda en tarjetas</div>
-            <div className="num-serif" style={{ fontSize: 32, marginTop: 4 }}>{formatMoney(k.deuda_tarjetas)}</div>
-            <div style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 4 }}>Comprometido a futuro: {formatMoney(k.cuotas_futuras)}</div>
+            <div className="num-serif" style={{ fontSize: 32, marginTop: 4 }}>{formatMoney(totalDeuda)}</div>
+            <div style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 4 }}>En cuotas: {formatMoney(totalEnCuotas)}</div>
           </div>
           <div style={{ height: 1, background: 'var(--color-mist)', margin: '16px 0' }} />
           {/* Per-card rows */}
@@ -60,7 +63,7 @@ export default function Inicio() {
           {creditCards.length === 0 && !accounts.isLoading && <EmptyState>Sin tarjetas de crédito.</EmptyState>}
           {creditCards.map((card) => {
             const v = venc.data?.find((x) => x.account_id === card.id)
-            const deuda = arsBalance(card)
+            const deuda = deudaTotal(card.id, card, recurring.data)
             const dias = daysUntil(v?.next_closing)
             return (
               <div key={card.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>

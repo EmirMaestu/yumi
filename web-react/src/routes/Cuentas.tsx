@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useAccountsWithBalances, useAccountMutations } from '../hooks/useAccounts'
+import { useRecurring } from '../hooks/useRecurring'
 import { type Account } from '../lib/types'
+import { arsBalance, enCuotas, deudaTotal } from '../lib/cards'
 import { formatMoney } from '../lib/format'
 import Card from '../components/ui/Card'
 import { CuentasSkeleton } from '../components/ui/skeletons'
@@ -20,6 +22,7 @@ const TYPE_LABEL: Record<string, string> = {
 
 export default function Cuentas() {
   const { data, isLoading } = useAccountsWithBalances()
+  const recurring = useRecurring()
   const { remove } = useAccountMutations()
 
   const [createOpen, setCreateOpen] = useState(false)
@@ -52,17 +55,33 @@ export default function Cuentas() {
           <div>
             <span className="cap" style={{ fontSize: 10.5 }}>{TYPE_LABEL[a.type] ?? a.type}</span>
           </div>
-          <div style={{ marginTop: 10, display: 'grid', gap: 4 }}>
-            {(a.balances ?? []).length === 0 && (
-              <span style={{ fontSize: 13, color: 'var(--color-sage)' }}>Sin movimientos</span>
-            )}
-            {a.balances?.map((b) => (
-              <div key={b.currency} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 12, color: 'var(--color-sage)' }}>{b.currency}</span>
-                <span className="num-serif" style={{ fontSize: 20 }}>{formatMoney(b.balance, b.currency)}</span>
+
+          {a.type === 'credito' ? (
+            /* Credit account: show deuda total with breakdown */
+            <div style={{ marginTop: 10, display: 'grid', gap: 4 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span style={{ fontSize: 12, color: 'var(--color-sage)' }}>Deuda</span>
+                <span className="num-serif" style={{ fontSize: 20 }}>{formatMoney(deudaTotal(a.id, a, recurring.data))}</span>
               </div>
-            ))}
-          </div>
+              <div style={{ fontSize: 11, color: 'var(--color-sage)' }}>
+                Consumos {formatMoney(Math.abs(arsBalance(a)))} · En cuotas {formatMoney(enCuotas(a.id, recurring.data))}
+              </div>
+            </div>
+          ) : (
+            /* Non-credit account: standard balance display */
+            <div style={{ marginTop: 10, display: 'grid', gap: 4 }}>
+              {(a.balances ?? []).length === 0 && (
+                <span style={{ fontSize: 13, color: 'var(--color-sage)' }}>Sin movimientos</span>
+              )}
+              {a.balances?.map((b) => (
+                <div key={b.currency} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 12, color: 'var(--color-sage)' }}>{b.currency}</span>
+                  <span className="num-serif" style={{ fontSize: 20 }}>{formatMoney(b.balance, b.currency)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           <button
             onClick={(e) => { e.stopPropagation(); setAdjustAccount(a) }}
             style={adjustBtn}

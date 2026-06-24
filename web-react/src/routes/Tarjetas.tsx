@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVencimientos } from '../hooks/useVencimientos'
 import { useAccountsWithBalances, useAccountMutations } from '../hooks/useAccounts'
+import { useRecurring } from '../hooks/useRecurring'
 import { formatMoney } from '../lib/format'
 import { type Account, type CicloTotal } from '../lib/types'
+import { arsBalance, enCuotas, deudaTotal } from '../lib/cards'
 import Card from '../components/ui/Card'
 import AlertPill from '../components/ui/AlertPill'
 import { TarjetasSkeleton } from '../components/ui/skeletons'
@@ -13,14 +15,12 @@ import CardActions from '../components/ui/CardActions'
 import AccountForm from '../components/AccountForm'
 
 function cicloTotal(arr?: CicloTotal[]): number { return (arr ?? []).reduce((s, c) => s + c.total, 0) }
-function arsBalance(acc: Account): number {
-  return (acc.balances ?? []).find((b) => b.currency === 'ARS')?.balance ?? (acc.balances?.[0]?.balance ?? 0)
-}
 
 export default function Tarjetas() {
   const navigate = useNavigate()
   const venc = useVencimientos()
   const accounts = useAccountsWithBalances()
+  const recurring = useRecurring()
   const { remove } = useAccountMutations()
 
   const [editCard, setEditCard] = useState<Account | null>(null)
@@ -36,7 +36,9 @@ export default function Tarjetas() {
       <div className="cap">Tarjetas y cuotas</div>
       {cards.map((card) => {
         const v = venc.data?.find((x) => x.account_id === card.id)
-        const deuda = arsBalance(card)
+        const deuda = deudaTotal(card.id, card, recurring.data)
+        const consumos = Math.abs(arsBalance(card))
+        const cuotasFaltan = enCuotas(card.id, recurring.data)
         const dias = v?.next_closing ? Math.ceil((new Date(v.next_closing).getTime() - Date.now()) / 86_400_000) : null
         const hasVenc = !!v
         return (
@@ -57,8 +59,12 @@ export default function Tarjetas() {
             <div style={{ marginTop: 10 }}>
               <div className="cap">Deuda</div>
               <div className="num-serif" style={{ fontSize: 30, marginTop: 4 }}>{formatMoney(deuda)}</div>
+              {/* Secondary breakdown line */}
+              <div style={{ fontSize: 11, color: 'var(--color-sage)', marginTop: 3 }}>
+                Consumos {formatMoney(consumos)} · En cuotas {formatMoney(cuotasFaltan)}
+              </div>
             </div>
-            {/* Secondary line */}
+            {/* Vencimiento / cierre line */}
             {hasVenc ? (
               <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 12, color: 'var(--color-sage)' }}>

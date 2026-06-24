@@ -53,6 +53,53 @@ test('muestra movimientos de la tarjeta para el mes actual', async () => {
   expect(screen.getByText('−$1.200,00')).toBeInTheDocument()
 })
 
+test('hero deuda total incluye consumos + cuotas pendientes', async () => {
+  vi.stubGlobal('fetch', vi.fn((url: string) => {
+    const u = String(url)
+    if (u.includes('/api/overview') && !u.includes('/api/overview2')) {
+      return Promise.resolve(new Response(JSON.stringify({
+        accounts: [{ id: 1, name: 'Visa Galicia', type: 'credito', active: 1, balances: [{ currency: 'ARS', balance: -100000 }] }],
+      }), { status: 200 }))
+    }
+    if (u.includes('/api/vencimientos')) {
+      return Promise.resolve(new Response(JSON.stringify([{
+        account_id: 1,
+        account_name: 'Visa Galicia',
+        next_due: '2026-07-10',
+        next_closing: '2026-07-03',
+        ciclo_cerrado: [],
+        ciclo_abierto: [],
+      }]), { status: 200 }))
+    }
+    if (u.includes('/api/recurring')) {
+      // 3 cuotas remaining * $20000 = 60000
+      return Promise.resolve(new Response(JSON.stringify([
+        { id: 5, description: 'Laptop', amount: 20000, currency: 'ARS', account_id: 1, next_occurrence: '2026-07-01', active: 1, total_installments: 6, installments_fired: 3 },
+      ]), { status: 200 }))
+    }
+    if (u.includes('/api/transactions')) {
+      return Promise.resolve(new Response(JSON.stringify({ items: [], total: 0 }), { status: 200 }))
+    }
+    return Promise.resolve(new Response('[]', { status: 200 }))
+  }))
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/tarjetas/:id" element={<TarjetaDetalle />} />
+    </Routes>,
+    '/tarjetas/1',
+  )
+
+  // deudaTotal = abs(-100000) + (6-3)*20000 = 100000 + 60000 = 160000
+  expect(await screen.findByText('$160.000,00')).toBeInTheDocument()
+  expect(screen.getByText('Deuda total')).toBeInTheDocument()
+  // New stats row labels
+  expect(screen.getByText('Consumos')).toBeInTheDocument()
+  expect(screen.getByText('En cuotas (faltan)')).toBeInTheDocument()
+  // Cuota row pagado/falta line
+  expect(screen.getByText(/pagado.*falta/)).toBeInTheDocument()
+})
+
 test('muestra estado vacío cuando no hay movimientos', async () => {
   vi.stubGlobal('fetch', vi.fn((url: string) => {
     const u = String(url)
