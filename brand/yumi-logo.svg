@@ -1,0 +1,11 @@
+<svg viewBox="0 0 264 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Yumi — la plata de los dos">
+  <defs>
+    <clipPath id="ov"><circle cx="25" cy="32" r="15"/></clipPath>
+  </defs>
+  <circle cx="25" cy="32" r="15" fill="#121613"/>
+  <circle cx="39" cy="32" r="15" fill="#2bee4b"/>
+  <circle cx="39" cy="32" r="15" fill="#0f3d18" clip-path="url(#ov)"/>
+  <text x="78" y="45" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-weight="700" font-size="42" letter-spacing="-2">
+    <tspan fill="#121613">yu</tspan><tspan fill="#2bee4b">mi</tspan>
+  </text>
+</svg>

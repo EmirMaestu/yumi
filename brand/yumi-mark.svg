@@ -1,0 +1,8 @@
+<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Yumi">
+  <defs>
+    <clipPath id="ov"><circle cx="25" cy="32" r="15"/></clipPath>
+  </defs>
+  <circle cx="25" cy="32" r="15" fill="#121613"/>
+  <circle cx="39" cy="32" r="15" fill="#2bee4b"/>
+  <circle cx="39" cy="32" r="15" fill="#0f3d18" clip-path="url(#ov)"/>
+</svg>

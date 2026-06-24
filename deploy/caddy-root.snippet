@@ -1,0 +1,35 @@
+# Caddyfile COMPLETO para asistente.emir-maestu.site
+# Landing (web Yumi) en /  ·  App React en /app  ·  Dashboard viejo en /legacy  ·  API/login al FastAPI.
+# Reemplaza /etc/caddy/Caddyfile con esto y: sudo systemctl reload caddy
+
+asistente.emir-maestu.site {
+    encode gzip
+
+    redir /app /app/
+    redir /legacy /legacy/
+
+    # API + auth → FastAPI (lo usan la app y el dashboard viejo)
+    @api path /api/* /login /logout
+    handle @api {
+        reverse_proxy 127.0.0.1:8000
+    }
+
+    # App React (Yumi)
+    handle_path /app/* {
+        root * /var/www/juntu
+        try_files {path} /index.html
+        file_server
+    }
+
+    # Dashboard viejo (deprecado) → /legacy
+    handle_path /legacy/* {
+        reverse_proxy 127.0.0.1:8000
+    }
+
+    # Landing (web Yumi) en la raíz
+    handle {
+        root * /var/www/yumi-landing
+        try_files {path} /index.html
+        file_server
+    }
+}
