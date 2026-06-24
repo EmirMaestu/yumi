@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVencimientos } from '../hooks/useVencimientos'
-import { useAccounts, useAccountMutations } from '../hooks/useAccounts'
+import { useAccountsWithBalances, useAccountMutations } from '../hooks/useAccounts'
 import { formatMoney } from '../lib/format'
 import { type Account, type CicloTotal } from '../lib/types'
 import Card from '../components/ui/Card'
@@ -13,11 +13,14 @@ import CardActions from '../components/ui/CardActions'
 import AccountForm from '../components/AccountForm'
 
 function cicloTotal(arr?: CicloTotal[]): number { return (arr ?? []).reduce((s, c) => s + c.total, 0) }
+function arsBalance(acc: Account): number {
+  return (acc.balances ?? []).find((b) => b.currency === 'ARS')?.balance ?? (acc.balances?.[0]?.balance ?? 0)
+}
 
 export default function Tarjetas() {
   const navigate = useNavigate()
   const venc = useVencimientos()
-  const accounts = useAccounts()
+  const accounts = useAccountsWithBalances()
   const { remove } = useAccountMutations()
 
   const [editCard, setEditCard] = useState<Account | null>(null)
@@ -33,8 +36,9 @@ export default function Tarjetas() {
       <div className="cap">Tarjetas y cuotas</div>
       {cards.map((card) => {
         const v = venc.data?.find((x) => x.account_id === card.id)
-        const pagarMonto = cicloTotal(v?.ciclo_cerrado)
+        const deuda = arsBalance(card)
         const dias = v?.next_closing ? Math.ceil((new Date(v.next_closing).getTime() - Date.now()) / 86_400_000) : null
+        const hasVenc = !!v
         return (
           <Card
             key={card.id}
@@ -49,22 +53,27 @@ export default function Tarjetas() {
                 onDelete={() => setDeleteCard(card)}
               />
             </div>
-            {/* A pagar primary number */}
+            {/* Deuda — primary number */}
             <div style={{ marginTop: 10 }}>
-              <div className="cap">A pagar</div>
-              <div className="num-serif" style={{ fontSize: 30, marginTop: 4 }}>{formatMoney(pagarMonto)}</div>
+              <div className="cap">Deuda</div>
+              <div className="num-serif" style={{ fontSize: 30, marginTop: 4 }}>{formatMoney(deuda)}</div>
             </div>
-            {/* Due date + closing alert */}
-            <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              {v?.next_due && (
+            {/* Secondary line */}
+            {hasVenc ? (
+              <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 12, color: 'var(--color-sage)' }}>
-                  vence {v.next_due.slice(8, 10)}/{v.next_due.slice(5, 7)}
+                  Próximo resumen · cierra {v!.next_closing!.slice(8, 10)}/{v!.next_closing!.slice(5, 7)}{' '}
+                  {formatMoney(cicloTotal(v!.ciclo_abierto))}
                 </span>
-              )}
-              {dias !== null && dias >= 0 && dias <= 5 && (
-                <AlertPill>cierra en {dias} día{dias === 1 ? '' : 's'}</AlertPill>
-              )}
-            </div>
+                {dias !== null && dias >= 0 && dias <= 5 && (
+                  <AlertPill>cierra en {dias} día{dias === 1 ? '' : 's'}</AlertPill>
+                )}
+              </div>
+            ) : (
+              <div style={{ marginTop: 6, fontSize: 12, color: 'var(--color-sage)' }}>
+                Cargá cierre y vencimiento para ver el resumen
+              </div>
+            )}
           </Card>
         )
       })}

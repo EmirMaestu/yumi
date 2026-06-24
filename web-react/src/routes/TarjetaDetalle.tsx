@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form'
 import { useAccountsWithBalances, useAccountMutations } from '../hooks/useAccounts'
 import { useVencimientos } from '../hooks/useVencimientos'
 import { useRecurring, useRecurringMutations } from '../hooks/useRecurring'
-import { type Recurring } from '../lib/types'
+import { type Account, type CicloTotal, type Recurring } from '../lib/types'
 import { formatMoney } from '../lib/format'
 import Card from '../components/ui/Card'
 import Modal from '../components/ui/Modal'
@@ -13,6 +13,11 @@ import CardActions from '../components/ui/CardActions'
 import { TarjetaDetalleSkeleton } from '../components/ui/skeletons'
 import EmptyState from '../components/ui/EmptyState'
 import AccountForm from '../components/AccountForm'
+
+function cicloTotal(arr?: CicloTotal[]): number { return (arr ?? []).reduce((s, c) => s + c.total, 0) }
+function arsBalance(acc: Account): number {
+  return (acc.balances ?? []).find((b) => b.currency === 'ARS')?.balance ?? (acc.balances?.[0]?.balance ?? 0)
+}
 
 // ---- Cuota form types ----
 interface CuotaForm {
@@ -120,13 +125,13 @@ export default function TarjetaDetalle() {
   }
 
   // Money calculations
-  const cicloAbierto = (venc?.ciclo_abierto ?? []).reduce((s, c) => s + c.total, 0)
-  const cicloCerrado = (venc?.ciclo_cerrado ?? []).reduce((s, c) => s + c.total, 0)
+  const deuda = arsBalance(account)
+  const abierto = cicloTotal(venc?.ciclo_abierto)
+  const cerrado = cicloTotal(venc?.ciclo_cerrado)
   const enCuotas = cuotas.reduce(
     (s, r) => s + r.amount * ((r.total_installments ?? 0) - (r.installments_fired ?? 0)),
     0,
   )
-  const deuda = account.balances?.find((b) => b.currency === 'ARS')?.balance ?? null
 
   const fmtDay = (dateStr?: string) =>
     dateStr ? `${dateStr.slice(8, 10)}/${dateStr.slice(5, 7)}` : '—'
@@ -147,37 +152,38 @@ export default function TarjetaDetalle() {
 
       {/* Money summary */}
       <Card>
-        {/* A pagar */}
+        {/* HERO: Deuda total */}
         <div style={{ marginBottom: 16 }}>
-          <div className="cap" style={{ marginBottom: 4 }}>A pagar</div>
-          <div className="num-serif" style={{ fontSize: 34 }}>{formatMoney(cicloCerrado)}</div>
-          {venc?.next_due && (
-            <div style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 2 }}>
-              vence {fmtDay(venc.next_due)}
-            </div>
-          )}
+          <div className="cap" style={{ marginBottom: 4 }}>Deuda total</div>
+          <div className="num-serif" style={{ fontSize: 34 }}>{formatMoney(deuda)}</div>
         </div>
         <div style={{ height: 1, background: 'var(--color-mist)', marginBottom: 14 }} />
-        {/* Stats row */}
+        {/* Stats row: 3 columns */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
           <div>
-            <div className="cap" style={{ fontSize: 10 }}>Ciclo en curso</div>
-            <div className="num-serif" style={{ fontSize: 16, marginTop: 2 }}>{formatMoney(cicloAbierto)}</div>
+            <div className="cap" style={{ fontSize: 10 }}>
+              Próximo resumen{venc?.next_closing ? ` (cierra ${fmtDay(venc.next_closing)})` : ''}
+            </div>
+            <div className="num-serif" style={{ fontSize: 16, marginTop: 2 }}>{formatMoney(abierto)}</div>
+            {venc?.next_due && (
+              <div style={{ fontSize: 10, color: 'var(--color-sage)', marginTop: 2 }}>
+                vence {fmtDay(venc.next_due)}
+              </div>
+            )}
+          </div>
+          <div>
+            <div className="cap" style={{ fontSize: 10 }}>Resumen cerrado a pagar</div>
+            <div className="num-serif" style={{ fontSize: 16, marginTop: 2 }}>{formatMoney(cerrado)}</div>
           </div>
           <div>
             <div className="cap" style={{ fontSize: 10 }}>Comprometido a futuro</div>
             <div className="num-serif" style={{ fontSize: 16, marginTop: 2 }}>{formatMoney(enCuotas)}</div>
           </div>
-          <div>
-            <div className="cap" style={{ fontSize: 10 }}>Cierra</div>
-            <div style={{ fontSize: 15, fontWeight: 500, marginTop: 2 }}>{fmtDay(venc?.next_closing)}</div>
-          </div>
         </div>
-        {deuda !== null && (
-          <div style={{ marginTop: 12, fontSize: 12, color: 'var(--color-sage)' }}>
-            Deuda: <span className="num-serif" style={{ fontSize: 14 }}>{formatMoney(deuda)}</span>
-          </div>
-        )}
+        {/* Explainer */}
+        <div style={{ marginTop: 12, fontSize: 11, color: 'var(--color-sage)', fontStyle: 'italic' }}>
+          Lo que gastás en el ciclo en curso pasa a "a pagar" cuando la tarjeta cierra.
+        </div>
       </Card>
 
       {/* Cuotas section */}

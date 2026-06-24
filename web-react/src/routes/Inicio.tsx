@@ -1,7 +1,8 @@
 import { useOverview } from '../hooks/useOverview'
 import { useVencimientos } from '../hooks/useVencimientos'
+import { useAccountsWithBalances } from '../hooks/useAccounts'
 import { formatMoney, formatUsdApprox } from '../lib/format'
-import { type CicloTotal } from '../lib/types'
+import { type Account } from '../lib/types'
 import Card from '../components/ui/Card'
 import TickMark from '../components/ui/TickMark'
 import StatNumber from '../components/ui/StatNumber'
@@ -10,14 +11,25 @@ import AlertPill from '../components/ui/AlertPill'
 import { InicioSkeleton } from '../components/ui/skeletons'
 import EmptyState from '../components/ui/EmptyState'
 
+function daysUntil(dateStr?: string): number | null { if (!dateStr) return null; return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86_400_000) }
+function arsBalance(acc: Account): number {
+  return (acc.balances ?? []).find((b) => b.currency === 'ARS')?.balance ?? (acc.balances?.[0]?.balance ?? 0)
+}
+
 export default function Inicio() {
   const { data, isLoading, isError } = useOverview()
   const venc = useVencimientos()
+  const accounts = useAccountsWithBalances()
+
   if (isLoading) return <InicioSkeleton />
   if (isError || !data) return <EmptyState>No pudimos cargar tus datos. Reintentá.</EmptyState>
   const k = data.kpis
   const delta = k.gasto_mes - k.gasto_prev_alt
   const maxCat = Math.max(1, ...data.por_categoria.map((c) => c.total))
+
+  // Credit cards from accounts-with-balances, matched with vencimientos
+  const creditCards = accounts.data?.filter((a) => a.type === 'credito') ?? []
+
   return (
     <div style={{ padding: '8px 4px 24px' }}>
       <section style={{ padding: '8px 18px 6px' }}>
@@ -36,25 +48,31 @@ export default function Inicio() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 15, fontWeight: 500 }}><i className="ti ti-credit-card" style={{ marginRight: 7 }} aria-hidden />Cuotas y tarjetas</span>
           </div>
+          {/* PRIMARY: Deuda en tarjetas */}
           <div style={{ marginTop: 14 }}>
-            <div className="cap">A pagar este mes</div>
-            <div className="num-serif" style={{ fontSize: 32, marginTop: 4 }}>{formatMoney((venc.data ?? []).reduce((s, v) => s + cicloTotal(v.ciclo_cerrado), 0))}</div>
+            <div className="cap">Deuda en tarjetas</div>
+            <div className="num-serif" style={{ fontSize: 32, marginTop: 4 }}>{formatMoney(k.deuda_tarjetas)}</div>
             <div style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 4 }}>Comprometido a futuro: {formatMoney(k.cuotas_futuras)}</div>
           </div>
           <div style={{ height: 1, background: 'var(--color-mist)', margin: '16px 0' }} />
-          {venc.isLoading && <span aria-hidden className="nf-skel" style={{ height: 48, display: 'block' }} />}
-          {venc.data && venc.data.length === 0 && <EmptyState>Sin vencimientos próximos.</EmptyState>}
-          {venc.data?.map((v) => {
-            const dias = daysUntil(v.next_closing)
+          {/* Per-card rows */}
+          {(accounts.isLoading || venc.isLoading) && <span aria-hidden className="nf-skel" style={{ height: 48, display: 'block' }} />}
+          {creditCards.length === 0 && !accounts.isLoading && <EmptyState>Sin tarjetas de crédito.</EmptyState>}
+          {creditCards.map((card) => {
+            const v = venc.data?.find((x) => x.account_id === card.id)
+            const deuda = arsBalance(card)
+            const dias = daysUntil(v?.next_closing)
             return (
-              <div key={v.account_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div key={card.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <span>
-                  <span style={{ fontSize: 14, fontWeight: 500 }}>{v.account_name}</span><br />
-                  {dias !== null && dias >= 0 && dias <= 5
+                  <span style={{ fontSize: 14, fontWeight: 500 }}>{card.name}</span><br />
+                  {v && dias !== null && dias >= 0 && dias <= 5
                     ? <AlertPill>cierra en {dias} día{dias === 1 ? '' : 's'}</AlertPill>
-                    : <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>{formatDue(v.next_due)}</span>}
+                    : v?.next_closing
+                      ? <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>cierra {v.next_closing.slice(8, 10)}/{v.next_closing.slice(5, 7)}</span>
+                      : null}
                 </span>
-                <span style={{ fontSize: 15, fontWeight: 500 }}>{formatMoney(cicloTotal(v.ciclo_cerrado))}</span>
+                <span className="num-serif" style={{ fontSize: 15, fontWeight: 500 }}>{formatMoney(deuda)}</span>
               </div>
             )
           })}
@@ -72,6 +90,3 @@ export default function Inicio() {
     </div>
   )
 }
-function cicloTotal(arr?: CicloTotal[]): number { return (arr ?? []).reduce((s, c) => s + c.total, 0) }
-function daysUntil(dateStr?: string): number | null { if (!dateStr) return null; return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86_400_000) }
-function formatDue(due?: string): string { return due ? `vence ${due.slice(8, 10)}/${due.slice(5, 7)}` : 'sin fecha' }
