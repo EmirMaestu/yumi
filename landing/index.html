@@ -851,7 +851,7 @@
 
     /* ── Features Grid ───────────────────────────────────────────── */
     #features {
-      padding: clamp(80px, 10vw, 130px) 0;
+      padding: clamp(48px, 6vw, 84px) 0;
     }
     #features .section-label {
       font-size: 12px;
@@ -908,7 +908,7 @@
 
     /* ── Chat Demo ───────────────────────────────────────────────── */
     #chat-demo {
-      padding: clamp(80px, 10vw, 130px) 0;
+      padding: clamp(48px, 6vw, 84px) 0;
       background: var(--bark);
       overflow: hidden;
     }
@@ -1060,7 +1060,7 @@
 
     /* ── Editorial diferencial ───────────────────────────────────── */
     #diferencial {
-      padding: clamp(80px, 10vw, 130px) 0;
+      padding: clamp(48px, 6vw, 84px) 0;
     }
     .ed-block {
       max-width: 680px;
@@ -1173,7 +1173,7 @@
 
     /* ── Container util ──────────────────────────────────────────── */
     /* ── New sections: shared header ─────────────────────────────── */
-    #capacidades, #privacidad, #precios, #whatsapp { padding: clamp(80px, 10vw, 130px) 0; }
+    #capacidades, #privacidad, #precios, #whatsapp { padding: clamp(48px, 6vw, 84px) 0; }
     #capacidades .section-label, #privacidad .section-label, #precios .section-label, #whatsapp .section-label {
       font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sage); margin-bottom: 20px;
     }
@@ -1296,8 +1296,21 @@
     .blob-3 { width: 40vw; height: 40vw; max-width: 460px; max-height: 460px;
       background: radial-gradient(circle, rgba(200,210,200,0.6), rgba(200,210,200,0) 70%);
       top: 260vh; right: -10vw; }
-    /* keep all real content above the blobs */
-    #topbar, #pill-nav, #progress-bar, main, section, footer, .hero-inner { position: relative; z-index: 1; }
+    /* keep page content above the blobs (bars keep their own fixed/sticky + high z-index) */
+    main, section, footer, .hero-inner { position: relative; z-index: 1; }
+
+    /* ── Manifiesto: full-bleed color screen with scroll-driven words ── */
+    #manifiesto { background: var(--voltage); position: relative; z-index: 1; overflow: hidden; }
+    #manifiesto-sticky {
+      min-height: 100vh; display: flex; flex-direction: column; justify-content: center;
+      padding: 0 clamp(24px, 7vw, 120px); gap: clamp(2px, 0.5vw, 8px);
+    }
+    .mf-line {
+      font-family: 'Fraunces', serif; font-weight: 300; line-height: 0.95;
+      letter-spacing: -0.045em; font-size: clamp(46px, 12vw, 168px); color: var(--v-text);
+      will-change: opacity, transform;
+    }
+    .mf-line.mf-accent { font-style: italic; }
   </style>
 </head>
 
@@ -1664,6 +1677,15 @@
           <span class="cap-desc">Las claves, las ideas, lo que no se puede olvidar. A mano.</span>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- ═══ MANIFIESTO (full-bleed color, scroll-driven words) ═══════ -->
+  <section id="manifiesto" aria-label="Tu vida en común, en un mensaje">
+    <div id="manifiesto-sticky">
+      <div class="mf-line" data-mf="0">Tu vida</div>
+      <div class="mf-line" data-mf="1">en común,</div>
+      <div class="mf-line mf-accent" data-mf="2">en un mensaje.</div>
     </div>
   </section>
 
@@ -2111,7 +2133,7 @@
       scrollTrigger: {
         trigger: convSection,
         start: 'top top',
-        end: '+=100%',
+        end: '+=70%',
         pin: convSticky,
         scrub: 1.2,
         anticipatePin: 1
@@ -2127,19 +2149,23 @@
     ];
     // Translate each card from its scattered spot toward the section center (+ a cluster
     // offset) so they converge ONTO the headline, overlapping it. They stay visible.
-    var _sr = convSticky.getBoundingClientRect();
-    var _cx = _sr.left + _sr.width / 2;
-    var _cy = _sr.top + _sr.height / 2;
+    // Use layout-relative offsets (offsetParent = #conv-bg-layer), which stay correct
+    // even after the section is pinned (getBoundingClientRect shifts on pin → cards
+    // ended up scattered). Each card translates to the container centre + a small cluster
+    // offset, so they pile onto the headline.
     var _off = [ { x: -150, y: -56 }, { x: 158, y: -78 }, { x: -168, y: 70 }, { x: 170, y: 84 }, { x: 6, y: 132 } ];
     convCards_list.forEach(function(card, i) {
       if (!card) return;
-      var r = card.getBoundingClientRect();
-      var dx = _cx - (r.left + r.width / 2) + _off[i].x;
-      var dy = _cy - (r.top + r.height / 2) + _off[i].y;
+      var contW = card.offsetParent ? card.offsetParent.offsetWidth : convBgLayer.offsetWidth;
+      var contH = card.offsetParent ? card.offsetParent.offsetHeight : convBgLayer.offsetHeight;
+      var cardCx = card.offsetLeft + card.offsetWidth / 2;
+      var cardCy = card.offsetTop + card.offsetHeight / 2;
+      var dx = contW / 2 - cardCx + _off[i].x;
+      var dy = contH / 2 - cardCy + _off[i].y;
       convTl.to(card, {
         x: dx,
         y: dy,
-        scale: 0.9,
+        scale: 0.92,
         rotate: (i - 2) * 2.5,
         duration: 0.7,
         ease: 'power2.inOut'
@@ -2164,7 +2190,7 @@
       scrollTrigger: {
         trigger: wordPin,
         start: 'top top',
-        end: '+=80%',
+        end: '+=55%',
         pin: wordSticky,
         scrub: 1,
         anticipatePin: 1
@@ -2174,6 +2200,21 @@
     // Compartí joins (stays), then Administrá joins (stays)
     wordTl.to(wordRows[1], { opacity: 1, y: 0, duration: 0.3, ease: 'power3.out' }, 0.2);
     wordTl.to(wordRows[2], { opacity: 1, y: 0, duration: 0.3, ease: 'power3.out' }, 0.6);
+
+    /* ── Manifiesto: big words rise + fade in on scroll (full color) ── */
+    var mfLines = gsap.utils.toArray('#manifiesto .mf-line');
+    if (mfLines.length) {
+      gsap.set(mfLines, { opacity: 0.18, y: 60 });
+      var mfTl = gsap.timeline({
+        scrollTrigger: {
+          trigger: '#manifiesto', start: 'top top', end: '+=70%',
+          pin: '#manifiesto-sticky', scrub: 1, anticipatePin: 1
+        }
+      });
+      mfLines.forEach(function(l, i) {
+        mfTl.to(l, { opacity: 1, y: 0, duration: 0.4, ease: 'power3.out' }, i * 0.22);
+      });
+    }
 
     /* ── Feature cards stagger reveal ─────────────────────────── */
     gsap.set('.feat-card', { opacity: 0, y: 44 });
