@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import AppLayout from './components/nav/AppLayout'
 import Login from './routes/Login'
+import Hoy from './routes/Hoy'
 import Inicio from './routes/Inicio'
 import Movimientos from './routes/Movimientos'
 import Tarjetas from './routes/Tarjetas'
@@ -21,7 +22,8 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route element={<AppLayout />}>
-        <Route path="/" element={<Inicio />} />
+        <Route path="/" element={<Hoy />} />
+        <Route path="/finanzas" element={<Inicio />} />
         <Route path="/movimientos" element={<Movimientos />} />
         <Route path="/tarjetas" element={<Tarjetas />} />
         <Route path="/tarjetas/:id" element={<TarjetaDetalle />} />
