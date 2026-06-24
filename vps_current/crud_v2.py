@@ -144,6 +144,7 @@ class RecurringIn(BaseModel):
     description: str
     day_of_month: int
     total_installments: Optional[int] = None
+    installments_fired: Optional[int] = None
 
 
 def _next_occurrence(day: int) -> str:
@@ -163,11 +164,11 @@ def create_recurring(r: RecurringIn, user=Depends(require_user_crud)):
         if acc["user_id"] != user["id"]: raise HTTPException(403, "Esa cuenta no es tuya")
         cur = conn.execute(
             """INSERT INTO recurring(type, amount, currency, account_id, category_id,
-               description, frequency, day_of_month, next_occurrence, total_installments, user_id)
-               VALUES (?,?,?,?,?,?,'monthly',?,?,?,?)""",
+               description, frequency, day_of_month, next_occurrence, total_installments, installments_fired, user_id)
+               VALUES (?,?,?,?,?,?,'monthly',?,?,?,?,?)""",
             (r.type, r.amount, r.currency, r.account_id, r.category_id,
              r.description, r.day_of_month, _next_occurrence(r.day_of_month),
-             r.total_installments, user["id"]),
+             r.total_installments, r.installments_fired or 0, user["id"]),
         )
         audit(conn, "recurring", cur.lastrowid, "create", r.description, user["id"])
         conn.commit()

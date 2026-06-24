@@ -429,8 +429,8 @@ def api_acc_create(body: dict = Body(...), user=Depends(require_user)):
     with db() as conn:
         exists = conn.execute("SELECT id FROM accounts WHERE name=? AND user_id=?", (name, user["id"])).fetchone()
         if exists: raise HTTPException(400, "Ya tenés una cuenta con ese nombre")
-        cur = conn.execute("INSERT INTO accounts (name,type,color,icon,active,user_id) VALUES (?,?,?,?,1,?)",
-            (name, body.get("type","efectivo"), body.get("color","#60a5fa"), body.get("icon","💳"), user["id"]))
+        cur = conn.execute("INSERT INTO accounts (name,type,color,icon,active,closing_day,due_day,user_id) VALUES (?,?,?,?,1,?,?,?)",
+            (name, body.get("type","efectivo"), body.get("color","#60a5fa"), body.get("icon","💳"), body.get("closing_day"), body.get("due_day"), user["id"]))
         conn.commit()
         return {"id": cur.lastrowid, "ok": True}
 
@@ -442,7 +442,7 @@ def api_acc_update(aid: int, body: dict = Body(...), user=Depends(require_user))
         if not row: raise HTTPException(404, "No existe")
         if row["user_id"] != user["id"]: raise HTTPException(403, "No es tu cuenta")
         fields=[]; params=[]
-        for k in ("name","type","color","icon"):
+        for k in ("name","type","color","icon","closing_day","due_day"):
             if k in body: fields.append(f"{k}=?"); params.append(body[k])
         if "active" in body: fields.append("active=?"); params.append(1 if body["active"] else 0)
         if not fields: raise HTTPException(400, "Sin cambios")
@@ -692,7 +692,7 @@ def api_patch_rec(rid: int, body: dict = Body(...), user=Depends(require_user)):
         if not row: raise HTTPException(404, "No existe")
         if row["user_id"] != user["id"]: raise HTTPException(403, "No es tuya")
         fields=[]; params=[]
-        for k in ("amount","description","day_of_month","next_occurrence","total_installments"):
+        for k in ("amount","description","day_of_month","next_occurrence","total_installments","installments_fired"):
             if k in body: fields.append(f"{k}=?"); params.append(body[k])
         if "active" in body: fields.append("active=?"); params.append(1 if body["active"] else 0)
         if not fields: raise HTTPException(400, "Sin cambios")
