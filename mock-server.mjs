@@ -83,14 +83,22 @@ const routes = {
     { id: 303, text: 'Talle de zapatillas de Lisa: 38', tags: null, shared: 0, user_id: 1, created_at: fmt(now - 10 * day) },
   ],
   'GET /api/eventos': [
-    { id: 401, title: 'Cena con los viejos', starts_at: fmt(now) + 'T21:00', location: 'Casa de mamá', notes: '', user_id: 1 },
-    { id: 402, title: 'Turno dentista', starts_at: fmt(now + day) + 'T15:30', location: 'Av. Santa Fe 1200', notes: 'Llevar credencial', user_id: 1 },
-    { id: 403, title: 'Aniversario 🎉', starts_at: fmt(now + 5 * day) + 'T20:00', location: '', notes: '', user_id: 1 },
+    { id: 401, title: 'Cena con los viejos', starts_at: fmt(now) + 'T21:00', location: 'Casa de mamá', notes: '', user_id: 1, reminders: [] },
+    { id: 402, title: 'Turno dentista', starts_at: fmt(now + day) + 'T15:30', location: 'Av. Santa Fe 1200', notes: 'Llevar credencial', user_id: 1, reminders: [] },
+    { id: 403, title: 'Aniversario 🎉', starts_at: fmt(now + 5 * day) + 'T20:00', location: '', notes: '', user_id: 1, reminders: [] },
+    {
+      id: 404, title: 'Turno Ginecología', starts_at: fmt(now + 6 * day) + 'T19:00', location: 'Clínica', notes: '', user_id: 1,
+      reminders: [
+        { id: 503, text: 'Turno Ginecología', remind_at: fmt(now + 4 * day) + ' 19:00', fired: 0, event_id: 404, source: 'bot', user_id: 1 },
+        { id: 504, text: 'Turno Ginecología', remind_at: fmt(now + 6 * day) + ' 17:00', fired: 0, event_id: 404, source: 'bot', user_id: 1 },
+      ],
+    },
   ],
   'GET /api/recordatorios': [
     { id: 501, text: 'Llamar al plomero', remind_at: fmt(now) + ' 10:30', fired: 0, source: 'web', user_id: 1 },
     { id: 502, text: 'Sacar la basura', remind_at: fmt(now + day) + ' 08:00', fired: 0, source: 'bot', user_id: 1 },
-    { id: 503, text: 'En 2880 min: Turno Ginecología', remind_at: fmt(now + 5 * day) + ' 19:00', fired: 0, source: 'bot', user_id: 1 },
+    { id: 503, text: 'Turno Ginecología', remind_at: fmt(now + 4 * day) + ' 19:00', fired: 0, event_id: 404, source: 'bot', user_id: 1 },
+    { id: 504, text: 'Turno Ginecología', remind_at: fmt(now + 6 * day) + ' 17:00', fired: 0, event_id: 404, source: 'bot', user_id: 1 },
   ],
   'GET /api/habitos': {
     days: 7,

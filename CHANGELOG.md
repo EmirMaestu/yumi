@@ -6,6 +6,14 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-06-24
+### Added
+- **Recordatorios vinculados a eventos.** Al crear un evento podés elegir avisos ("avisarme antes": 10 min / 1 h / 2 h / 1 día / 2 días). En la Agenda los recordatorios aparecen **anidados bajo su evento** (con "te aviso 2 días antes"), en vez de como ítems sueltos, y se pueden quitar uno por uno.
+
+### Backend
+- `GET /api/eventos` incluye `reminders` (recordatorios linkeados por `event_id`); `POST /api/eventos` acepta `reminder_offsets`; `POST /api/recordatorios` acepta `event_id`.
+- Bot: deja de nombrar los recordatorios de eventos como "En N min: …" (texto limpio; ya quedaban linkeados por `event_id`).
+
 ## [0.4.0] - 2026-06-24
 ### Changed
 - **"A pagar" reemplaza a "deuda total" en todas las pantallas menos el detalle de la tarjeta.** Inicio, Tarjetas y Hoy muestran como número principal **lo que vence** (ciclo cerrado), no el total. La deuda total (consumos + cuotas por venir) queda solo en el detalle de cada tarjeta (`/tarjetas/:id`).

@@ -3563,7 +3563,7 @@ async def process_action(update, context, parsed, raw_id):
                 remind_dt = start_dt - timedelta(minutes=off)
                 if remind_dt > now_local():
                     rstr = remind_dt.strftime("%Y-%m-%dT%H:%M")
-                    txt = f"En {off} min: {e['title']}"
+                    txt = e['title']
                     rid = save_recordatorio(txt, rstr, uid, source="evento", raw_id=raw_id, event_id=eid)
                     schedule_reminder(context.application.job_queue, rid, txt, rstr, update.effective_user.id)
                     avisados.append(off)

@@ -723,7 +723,19 @@ def api_eventos(past: bool = False, user=Depends(require_user), scope: str = Coo
         else:
             rows = conn.execute(f"SELECT * FROM eventos WHERE starts_at>=? {uf_x} ORDER BY starts_at ASC",
                                 [nowstr] + uf_xp).fetchall()
-    return [dict(r) for r in rows]
+        events = [dict(r) for r in rows]
+        # adjuntar recordatorios linkeados a cada evento
+        if events:
+            ids = [e["id"] for e in events]
+            ph = ",".join("?" * len(ids))
+            recs = conn.execute(
+                f"SELECT * FROM recordatorios WHERE event_id IN ({ph}) ORDER BY remind_at ASC", ids).fetchall()
+            by_ev = {}
+            for r in recs:
+                by_ev.setdefault(r["event_id"], []).append(dict(r))
+            for e in events:
+                e["reminders"] = by_ev.get(e["id"], [])
+    return events
 
 
 @app.delete("/api/eventos/{eid}")

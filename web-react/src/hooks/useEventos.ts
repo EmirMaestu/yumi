@@ -14,6 +14,7 @@ interface EventoCreate {
   starts_at: string
   location?: string | null
   notes?: string | null
+  reminder_offsets?: number[]  // minutos antes para avisar
 }
 
 interface EventoUpdate {
@@ -26,7 +27,11 @@ interface EventoUpdate {
 
 export function useEventosMutations() {
   const qc = useQueryClient()
-  const inval = () => qc.invalidateQueries({ queryKey: ['eventos'] })
+  // crear/editar eventos puede crear recordatorios linkeados → invalidar ambos
+  const inval = () => {
+    qc.invalidateQueries({ queryKey: ['eventos'] })
+    qc.invalidateQueries({ queryKey: ['recordatorios'] })
+  }
 
   return {
     create: useMutation({

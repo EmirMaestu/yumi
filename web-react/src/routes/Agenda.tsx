@@ -75,28 +75,43 @@ type RecForm = z.infer<typeof recSchema>
 
 // ── Evento modal ─────────────────────────────────────────────────────────────
 
+const REMINDER_PRESETS = [
+  { min: 10, label: '10 min' },
+  { min: 60, label: '1 hora' },
+  { min: 120, label: '2 horas' },
+  { min: 1440, label: '1 día' },
+  { min: 2880, label: '2 días' },
+]
+
 function EventoModal({
   open,
   onClose,
   title,
   initial,
+  withReminders = false,
   onSubmit,
 }: {
   open: boolean
   onClose: () => void
   title: string
   initial?: Partial<EventoForm>
-  onSubmit: (data: EventoForm) => void
+  withReminders?: boolean
+  onSubmit: (data: EventoForm & { reminder_offsets?: number[] }) => void
 }) {
   const { register, handleSubmit, reset, formState: { errors } } = useForm<EventoForm>({
     resolver: zodResolver(eventoSchema),
     defaultValues: { title: '', starts_at: '', location: '', notes: '', ...initial },
   })
+  const [offsets, setOffsets] = useState<number[]>([])
 
-  const submit = (data: EventoForm) => { onSubmit(data); reset() }
+  const close = () => { onClose(); reset(); setOffsets([]) }
+  const submit = (data: EventoForm) => {
+    onSubmit({ ...data, reminder_offsets: withReminders ? offsets : undefined })
+    reset(); setOffsets([])
+  }
 
   return (
-    <Modal open={open} onClose={() => { onClose(); reset() }} title={title}>
+    <Modal open={open} onClose={close} title={title}>
       <form onSubmit={handleSubmit(submit)} style={{ display: 'grid', gap: 12 }}>
         <div>
           <input {...register('title')} placeholder="Título del evento" autoFocus style={inputStyle} />
@@ -109,6 +124,32 @@ function EventoModal({
         </label>
         <input {...register('location')} placeholder="Lugar (opcional)" style={inputStyle} />
         <textarea {...register('notes')} placeholder="Notas (opcional)" rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+        {withReminders && (
+          <div style={labelStyle}>
+            Avisarme antes
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
+              {REMINDER_PRESETS.map((p) => {
+                const on = offsets.includes(p.min)
+                return (
+                  <button
+                    key={p.min}
+                    type="button"
+                    onClick={() => setOffsets((o) => (on ? o.filter((x) => x !== p.min) : [...o, p.min]))}
+                    style={{
+                      fontSize: 12, padding: '5px 11px', borderRadius: 9999, cursor: 'pointer',
+                      border: `1px solid ${on ? 'var(--color-voltage)' : 'var(--color-mist)'}`,
+                      background: on ? 'var(--color-voltage)' : 'transparent',
+                      color: on ? 'var(--voltage-on-dark)' : 'var(--color-sage)',
+                      fontWeight: on ? 600 : 400,
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
         <button type="submit" style={ctaBtn}>Guardar</button>
       </form>
     </Modal>
@@ -210,7 +251,7 @@ export default function Agenda() {
   const allItems: AgendaItem[] = [
     ...(eventos ?? []).map((e): AgendaItem => ({ kind: 'evento', data: e, sortKey: e.starts_at })),
     ...(eventosPast ?? []).map((e): AgendaItem => ({ kind: 'evento', data: e, sortKey: e.starts_at })),
-    ...(recordatorios ?? []).map((r): AgendaItem => ({ kind: 'recordatorio', data: r, sortKey: r.remind_at })),
+    ...(recordatorios ?? []).filter((r) => !r.event_id).map((r): AgendaItem => ({ kind: 'recordatorio', data: r, sortKey: r.remind_at })),
   ].sort((a, b) => a.sortKey.localeCompare(b.sortKey))
 
   // group by day
@@ -221,8 +262,14 @@ export default function Agenda() {
     groups.get(key)!.push(item)
   }
 
-  const handleCreateEvento = (data: EventoForm) => {
-    evMut.create.mutate({ title: data.title, starts_at: data.starts_at, location: data.location || null, notes: data.notes || null })
+  const handleCreateEvento = (data: EventoForm & { reminder_offsets?: number[] }) => {
+    evMut.create.mutate({
+      title: data.title,
+      starts_at: data.starts_at,
+      location: data.location || null,
+      notes: data.notes || null,
+      reminder_offsets: data.reminder_offsets,
+    })
     setAddMode(null)
   }
   const handleCreateRec = (data: RecForm) => {
@@ -283,6 +330,7 @@ export default function Agenda() {
                   dimmed={isPast(item.data.starts_at)}
                   onEdit={() => setEditEvento(item.data)}
                   onDelete={() => setDeleteItem(item)}
+                  onRemoveReminder={(rid) => recMut.remove.mutate(rid)}
                 />
               ) : (
                 <RecordatorioCard
@@ -304,6 +352,7 @@ export default function Agenda() {
         open={addMode === 'evento'}
         onClose={() => setAddMode(null)}
         title="Nuevo evento"
+        withReminders
         onSubmit={handleCreateEvento}
       />
       <RecordatorioModal
@@ -354,17 +403,32 @@ export default function Agenda() {
 
 // ── sub-components ───────────────────────────────────────────────────────────
 
+// Etiqueta del aviso relativo al inicio del evento ("1 día antes", "2 h antes")
+function reminderOffsetLabel(remindAt: string, startsAt: string): string {
+  const diffMin = Math.round(
+    (new Date(startsAt.replace(' ', 'T')).getTime() - new Date(remindAt.replace(' ', 'T')).getTime()) / 60000,
+  )
+  if (diffMin <= 0) return fmtTime(remindAt)
+  if (diffMin < 60) return `${diffMin} min antes`
+  if (diffMin < 1440) return `${Math.round(diffMin / 60)} h antes`
+  const d = Math.round(diffMin / 1440)
+  return `${d} día${d > 1 ? 's' : ''} antes`
+}
+
 function EventoCard({
   evento,
   dimmed,
   onEdit,
   onDelete,
+  onRemoveReminder,
 }: {
   evento: Evento
   dimmed: boolean
   onEdit: () => void
   onDelete: () => void
+  onRemoveReminder: (id: number) => void
 }) {
+  const reminders = evento.reminders ?? []
   return (
     <Card style={{ opacity: dimmed ? 0.55 : 1 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
@@ -388,6 +452,23 @@ function EventoCard({
         </div>
         <CardActions onEdit={onEdit} onDelete={onDelete} />
       </div>
+      {reminders.length > 0 && (
+        <div style={{ marginTop: 8, marginLeft: 14, display: 'grid', gap: 5 }}>
+          {reminders.map((r) => (
+            <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--color-sage)' }}>
+              <i className="ti ti-bell" aria-hidden style={{ fontSize: 12 }} />
+              <span style={{ flex: 1 }}>te aviso {reminderOffsetLabel(r.remind_at, evento.starts_at)}</span>
+              <button
+                onClick={() => onRemoveReminder(r.id)}
+                aria-label="Quitar aviso"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-sage)', padding: 0, lineHeight: 1 }}
+              >
+                <i className="ti ti-x" style={{ fontSize: 12 }} aria-hidden />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </Card>
   )
 }

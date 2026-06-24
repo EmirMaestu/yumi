@@ -182,6 +182,7 @@ class EventoIn(BaseModel):
     starts_at: str
     location: Optional[str] = None
     notes: Optional[str] = None
+    reminder_offsets: Optional[list[int]] = None  # minutos antes para avisar, ej [1440, 120]
 
 
 class EventoPatch(BaseModel):
@@ -198,9 +199,24 @@ def create_evento(e: EventoIn, user=Depends(require_user_crud)):
             "INSERT INTO eventos(title, starts_at, location, notes, user_id) VALUES (?,?,?,?,?)",
             (e.title, e.starts_at, e.location, e.notes, user["id"]),
         )
-        audit(conn, "eventos", cur.lastrowid, "create", e.title, user["id"])
+        eid = cur.lastrowid
+        # avisos linkeados al evento (recordatorios con event_id)
+        if e.reminder_offsets:
+            try:
+                start = datetime.fromisoformat(e.starts_at.replace(" ", "T")[:16])
+                ahora = datetime.now()
+                for off in sorted({int(o) for o in e.reminder_offsets if int(o) > 0}, reverse=True):
+                    rdt = start - timedelta(minutes=off)
+                    if rdt > ahora:
+                        conn.execute(
+                            "INSERT INTO recordatorios(text, remind_at, source, user_id, event_id) VALUES (?,?,'web',?,?)",
+                            (e.title, rdt.strftime("%Y-%m-%d %H:%M:%S"), user["id"], eid),
+                        )
+            except Exception:
+                pass
+        audit(conn, "eventos", eid, "create", e.title, user["id"])
         conn.commit()
-        return {"id": cur.lastrowid, "ok": True}
+        return {"id": eid, "ok": True}
 
 
 @router.patch("/eventos/{evento_id}")
@@ -236,6 +252,7 @@ def patch_tarea(tarea_id: int, t: TareaPatch, user=Depends(require_user_crud)):
 class RecordatorioIn(BaseModel):
     text: str
     remind_at: str
+    event_id: Optional[int] = None
 
 
 class RecordatorioPatch(BaseModel):
@@ -247,8 +264,8 @@ class RecordatorioPatch(BaseModel):
 def create_recordatorio(r: RecordatorioIn, user=Depends(require_user_crud)):
     with db() as conn:
         cur = conn.execute(
-            "INSERT INTO recordatorios(text, remind_at, source, user_id) VALUES (?,?,'web',?)",
-            (r.text, r.remind_at, user["id"]),
+            "INSERT INTO recordatorios(text, remind_at, source, user_id, event_id) VALUES (?,?,'web',?,?)",
+            (r.text, r.remind_at, user["id"], r.event_id),
         )
         audit(conn, "recordatorios", cur.lastrowid, "create", r.text, user["id"])
         conn.commit()

@@ -179,7 +179,9 @@ export interface Evento {
   starts_at: string
   location?: string | null
   notes?: string | null
+  kind?: string | null
   user_id: number
+  reminders?: Recordatorio[]
 }
 
 export interface Recordatorio {
@@ -188,5 +190,6 @@ export interface Recordatorio {
   remind_at: string
   fired: number
   source?: string | null
+  event_id?: number | null
   user_id: number
 }

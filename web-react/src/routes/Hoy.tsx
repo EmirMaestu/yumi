@@ -95,7 +95,7 @@ export default function Hoy() {
   const endToday = new Date(); endToday.setHours(23, 59, 59, 999)
   const upcoming = [
     ...(eventos.data ?? []).map((e) => ({ id: `e${e.id}`, kind: 'evento', when: e.starts_at, title: e.title })),
-    ...(recordatorios.data ?? []).map((r) => ({ id: `r${r.id}`, kind: 'recordatorio', when: r.remind_at, title: cleanReminderText(r.text) })),
+    ...(recordatorios.data ?? []).filter((r) => !r.event_id).map((r) => ({ id: `r${r.id}`, kind: 'recordatorio', when: r.remind_at, title: cleanReminderText(r.text) })),
   ]
     .filter((i) => i.when && whenDate(i.when) > endToday)
     .sort((a, b) => whenDate(a.when).getTime() - whenDate(b.when).getTime())
