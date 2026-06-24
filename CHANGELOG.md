@@ -6,6 +6,10 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-06-24
+### Added
+- Las tarjetas en Inicio/Finanzas ahora son clickeables → abren el detalle de la tarjeta directo, sin pasar por el menú.
+
 ## [0.3.1] - 2026-06-24
 Coherencia del modelo de plata de las tarjetas: una sola fuente de verdad en `lib/cards.ts`.
 

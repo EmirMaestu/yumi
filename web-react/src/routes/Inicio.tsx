@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useOverview } from '../hooks/useOverview'
 import { useVencimientos } from '../hooks/useVencimientos'
 import { useAccountsWithBalances } from '../hooks/useAccounts'
@@ -66,7 +67,11 @@ export default function Inicio() {
             const deuda = deudaTotal(card.id, card, recurring.data)
             const dias = daysUntil(v?.next_closing)
             return (
-              <div key={card.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Link
+                key={card.id}
+                to={`/tarjetas/${card.id}`}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}
+              >
                 <span>
                   <span style={{ fontSize: 14, fontWeight: 500 }}>{card.name}</span><br />
                   {v && dias !== null && dias >= 0 && dias <= 5
@@ -75,8 +80,11 @@ export default function Inicio() {
                       ? <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>cierra {v.next_closing.slice(8, 10)}/{v.next_closing.slice(5, 7)}</span>
                       : null}
                 </span>
-                <span className="num-serif" style={{ fontSize: 15, fontWeight: 500 }}>{formatMoney(deuda)}</span>
-              </div>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span className="num-serif" style={{ fontSize: 15, fontWeight: 500 }}>{formatMoney(deuda)}</span>
+                  <i className="ti ti-chevron-right" style={{ fontSize: 16, color: 'var(--color-sage)' }} aria-hidden />
+                </span>
+              </Link>
             )
           })}
         </Card>
