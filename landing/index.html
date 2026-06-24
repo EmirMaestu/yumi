@@ -789,7 +789,7 @@
       z-index: 1;
     }
 
-    /* ── 3-Word Pinned Sequence ──────────────────────────────────── */
+    /* ── 3-Word Pinned Sequence (stacking/accumulate style) ─────── */
     #words-pin {
       position: relative;
     }
@@ -799,51 +799,55 @@
       justify-content: center;
       min-height: 100vh;
       position: relative;
-    }
-    .word-slide {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       padding: 0 clamp(24px, 5vw, 80px);
-      opacity: 0;
-      will-change: opacity, transform;
     }
-    .word-slide-inner {
+    /* Stack container — vertical column of word rows */
+    #words-stack {
       display: flex;
       flex-direction: column;
-      align-items: flex-start;
-      gap: 32px;
+      gap: clamp(20px, 3vw, 36px);
       max-width: 760px;
       width: 100%;
     }
+    /* Each word row: tile + big word, horizontal */
+    .word-row {
+      display: flex;
+      align-items: center;
+      gap: clamp(20px, 3vw, 36px);
+      opacity: 0;
+      transform: translateY(28px);
+      will-change: opacity, transform;
+    }
     .word-tile {
-      width: clamp(64px, 10vw, 100px);
-      height: clamp(64px, 10vw, 100px);
-      border-radius: 24px;
+      width: clamp(48px, 8vw, 72px);
+      height: clamp(48px, 8vw, 72px);
+      border-radius: 14px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: clamp(28px, 4vw, 44px);
       flex-shrink: 0;
     }
-    .word-tile.v-tile { background: var(--voltage); }
-    .word-tile.o-tile { background: var(--obsidian); }
+    .word-tile svg {
+      width: clamp(24px, 4vw, 36px);
+      height: clamp(24px, 4vw, 36px);
+    }
+    /* Tile colours per word */
+    .word-tile.t-habla    { background: #2bee4b; }
+    .word-tile.t-comparte { background: #477ee9; }
+    .word-tile.t-controla { background: #fb2d54; }
     .word-big {
       font-family: 'Fraunces', serif;
-      font-size: clamp(60px, 12vw, 130px);
+      font-size: clamp(52px, 10vw, 110px);
       font-weight: 300;
       line-height: 0.95;
       letter-spacing: -0.04em;
-      color: var(--obsidian);
     }
-    .word-desc {
-      font-size: clamp(14px, 1.6vw, 18px);
-      color: var(--sage);
-      line-height: 1.55;
-      max-width: 42ch;
-    }
+    /* Word text colours matched to tiles */
+    .word-big.c-habla    { color: #16b34a; }
+    .word-big.c-comparte { color: #477ee9; }
+    .word-big.c-controla { color: #fb2d54; }
+    /* Hide old .word-slide if referenced anywhere */
+    .word-slide { display: none; }
 
     /* ── Features Grid ───────────────────────────────────────────── */
     #features {
@@ -1183,10 +1187,20 @@
       #pill-nav .pn-links { display: none; }
       .footer-top { flex-direction: column; }
       #topbar { padding: 14px 20px; }
-      .word-big { font-size: clamp(48px, 14vw, 90px); }
+      .word-big { font-size: clamp(40px, 12vw, 72px); }
       .yumi-phone { width: 260px; }
       .chat-demo-inner { justify-content: center; }
       .chat-demo-right { min-width: unset; width: 100%; }
+
+      /* Change 3: tighter hero on mobile — remove the big void above eyebrow */
+      #hero {
+        min-height: auto;
+        padding-top: clamp(72px, 18vw, 96px);
+        padding-bottom: clamp(48px, 8vw, 72px);
+        justify-content: flex-start;
+      }
+      /* Hide ALL floating cards on small phones to reclaim space */
+      .float-cards { display: none; }
     }
   </style>
 </head>
@@ -1428,28 +1442,38 @@
   <!-- ═══ 3-WORD PIN ═══════════════════════════════════════════════ -->
   <section id="words-pin" aria-label="Hablá, Compartí, Controlá">
     <div id="words-sticky">
-      <!-- Word 1: Hablá -->
-      <div class="word-slide" id="ws-1">
-        <div class="word-slide-inner">
-          <div class="word-tile v-tile" aria-hidden="true">💬</div>
-          <div class="word-big">Hablá.</div>
-          <p class="word-desc">Le hablás por chat, audio o foto del ticket —en español rioplatense— y Yumi lo interpreta en segundos.</p>
+      <div id="words-stack">
+        <!-- Word row 1: Hablá (voltage green) -->
+        <div class="word-row" id="ws-1" aria-label="Hablá">
+          <div class="word-tile t-habla" aria-hidden="true">
+            <!-- Chat bubble icon (Tabler/Feather style) -->
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+          <div class="word-big c-habla">Hablá.</div>
         </div>
-      </div>
-      <!-- Word 2: Compartí -->
-      <div class="word-slide" id="ws-2">
-        <div class="word-slide-inner">
-          <div class="word-tile o-tile" aria-hidden="true" style="color:#e8ede8;">🤝</div>
-          <div class="word-big">Compartí.</div>
-          <p class="word-desc">Vista de a dos: lo tuyo, lo de tu pareja y los gastos de ambos. Sin confusiones ni peleas.</p>
+        <!-- Word row 2: Compartí (cobalt blue) -->
+        <div class="word-row" id="ws-2" aria-label="Compartí">
+          <div class="word-tile t-comparte" aria-hidden="true">
+            <!-- Two-people / share icon -->
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+          </div>
+          <div class="word-big c-comparte">Compartí.</div>
         </div>
-      </div>
-      <!-- Word 3: Controlá -->
-      <div class="word-slide" id="ws-3">
-        <div class="word-slide-inner">
-          <div class="word-tile v-tile" aria-hidden="true">📊</div>
-          <div class="word-big">Controlá.</div>
-          <p class="word-desc">Deuda entre ustedes, cuotas y vencimientos —claros, siempre—. Sin planillas que se abandonan en febrero.</p>
+        <!-- Word row 3: Controlá (magenta/red) -->
+        <div class="word-row" id="ws-3" aria-label="Controlá">
+          <div class="word-tile t-controla" aria-hidden="true">
+            <!-- Bar chart icon -->
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+              <line x1="2" y1="20" x2="22" y2="20"/>
+            </svg>
+          </div>
+          <div class="word-big c-controla">Controlá.</div>
         </div>
       </div>
     </div>
@@ -1462,22 +1486,45 @@
       <h2 id="features-h2">Hecho para la vida real.<br>Hecho para Argentina.</h2>
       <div class="features-grid">
         <div class="feat-card">
-          <div class="feat-icon vi">💬</div>
+          <div class="feat-icon vi" aria-hidden="true">
+            <!-- Chat bubble -->
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--v-text)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
           <h3>Le hablás, y listo</h3>
           <p>Lenguaje natural, modismos argentinos (luca, palo, mango). Mandás audios, fotos de tickets y resúmenes de tarjeta.</p>
         </div>
         <div class="feat-card">
-          <div class="feat-icon oi" style="color:#e8ede8;">🇦🇷</div>
+          <div class="feat-icon oi" aria-hidden="true">
+            <!-- Map pin / location — Argentina local icon -->
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#e8ede8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+              <circle cx="12" cy="9" r="2.5"/>
+            </svg>
+          </div>
           <h3>Entiende Argentina</h3>
           <p>Cuotas, cierres y vencimientos de tarjeta, dólar blue y MEP, Mercado Pago. Todo lo que las apps del norte ignoran.</p>
         </div>
         <div class="feat-card">
-          <div class="feat-icon mi">👫</div>
+          <div class="feat-icon mi" aria-hidden="true">
+            <!-- Two people -->
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
           <h3>Hecho para dos</h3>
           <p>Vista compartida con tu pareja. Deuda entre ustedes siempre clara: quién le debe a quién y cuánto.</p>
         </div>
         <div class="feat-card">
-          <div class="feat-icon vi">📍</div>
+          <div class="feat-icon vi" aria-hidden="true">
+            <!-- Layout / dashboard grid -->
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--v-text)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+              <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+            </svg>
+          </div>
           <h3>Todo en un lugar</h3>
           <p>Deuda total, gasto del mes, próximos vencimientos y cuotas activas. Un solo vistazo, sin abrir Excel.</p>
         </div>
@@ -1723,10 +1770,10 @@
       document.querySelectorAll('.js-hide').forEach(function(el) {
         el.style.opacity = '1';
       });
-      document.querySelectorAll('.word-slide').forEach(function(el) {
+      // Stacking words: show all rows statically
+      document.querySelectorAll('.word-row').forEach(function(el) {
         el.style.opacity = '1';
-        el.style.position = 'relative';
-        el.style.minHeight = 'auto';
+        el.style.transform = 'none';
       });
       return;
     }
@@ -1734,10 +1781,10 @@
     /* ── Exit early for reduced motion ────────────────────────── */
     if (reduced) {
       document.querySelectorAll('.js-hide').forEach(function(el) { el.style.opacity = '1'; });
-      document.querySelectorAll('.word-slide').forEach(function(el) {
+      // Stacking words: show all rows immediately
+      document.querySelectorAll('.word-row').forEach(function(el) {
         el.style.opacity = '1';
-        el.style.position = 'relative';
-        el.style.minHeight = 'auto';
+        el.style.transform = 'none';
       });
       document.querySelectorAll('.conv-card').forEach(function(el) { el.style.opacity = '1'; });
       var bgLayer = document.getElementById('conv-bg-layer');
@@ -1877,38 +1924,40 @@
       ease: 'back.out(1.3)'
     }, 0.45);
 
-    /* ── 3-Word pinned sequence ────────────────────────────────── */
+    /* ── 3-Word pinned sequence (accumulate/stack — Jeton style) ── */
     var wordPin    = document.getElementById('words-pin');
     var wordSticky = document.getElementById('words-sticky');
-    var wordSlides = [
+    var wordRows   = [
       document.getElementById('ws-1'),
       document.getElementById('ws-2'),
       document.getElementById('ws-3')
     ];
 
-    // Set initial states
-    gsap.set(wordSlides[0], { opacity: 1, y: 0 });
-    gsap.set(wordSlides[1], { opacity: 0, y: 30 });
-    gsap.set(wordSlides[2], { opacity: 0, y: 30 });
+    // Initial state: all rows hidden, translated down
+    gsap.set(wordRows, { opacity: 0, y: 28 });
 
     var wordTl = gsap.timeline({
       scrollTrigger: {
         trigger: wordPin,
         start: 'top top',
-        end: '+=300%',
+        end: '+=280%',
         pin: wordSticky,
         scrub: 1,
         anticipatePin: 1
       }
     });
 
-    // slide 0 → 1
-    wordTl.to(wordSlides[0], { opacity: 0, y: -30, duration: 0.3, ease: 'power2.in' }, 0.1);
-    wordTl.to(wordSlides[1], { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' }, 0.25);
-    // slide 1 → 2
-    wordTl.to(wordSlides[1], { opacity: 0, y: -30, duration: 0.3, ease: 'power2.in' }, 0.55);
-    wordTl.to(wordSlides[2], { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' }, 0.7);
-    // hold slide 2
+    // Row 1 reveals (~0 → 0.3) and STAYS — never hides
+    wordTl.to(wordRows[0], { opacity: 1, y: 0, duration: 0.25, ease: 'power3.out' }, 0.05);
+    // Hold row1 visible: do nothing — GSAP keeps it at opacity:1
+
+    // Row 2 reveals (~0.33 → 0.6) and STAYS
+    wordTl.to(wordRows[1], { opacity: 1, y: 0, duration: 0.25, ease: 'power3.out' }, 0.38);
+
+    // Row 3 reveals (~0.66 → 0.9) and STAYS
+    wordTl.to(wordRows[2], { opacity: 1, y: 0, duration: 0.25, ease: 'power3.out' }, 0.7);
+
+    // Hold all three visible at the end
     wordTl.to({}, { duration: 0.3 }, 1.0);
 
     /* ── Feature cards stagger reveal ─────────────────────────── */
