@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Yumi · La plata de los dos</title>
+  <meta name="description" content="Yumi ordena los gastos, las cuotas y las tarjetas de tu pareja. Le hablás por chat —Telegram o WhatsApp— y listo." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --canvas:   #fafffa;
+      --obsidian: #121613;
+      --sage:     #516254;
+      --mist:     #c8d2c8;
+      --voltage:  #2bee4b;
+      --content-w: 1080px;
+      --section-gap: clamp(64px, 9vw, 112px);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background-color: var(--canvas);
+      color: var(--obsidian);
+      font-family: 'Inter', sans-serif;
+      font-weight: 400;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Utility ──────────────────────────────────────────────── */
+    .wrap {
+      max-width: var(--content-w);
+      margin: 0 auto;
+      padding: 0 clamp(20px, 5vw, 48px);
+    }
+
+    .eyebrow {
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+      font-size: 11px;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      color: var(--sage);
+      display: block;
+      margin-bottom: 20px;
+    }
+
+    .display {
+      font-family: 'Fraunces', serif;
+      font-weight: 300;
+      line-height: 0.95;
+      letter-spacing: -.02em;
+    }
+
+    .tick {
+      display: inline-block;
+      width: 50px;
+      height: 2px;
+      background: var(--voltage);
+      vertical-align: middle;
+    }
+
+    /* ── Nav ──────────────────────────────────────────────────── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--canvas);
+      border-bottom: 1px solid var(--mist);
+      padding: 18px 0;
+    }
+
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .wordmark {
+      font-family: 'Fraunces', serif;
+      font-weight: 300;
+      font-size: 22px;
+      letter-spacing: -.02em;
+      text-decoration: none;
+      color: var(--obsidian);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .wordmark-bars {
+      display: flex;
+      gap: 3px;
+      align-items: center;
+    }
+
+    .wordmark-bars span {
+      display: block;
+      width: 2px;
+      height: 16px;
+      background: var(--voltage);
+      border-radius: 1px;
+    }
+
+    .wordmark-yu { color: var(--obsidian); }
+    .wordmark-mi { color: var(--voltage); }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .link-ghost {
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--sage);
+      text-decoration: none;
+      transition: color .15s;
+    }
+
+    .link-ghost:hover { color: var(--obsidian); }
+
+    .btn-voltage {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--voltage);
+      color: var(--obsidian);
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+      padding: 9px 20px;
+      border-radius: 99px;
+      transition: opacity .15s, transform .12s;
+      box-shadow: rgba(16,94,29,0.35) 1px 8px 20px 0px;
+      white-space: nowrap;
+    }
+
+    .btn-voltage:hover { opacity: .88; transform: translateY(-1px); }
+    .btn-voltage:active { transform: translateY(0); }
+
+    /* ── Hero ─────────────────────────────────────────────────── */
+    .hero {
+      padding-top: clamp(64px, 9vw, 100px);
+      padding-bottom: clamp(64px, 9vw, 100px);
+    }
+
+    .hero-inner {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 52px;
+      align-items: start;
+    }
+
+    @media (min-width: 760px) {
+      .hero-inner {
+        grid-template-columns: 1fr 340px;
+        gap: 64px;
+        align-items: center;
+      }
+    }
+
+    .hero-headline {
+      font-size: clamp(40px, 8vw, 88px);
+      margin-bottom: 28px;
+    }
+
+    .hero-sub {
+      font-size: clamp(16px, 2vw, 18px);
+      color: var(--sage);
+      font-weight: 300;
+      max-width: 560px;
+      line-height: 1.65;
+      margin-bottom: 36px;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .btn-voltage.large {
+      font-size: 16px;
+      padding: 13px 28px;
+    }
+
+    .hero-anchor {
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--sage);
+      text-decoration: none;
+      border-bottom: 1px solid var(--mist);
+      transition: color .15s, border-color .15s;
+    }
+
+    .hero-anchor:hover {
+      color: var(--obsidian);
+      border-color: var(--obsidian);
+    }
+
+    .hero-tick-row {
+      margin-top: 48px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .hero-tick-label {
+      font-size: 12px;
+      color: var(--mist);
+      font-weight: 400;
+      letter-spacing: .04em;
+    }
+
+    /* ── Chat Mockup ──────────────────────────────────────────── */
+    .chat-card {
+      border: 1px solid var(--mist);
+      border-radius: 14px;
+      padding: 20px;
+      background: var(--canvas);
+      max-width: 340px;
+      width: 100%;
+    }
+
+    .chat-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--mist);
+    }
+
+    .chat-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--voltage);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .chat-avatar-inner {
+      font-family: 'Fraunces', serif;
+      font-weight: 400;
+      font-size: 13px;
+      color: var(--obsidian);
+      display: flex;
+      align-items: center;
+      gap: 1px;
+    }
+
+    .chat-avatar-bars {
+      display: flex;
+      gap: 2px;
+      align-items: center;
+    }
+
+    .chat-avatar-bars span {
+      display: block;
+      width: 2px;
+      height: 9px;
+      background: var(--obsidian);
+      border-radius: 1px;
+    }
+
+    .chat-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--obsidian);
+    }
+
+    .chat-status {
+      font-size: 11px;
+      color: var(--sage);
+    }
+
+    .chat-online-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--voltage);
+      margin-right: 4px;
+    }
+
+    .chat-messages {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .bubble {
+      max-width: 85%;
+      padding: 9px 13px;
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .bubble-user {
+      background: #e8ede8;
+      color: var(--obsidian);
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+    }
+
+    .bubble-yumi {
+      background: var(--obsidian);
+      color: var(--canvas);
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+    }
+
+    .bubble-yumi strong {
+      color: var(--voltage);
+    }
+
+    .bubble-meta {
+      font-size: 10px;
+      color: var(--sage);
+      margin-top: 2px;
+      text-align: right;
+    }
+
+    .bubble-meta.left { text-align: left; }
+
+    /* ── Section shared ───────────────────────────────────────── */
+    section {
+      padding-top: var(--section-gap);
+      padding-bottom: var(--section-gap);
+    }
+
+    /* ── El Problema ──────────────────────────────────────────── */
+    .problema-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1px;
+      border: 1px solid var(--mist);
+      border-radius: 14px;
+      overflow: hidden;
+      margin-bottom: 36px;
+    }
+
+    @media (min-width: 600px) {
+      .problema-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    .problema-item {
+      padding: clamp(24px, 4vw, 36px) clamp(20px, 3vw, 28px);
+      border-right: 1px solid var(--mist);
+    }
+
+    .problema-item:last-child { border-right: none; }
+
+    @media (max-width: 599px) {
+      .problema-item {
+        border-right: none;
+        border-bottom: 1px solid var(--mist);
+      }
+      .problema-item:last-child { border-bottom: none; }
+    }
+
+    .problema-num {
+      font-family: 'Fraunces', serif;
+      font-weight: 300;
+      font-size: clamp(36px, 5vw, 52px);
+      color: var(--mist);
+      line-height: 1;
+      margin-bottom: 12px;
+    }
+
+    .problema-text {
+      font-size: clamp(16px, 2.2vw, 20px);
+      font-weight: 400;
+      color: var(--obsidian);
+      line-height: 1.3;
+    }
+
+    .problema-closing {
+      font-size: clamp(15px, 2vw, 17px);
+      color: var(--sage);
+      font-weight: 300;
+      font-style: italic;
+      font-family: 'Fraunces', serif;
+      margin-top: 32px;
+    }
+
+    /* ── Cómo funciona ────────────────────────────────────────── */
+    .como-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2px;
+      margin-top: 48px;
+    }
+
+    @media (min-width: 640px) {
+      .como-grid { grid-template-columns: repeat(3, 1fr); gap: 2px; }
+    }
+
+    .como-step {
+      padding: clamp(28px, 4vw, 40px) clamp(20px, 3vw, 32px);
+      border: 1px solid var(--mist);
+      border-radius: 14px;
+      position: relative;
+    }
+
+    .step-num {
+      font-family: 'Fraunces', serif;
+      font-weight: 300;
+      font-size: 13px;
+      color: var(--voltage);
+      letter-spacing: .06em;
+      margin-bottom: 20px;
+      display: block;
+    }
+
+    .step-title {
+      font-family: 'Fraunces', serif;
+      font-weight: 300;
+      font-size: clamp(22px, 3vw, 28px);
+      line-height: 1.1;
+      margin-bottom: 12px;
+    }
+
+    .step-desc {
+      font-size: 14px;
+      color: var(--sage);
+      line-height: 1.6;
+      font-weight: 300;
+    }
+
+    /* ── Features ─────────────────────────────────────────────── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1px;
+      margin-top: 48px;
+    }
+
+    @media (min-width: 540px) {
+      .features-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (min-width: 900px) {
+      .features-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+
+    .feature-card {
+      border: 1px solid var(--mist);
+      border-radius: 14px;
+      padding: clamp(24px, 3.5vw, 36px) clamp(20px, 3vw, 28px);
+    }
+
+    .feature-icon {
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--mist);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      font-size: 16px;
+    }
+
+    .feature-title {
+      font-family: 'Fraunces', serif;
+      font-weight: 300;
+      font-size: clamp(18px, 2.2vw, 22px);
+      line-height: 1.15;
+      margin-bottom: 10px;
+    }
+
+    .feature-desc {
+      font-size: 14px;
+      color: var(--sage);
+      line-height: 1.6;
+      font-weight: 300;
+    }
+
+    /* ── Diferencial ──────────────────────────────────────────── */
+    .diferencial {
+      background: transparent;
+      border-top: 1px solid var(--mist);
+      border-bottom: 1px solid var(--mist);
+    }
+
+    .diferencial-inner {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 32px;
+      align-items: center;
+    }
+
+    @media (min-width: 720px) {
+      .diferencial-inner { grid-template-columns: auto 1fr; gap: 64px; }
+    }
+
+    .diferencial-label {
+      font-family: 'Fraunces', serif;
+      font-weight: 300;
+      font-style: italic;
+      font-size: clamp(13px, 1.5vw, 15px);
+      color: var(--mist);
+      writing-mode: horizontal-tb;
+    }
+
+    @media (min-width: 720px) {
+      .diferencial-label {
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        letter-spacing: .06em;
+        font-size: 12px;
+      }
+    }
+
+    .diferencial-text {
+      font-family: 'Fraunces', serif;
+      font-weight: 300;
+      font-size: clamp(20px, 3vw, 30px);
+      line-height: 1.45;
+      color: var(--obsidian);
+    }
+
+    .diferencial-text em {
+      font-style: italic;
+      color: var(--sage);
+    }
+
+    /* ── CTA Final ────────────────────────────────────────────── */
+    .cta-final {
+      text-align: center;
+    }
+
+    .cta-headline {
+      font-size: clamp(40px, 7vw, 76px);
+      margin-bottom: 36px;
+    }
+
+    /* ── Footer ───────────────────────────────────────────────── */
+    footer {
+      background: var(--obsidian);
+      color: var(--canvas);
+      padding: clamp(40px, 6vw, 64px) 0;
+    }
+
+    .footer-inner {
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    @media (min-width: 600px) {
+      .footer-inner {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+      }
+    }
+
+    .footer-brand {}
+
+    .footer-wordmark {
+      font-family: 'Fraunces', serif;
+      font-weight: 300;
+      font-size: 20px;
+      text-decoration: none;
+      color: var(--canvas);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .footer-wordmark-bars span { background: var(--voltage); }
+
+    .footer-tagline {
+      font-size: 13px;
+      color: var(--sage);
+      font-weight: 300;
+    }
+
+    .footer-links {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    @media (min-width: 600px) {
+      .footer-links { align-items: flex-end; }
+    }
+
+    .footer-link {
+      font-size: 13px;
+      color: var(--canvas);
+      text-decoration: none;
+      opacity: .55;
+      transition: opacity .15s;
+    }
+
+    .footer-link:hover { opacity: 1; }
+
+    .footer-copy {
+      font-size: 12px;
+      color: var(--sage);
+      opacity: .7;
+    }
+
+    /* ── Section header shared ────────────────────────────────── */
+    .section-header {
+      margin-bottom: 0;
+    }
+
+    .section-header .display {
+      font-size: clamp(32px, 5vw, 54px);
+      margin-top: 8px;
+    }
+
+    /* ── Divider with tick ────────────────────────────────────── */
+    .section-divider {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 48px;
+    }
+
+    /* ── Problem section heading ──────────────────────────────── */
+    #problema .section-header {
+      margin-bottom: 40px;
+    }
+
+    /* ── Responsive nav ───────────────────────────────────────── */
+    @media (max-width: 400px) {
+      .nav-actions .link-ghost { display: none; }
+    }
+
+    /* ── Chat card mobile center ──────────────────────────────── */
+    @media (max-width: 759px) {
+      .chat-card { max-width: 100%; }
+    }
+
+    /* ── Subtle hover on cards ───────────────────────────────── */
+    .feature-card, .como-step {
+      transition: border-color .2s;
+    }
+
+    .feature-card:hover, .como-step:hover {
+      border-color: var(--sage);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Nav ──────────────────────────────────────────────────── -->
+  <nav>
+    <div class="wrap">
+      <div class="nav-inner">
+        <a href="/" class="wordmark" aria-label="Yumi - inicio">
+          <div class="wordmark-bars">
+            <span></span><span></span>
+          </div>
+          <span><span class="wordmark-yu">Yu</span><span class="wordmark-mi">mi</span></span>
+        </a>
+        <div class="nav-actions">
+          <a href="/app/" class="link-ghost">Entrar</a>
+          <a href="/app/" class="btn-voltage">Probar gratis</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Hero ─────────────────────────────────────────────────── -->
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-inner">
+        <div class="hero-content">
+          <span class="eyebrow">PARA PAREJAS Y FAMILIAS · ARGENTINA</span>
+          <h1 class="display hero-headline">La plata de los dos, sin planillas y sin peleas.</h1>
+          <p class="hero-sub">Yumi ordena los gastos, las cuotas y las tarjetas de tu pareja. Le hablás por chat —Telegram o WhatsApp— y listo.</p>
+          <div class="hero-actions">
+            <a href="/app/" class="btn-voltage large">Probar Yumi →</a>
+            <a href="#como" class="hero-anchor">Ver cómo funciona</a>
+          </div>
+          <div class="hero-tick-row">
+            <span class="tick"></span>
+            <span class="hero-tick-label">Sin tarjeta de crédito · Gratis para empezar</span>
+          </div>
+        </div>
+
+        <!-- Chat Mockup -->
+        <div class="chat-card" aria-label="Ejemplo de conversación con Yumi">
+          <div class="chat-header">
+            <div class="chat-avatar" aria-hidden="true">
+              <div class="chat-avatar-inner">
+                <div class="chat-avatar-bars">
+                  <span></span><span></span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="chat-name">Yumi</div>
+              <div class="chat-status"><span class="chat-online-dot"></span>activo ahora</div>
+            </div>
+          </div>
+          <div class="chat-messages">
+            <div>
+              <div class="bubble bubble-user">pagué 5 lucas de súper con el Galicia</div>
+              <div class="bubble-meta">vos · ahora</div>
+            </div>
+            <div>
+              <div class="bubble bubble-yumi">✓ Cargado: <strong>$5.000</strong> · Comida · Galicia</div>
+              <div class="bubble-meta left">Yumi · ahora</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── El Problema ───────────────────────────────────────────── -->
+  <section id="problema">
+    <div class="wrap">
+      <div id="problema" class="section-header">
+        <span class="eyebrow">EL QUILOMBO DE SIEMPRE</span>
+        <h2 class="display" style="font-size: clamp(30px, 4.5vw, 48px); margin-bottom: 40px;">Las mismas tres preguntas, cada mes.</h2>
+      </div>
+      <div class="problema-grid">
+        <div class="problema-item">
+          <div class="problema-num">01</div>
+          <div class="problema-text">¿Quién pagó qué?</div>
+        </div>
+        <div class="problema-item">
+          <div class="problema-num">02</div>
+          <div class="problema-text">¿Cuánto debemos en cuotas?</div>
+        </div>
+        <div class="problema-item">
+          <div class="problema-num">03</div>
+          <div class="problema-text">¿Llegamos a fin de mes?</div>
+        </div>
+      </div>
+      <p class="problema-closing">La plata en pareja no debería ser un dolor de cabeza.</p>
+    </div>
+  </section>
+
+  <!-- ── Cómo funciona ─────────────────────────────────────────── -->
+  <section id="como">
+    <div class="wrap">
+      <div class="section-header">
+        <span class="eyebrow">CÓMO FUNCIONA</span>
+        <h2 class="display" style="font-size: clamp(30px, 4.5vw, 48px);">Tres pasos, y ya.</h2>
+      </div>
+      <div class="como-grid">
+        <div class="como-step">
+          <span class="step-num">01 —</span>
+          <h3 class="step-title">Le hablás</h3>
+          <p class="step-desc">Chat, audio o foto del ticket. En el idioma que usás todos los días: luca, palo, cuota, todo.</p>
+        </div>
+        <div class="como-step">
+          <span class="step-num">02 —</span>
+          <h3 class="step-title">Yumi lo ordena</h3>
+          <p class="step-desc">Detecta el monto, la cuenta, la categoría y si es en cuotas. Sin que tengas que completar nada a mano.</p>
+        </div>
+        <div class="como-step">
+          <span class="step-num">03 —</span>
+          <h3 class="step-title">Lo ven los dos</h3>
+          <p class="step-desc">Todo claro en el dashboard compartido. Sin mensajes confusos, sin planillas, sin cuentas pendientes.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Features ──────────────────────────────────────────────── -->
+  <section id="features">
+    <div class="wrap">
+      <div class="section-header">
+        <span class="eyebrow">QUÉ HACE YUMI</span>
+        <h2 class="display" style="font-size: clamp(30px, 4.5vw, 48px);">Hecho para la vida real, la argentina.</h2>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon" aria-hidden="true">💬</div>
+          <h3 class="feature-title">Le hablás, y listo</h3>
+          <p class="feature-desc">Entiende lenguaje natural y modismos: luca, palo, verde, cuotas sin interés. Acepta audios y fotos de tickets y resúmenes bancarios.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" aria-hidden="true">🇦🇷</div>
+          <h3 class="feature-title">Entiende Argentina</h3>
+          <p class="feature-desc">Cuotas, cierres y vencimientos de tarjeta. Dólar blue y MEP. Mercado Pago. El contexto que ninguna app gringa tiene.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" aria-hidden="true">👫</div>
+          <h3 class="feature-title">Hecho para dos</h3>
+          <p class="feature-desc">Vista compartida: cada uno ve lo suyo y lo de ambos. La deuda entre ustedes siempre clara, sin peleas por quién puso qué.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" aria-hidden="true">📊</div>
+          <h3 class="feature-title">Todo en un lugar</h3>
+          <p class="feature-desc">Deuda total, gasto del mes, próximos vencimientos y cuotas. Un solo dashboard para no perder de vista nada.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Diferencial ───────────────────────────────────────────── -->
+  <section class="diferencial">
+    <div class="wrap">
+      <div class="diferencial-inner">
+        <div class="diferencial-label">diferencial</div>
+        <blockquote class="diferencial-text">
+          No es otra planilla que abandonás en febrero.<br />
+          No es Splitwise <em>(que no sabe de cuotas ni del dólar)</em>.<br />
+          Es tu asistente de plata, en el chat que ya usás.
+        </blockquote>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── CTA Final ─────────────────────────────────────────────── -->
+  <section class="cta-final">
+    <div class="wrap">
+      <span class="eyebrow" style="text-align: center;">EMPEZÁ HOY</span>
+      <h2 class="display cta-headline">Empezá hoy, juntos.</h2>
+      <div style="display:flex; justify-content:center; gap:12px; align-items:center; flex-wrap:wrap;">
+        <a href="/app/" class="btn-voltage" style="font-size:17px; padding:14px 32px;">Crear cuenta →</a>
+      </div>
+      <div style="margin-top:32px; display:flex; justify-content:center;">
+        <span class="tick"></span>
+      </div>
+      <p style="margin-top:16px; font-size:13px; color:var(--sage); text-align:center; font-weight:300;">Gratis para empezar · Sin tarjeta · Telegram o WhatsApp</p>
+    </div>
+  </section>
+
+  <!-- ── Footer ────────────────────────────────────────────────── -->
+  <footer>
+    <div class="wrap">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <a href="/" class="footer-wordmark">
+            <div class="wordmark-bars footer-wordmark-bars">
+              <span></span><span></span>
+            </div>
+            <span><span class="wordmark-yu" style="color:var(--canvas);">Yu</span><span class="wordmark-mi">mi</span></span>
+          </a>
+          <div class="footer-tagline">la plata de los dos</div>
+        </div>
+        <div class="footer-links">
+          <a href="/app/" class="footer-link">Iniciar sesión</a>
+          <span class="footer-copy">© 2026 Yumi</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
