@@ -344,6 +344,7 @@ export default function TarjetaDetalle() {
 
       {/* Edit cuota modal */}
       <CuotaModal
+        key={editCuota ? `c-${editCuota.id}` : 'c-edit'}
         open={editCuota !== null}
         onClose={() => setEditCuota(null)}
         title="Editar cuota"

@@ -6,6 +6,12 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-06-24
+### Fixed
+- **Editar precarga los datos.** Los formularios de edición (evento, recordatorio, tarea, cuota, nota, categoría, recurrente, cuenta, movimiento) abrían vacíos; ahora vienen con la info cargada (fix con `key` que remonta el form).
+- **Cerrar sesión** ahora va al login de la app (`/app/login`) y vuelve a la app tras loguearte, en vez de caer en el login/dashboard viejo.
+- **Hábitos:** se pueden **editar (renombrar) y borrar** desde cada hábito (antes no había forma).
+
 ## [0.5.1] - 2026-06-24
 ### Fixed
 - **"A pagar este mes" / "ciclo en curso" ahora incluye las cuotas del mes.** Antes mostraba **$0** en tarjetas cuyo saldo son cuotas (porque las cuotas no son transacciones y el ciclo se calculaba solo desde transacciones). Ahora = compras del ciclo abierto + **una cuota de cada plan activo**, en Inicio, Tarjetas y Hoy. La deuda total (consumos + todas las cuotas) sigue solo en el detalle.

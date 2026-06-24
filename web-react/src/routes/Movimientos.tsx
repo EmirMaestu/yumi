@@ -182,6 +182,7 @@ export default function Movimientos() {
 
       {/* Per-row edit modal */}
       <EditTxModal
+        key={editTx ? `tx-${editTx.id}` : 'tx-edit'}
         tx={editTx}
         open={editTx !== null}
         onClose={() => setEditTx(null)}

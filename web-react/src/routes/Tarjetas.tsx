@@ -72,6 +72,7 @@ export default function Tarjetas() {
 
       {/* Edit modal — uses AccountForm with credit type defaults */}
       <AccountForm
+        key={editCard ? `card-${editCard.id}` : 'card-edit'}
         account={editCard}
         open={editCard !== null}
         onClose={() => setEditCard(null)}

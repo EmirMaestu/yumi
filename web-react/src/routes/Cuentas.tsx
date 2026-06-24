@@ -96,6 +96,7 @@ export default function Cuentas() {
 
       {/* Edit modal */}
       <AccountForm
+        key={editAccount ? `acc-${editAccount.id}` : 'acc-edit'}
         account={editAccount}
         open={editAccount !== null}
         onClose={() => setEditAccount(null)}

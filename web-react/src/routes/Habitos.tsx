@@ -5,7 +5,9 @@ import { z } from 'zod'
 import { useHabitos, useHabitosMutations } from '../hooks/useHabitos'
 import { type HabitoResumen } from '../lib/types'
 import Card from '../components/ui/Card'
+import CardActions from '../components/ui/CardActions'
 import Modal from '../components/ui/Modal'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
 import EmptyState from '../components/ui/EmptyState'
 import { MovimientosSkeleton } from '../components/ui/skeletons'
 
@@ -133,8 +135,10 @@ function RegistrarModal({
 
 export default function Habitos() {
   const { data, isLoading } = useHabitos(7)
-  const { create } = useHabitosMutations()
+  const { create, update, remove } = useHabitosMutations()
   const [modalOpen, setModalOpen] = useState(false)
+  const [renameTarget, setRenameTarget] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
 
   const last7 = getLast7Days()
 
@@ -146,6 +150,17 @@ export default function Habitos() {
       note: values.note || null,
     })
     setModalOpen(false)
+  }
+
+  // a "habit" is several logs sharing a name → rename / delete operates on all of them
+  const idsForName = (name: string) => (data?.items ?? []).filter((l) => l.name === name).map((l) => l.id)
+  const handleRename = async (name: string, newName: string) => {
+    for (const id of idsForName(name)) await update.mutateAsync({ id, name: newName })
+    setRenameTarget(null)
+  }
+  const handleDelete = async (name: string) => {
+    for (const id of idsForName(name)) await remove.mutateAsync(id)
+    setDeleteTarget(null)
   }
 
   if (isLoading) return <MovimientosSkeleton />
@@ -231,6 +246,7 @@ export default function Habitos() {
                 <div style={{ fontSize: 12, color: 'var(--color-sage)', minWidth: 24, textAlign: 'right' }}>
                   {r.cnt}/7
                 </div>
+                <CardActions onEdit={() => setRenameTarget(r.name)} onDelete={() => setDeleteTarget(r.name)} />
               </div>
             </Card>
           ))}
@@ -244,7 +260,31 @@ export default function Habitos() {
         onSubmit={handleCreate}
         resumen={resumen}
       />
+
+      {/* Rename habit */}
+      <Modal open={renameTarget !== null} onClose={() => setRenameTarget(null)} title="Renombrar hábito">
+        <RenameForm key={renameTarget ?? ''} initial={renameTarget ?? ''} onSubmit={(v) => handleRename(renameTarget!, v)} />
+      </Modal>
+
+      {/* Delete habit confirm */}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}
+        title="¿Borrar este hábito?"
+        description={deleteTarget ? `Se borrarán todos los registros de "${deleteTarget}".` : ''}
+        onConfirm={() => { if (deleteTarget) handleDelete(deleteTarget) }}
+      />
     </div>
+  )
+}
+
+function RenameForm({ initial, onSubmit }: { initial: string; onSubmit: (v: string) => void }) {
+  const [name, setName] = useState(initial)
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) onSubmit(name.trim()) }} style={{ display: 'grid', gap: 12 }}>
+      <input value={name} onChange={(e) => setName(e.target.value)} autoFocus placeholder="Nombre del hábito" style={inputStyle} />
+      <button type="submit" style={ctaBtn}>Guardar</button>
+    </form>
   )
 }
 

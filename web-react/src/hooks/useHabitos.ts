@@ -39,5 +39,10 @@ export function useHabitosMutations() {
       mutationFn: ({ id, ...b }: HabitoUpdate) => apiPatch<{ ok: boolean }>(`/api/habitos/${id}`, b),
       onSuccess: inval,
     }),
+    // soft-delete a single habit-log entry (papelera)
+    remove: useMutation({
+      mutationFn: (id: number) => apiPost<{ ok: boolean }>(`/api/trash/habitos/${id}`),
+      onSuccess: inval,
+    }),
   }
 }

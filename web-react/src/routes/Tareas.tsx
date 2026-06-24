@@ -189,6 +189,7 @@ export default function Tareas() {
 
       {/* Edit modal */}
       <TareaModal
+        key={editItem ? `t-${editItem.id}` : 't-edit'}
         open={editItem !== null}
         onClose={() => setEditItem(null)}
         title="Editar tarea"

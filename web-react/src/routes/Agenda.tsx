@@ -364,6 +364,7 @@ export default function Agenda() {
 
       {/* Edit modals */}
       <EventoModal
+        key={editEvento ? `ev-${editEvento.id}` : 'ev-edit'}
         open={editEvento !== null}
         onClose={() => setEditEvento(null)}
         title="Editar evento"
@@ -376,6 +377,7 @@ export default function Agenda() {
         onSubmit={handleEditEvento}
       />
       <RecordatorioModal
+        key={editRec ? `rec-${editRec.id}` : 'rec-edit'}
         open={editRec !== null}
         onClose={() => setEditRec(null)}
         title="Editar recordatorio"

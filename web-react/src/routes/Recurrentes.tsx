@@ -274,6 +274,7 @@ export default function Recurrentes() {
 
       {/* Edit modal */}
       <RecurrenteModal
+        key={editItem ? `rec-${editItem.id}` : 'rec-edit'}
         open={editItem !== null}
         onClose={() => setEditItem(null)}
         title="Editar recurrente"

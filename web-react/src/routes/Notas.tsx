@@ -183,6 +183,7 @@ export default function Notas() {
 
       {/* Edit modal */}
       <NotaModal
+        key={editItem ? `n-${editItem.id}` : 'n-edit'}
         open={editItem !== null}
         onClose={() => setEditItem(null)}
         title="Editar nota"

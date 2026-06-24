@@ -84,6 +84,7 @@ export default function Categorias() {
 
       {/* Edit modal */}
       <CategoryFormModal
+        key={editCat ? `cat-${editCat.id}` : 'cat-edit'}
         open={editCat !== null}
         onClose={() => setEditCat(null)}
         initial={editCat ? { name: editCat.name } : undefined}
