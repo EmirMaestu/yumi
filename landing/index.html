@@ -337,25 +337,17 @@
       justify-content: center;
       overflow: hidden;
     }
-    #conv-headline {
-      position: relative;
-      z-index: 3;
-      text-align: center;
+
+    /* Layer 1: background (cards + mock) — sits behind headline */
+    #conv-bg-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
       pointer-events: none;
+      will-change: filter, opacity;
     }
-    #conv-headline h2 {
-      font-family: 'Fraunces', serif;
-      font-size: clamp(36px, 7vw, 96px);
-      font-weight: 300;
-      letter-spacing: -0.03em;
-      line-height: 1.05;
-      color: var(--obsidian);
-    }
-    #conv-headline p {
-      font-size: clamp(14px, 1.6vw, 18px);
-      color: var(--sage);
-      margin-top: 16px;
-    }
+
+    /* Convergence cards live inside bg layer */
     .conv-card {
       position: absolute;
       background: white;
@@ -363,7 +355,6 @@
       border-radius: 20px;
       padding: 16px 20px;
       box-shadow: 0 4px 24px rgba(18,22,19,0.08);
-      z-index: 2;
       will-change: transform, opacity;
       min-width: 140px;
     }
@@ -402,59 +393,405 @@
     .conv-card.dark-card .cc-sub { color: #9aad9a; }
     .conv-card.dark-card .cc-val { color: #e8ede8; }
 
-    /* dashboard mock center */
-    #dash-mock {
-      position: absolute;
-      z-index: 1;
-      width: clamp(240px, 36vw, 380px);
-      background: white;
-      border-radius: 28px;
-      border: 1px solid var(--mist);
-      box-shadow: 0 24px 80px rgba(18,22,19,0.14);
+    /* Yumi Phone Mock — shared component */
+    .yumi-phone {
+      background: var(--canvas);
+      border-radius: 32px;
+      border: 1px solid var(--obsidian);
+      width: 300px;
       overflow: hidden;
-      opacity: 0;
-      will-change: transform, opacity;
+      box-shadow: 0 32px 80px rgba(18,22,19,0.18), 0 8px 24px rgba(18,22,19,0.10);
+      flex-shrink: 0;
     }
-    .dash-header {
-      background: var(--bark);
-      color: white;
-      padding: 20px 20px 16px;
-    }
-    .dash-header .dh-label {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: #9aad9a;
-      margin-bottom: 4px;
-    }
-    .dash-header .dh-amount {
-      font-family: 'Fraunces', serif;
-      font-size: 32px;
-      font-weight: 300;
-      letter-spacing: -0.02em;
-    }
-    .dash-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
-    .dash-row {
+
+    /* Status row */
+    .yp-status {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 10px 12px;
-      border-radius: 12px;
-      background: var(--canvas);
+      padding: 10px 18px 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--obsidian);
     }
-    .dash-row .dr-left { display: flex; align-items: center; gap: 10px; }
-    .dash-row .dr-icon {
-      width: 32px; height: 32px;
-      border-radius: 10px;
+    .yp-status-right {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .yp-status-icon {
+      width: 14px; height: 8px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+    /* wifi bars */
+    .wifi-bar {
+      display: inline-flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 10px;
+    }
+    .wifi-bar span {
+      display: block;
+      width: 3px;
+      background: var(--obsidian);
+      border-radius: 1px;
+    }
+    .wifi-bar span:nth-child(1) { height: 3px; }
+    .wifi-bar span:nth-child(2) { height: 5px; }
+    .wifi-bar span:nth-child(3) { height: 8px; }
+    /* battery */
+    .battery {
+      display: inline-flex;
+      align-items: center;
+      gap: 1px;
+    }
+    .battery-body {
+      width: 18px; height: 9px;
+      border: 1.5px solid var(--obsidian);
+      border-radius: 2px;
+      position: relative;
+      overflow: hidden;
+    }
+    .battery-fill {
+      position: absolute;
+      inset: 1px;
+      right: 3px;
+      background: var(--obsidian);
+      border-radius: 1px;
+    }
+    .battery-tip {
+      width: 2px; height: 5px;
+      background: var(--obsidian);
+      border-radius: 0 1px 1px 0;
+    }
+
+    /* Top wordmark row */
+    .yp-toprow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 18px 10px;
+    }
+    .yp-wordmark {
+      font-family: 'Fraunces', serif;
+      font-size: 20px;
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      color: var(--obsidian);
+    }
+    .yp-wordmark span { color: var(--voltage); }
+    .yp-ambos-chip {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--sage);
+      border: 1px solid var(--mist);
+      border-radius: 60px;
+      padding: 4px 10px;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    /* Gasto section */
+    .yp-gasto {
+      padding: 0 18px 14px;
+    }
+    .yp-gasto-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--sage);
+      margin-bottom: 4px;
+    }
+    .yp-gasto-amount {
+      font-family: 'Fraunces', serif;
+      font-size: 36px;
+      font-weight: 300;
+      letter-spacing: -0.03em;
+      color: var(--obsidian);
+      line-height: 1.0;
+    }
+    .yp-gasto-vs {
+      font-size: 10px;
+      color: var(--sage);
+      margin-top: 3px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .yp-gasto-vs .vs-arrow {
+      color: var(--voltage);
+      font-size: 10px;
+    }
+    .yp-tick {
+      width: 50px; height: 2px;
+      background: var(--voltage);
+      border-radius: 2px;
+      margin-top: 10px;
+    }
+
+    /* Stats row */
+    .yp-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-top: 1px solid var(--mist);
+      border-bottom: 1px solid var(--mist);
+      margin: 0 0 12px;
+    }
+    .yp-stat {
+      padding: 8px 10px 8px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .yp-stat:not(:last-child) {
+      border-right: 1px solid var(--mist);
+    }
+    .yp-stat-label {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: var(--sage);
+    }
+    .yp-stat-val {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--obsidian);
+      letter-spacing: -0.01em;
+    }
+
+    /* Cuotas card */
+    .yp-card {
+      margin: 0 12px 12px;
+      border: 1px solid var(--mist);
+      border-radius: 14px;
+      padding: 12px 14px;
+    }
+    .yp-card-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--obsidian);
+      margin-bottom: 2px;
+    }
+    .yp-card-sublabel {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: var(--sage);
+      margin-bottom: 4px;
+    }
+    .yp-card-amount {
+      font-family: 'Fraunces', serif;
+      font-size: 22px;
+      font-weight: 300;
+      letter-spacing: -0.02em;
+      color: var(--obsidian);
+      margin-bottom: 8px;
+    }
+    .yp-hairline {
+      height: 1px;
       background: var(--mist);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 15px;
+      margin-bottom: 8px;
     }
-    .dash-row .dr-icon.v { background: var(--voltage); }
-    .dash-row .dr-name { font-size: 13px; font-weight: 500; }
-    .dash-row .dr-sub { font-size: 11px; color: var(--sage); }
-    .dash-row .dr-amt { font-size: 14px; font-weight: 600; }
+    .yp-card-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 0;
+    }
+    .yp-card-row:not(:last-child) {
+      border-bottom: 1px solid rgba(200,210,200,0.4);
+      padding-bottom: 5px;
+      margin-bottom: 3px;
+    }
+    .yp-card-row-left {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .yp-card-row-name {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--obsidian);
+    }
+    .yp-card-row-sub {
+      font-size: 9px;
+      color: var(--sage);
+    }
+    .yp-card-row-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .yp-card-row-amt {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--obsidian);
+    }
+    .yp-urgent-pill {
+      font-size: 8px;
+      font-weight: 700;
+      background: var(--voltage);
+      color: var(--v-text);
+      padding: 2px 6px;
+      border-radius: 60px;
+    }
+
+    /* Categories */
+    .yp-cats {
+      margin: 0 12px 12px;
+    }
+    .yp-cats-label {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: var(--sage);
+      margin-bottom: 8px;
+    }
+    .yp-cat-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .yp-cat-name {
+      font-size: 10px;
+      color: var(--obsidian);
+      width: 68px;
+      flex-shrink: 0;
+    }
+    .yp-cat-track {
+      flex: 1;
+      height: 5px;
+      background: var(--mist);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .yp-cat-fill {
+      height: 100%;
+      background: var(--bark);
+      border-radius: 3px;
+    }
+    .yp-cat-amt {
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--obsidian);
+      width: 52px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    /* Bottom nav */
+    .yp-bottomnav {
+      border-top: 1px solid var(--mist);
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      padding: 8px 0 10px;
+    }
+    .yp-nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      min-width: 40px;
+    }
+    .yp-nav-icon {
+      width: 22px; height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .yp-nav-dot {
+      position: absolute;
+      bottom: -1px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 4px; height: 4px;
+      background: var(--voltage);
+      border-radius: 50%;
+    }
+    .yp-nav-label {
+      font-size: 8px;
+      font-weight: 500;
+      color: var(--sage);
+    }
+    .yp-nav-label.active { color: var(--obsidian); }
+    .yp-nav-plus {
+      width: 32px; height: 32px;
+      background: var(--voltage);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 14px rgba(43,238,75,0.5);
+      font-size: 18px;
+      font-weight: 300;
+      color: var(--v-text);
+      line-height: 1;
+      margin-bottom: 2px;
+    }
+
+    /* SVG nav icons (inline simple paths) */
+    .nav-svg {
+      width: 18px; height: 18px;
+      stroke: var(--sage);
+      fill: none;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .nav-svg.active { stroke: var(--obsidian); }
+
+    /* dashboard mock center (conv section) */
+    #dash-mock {
+      position: absolute;
+      z-index: 2;
+      will-change: transform, opacity;
+      opacity: 0;
+    }
+
+    /* ── Convergence headline ─────────────────────────────────────── */
+    #conv-headline {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+      pointer-events: none;
+    }
+    /* Legibility backdrop behind headline text */
+    .conv-headline-backdrop {
+      display: inline-block;
+      padding: 28px 44px 24px;
+      border-radius: 24px;
+      background: rgba(250,255,250,0.60);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+    #conv-headline h2 {
+      font-family: 'Fraunces', serif;
+      font-size: clamp(36px, 7vw, 96px);
+      font-weight: 300;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+      color: var(--obsidian);
+      position: relative;
+      z-index: 1;
+    }
+    #conv-headline p {
+      font-size: clamp(14px, 1.6vw, 18px);
+      color: var(--sage);
+      margin-top: 12px;
+      position: relative;
+      z-index: 1;
+    }
 
     /* ── 3-Word Pinned Sequence ──────────────────────────────────── */
     #words-pin {
@@ -593,70 +930,87 @@
       margin-bottom: clamp(40px, 5vw, 64px);
       max-width: 22ch;
     }
-    .chat-phone {
-      margin: 0 auto;
-      max-width: 360px;
+    /* Chat demo layout: phone + chat bubble side by side on desktop */
+    .chat-demo-inner {
+      display: flex;
+      align-items: flex-start;
+      gap: clamp(32px, 5vw, 72px);
+      flex-wrap: wrap;
+    }
+    .chat-demo-right {
+      flex: 1;
+      min-width: 280px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      padding-top: 40px;
+    }
+    /* Yumi phone in chat demo: dark-framed to match dark section */
+    .chat-demo-inner .yumi-phone {
       background: #1a1f1b;
-      border-radius: 36px;
-      padding: 28px 20px;
-      border: 1px solid #2e352f;
+      border-color: #2e352f;
       box-shadow: 0 40px 100px rgba(0,0,0,0.4);
     }
-    .chat-topbar {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 24px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid #2e352f;
+    .chat-demo-inner .yumi-phone .yp-status {
+      color: #e8ede8;
     }
-    .chat-avatar {
-      width: 36px; height: 36px;
-      border-radius: 50%;
-      background: var(--voltage);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      font-weight: 700;
-      color: var(--v-text);
-      font-family: 'Fraunces', serif;
-      flex-shrink: 0;
-    }
-    .chat-contact { font-size: 14px; font-weight: 600; color: #e8ede8; }
-    .chat-status { font-size: 11px; color: #9aad9a; }
-    .chat-msgs { display: flex; flex-direction: column; gap: 12px; min-height: 140px; }
-    .chat-msg-user {
-      align-self: flex-end;
+    .chat-demo-inner .yumi-phone .wifi-bar span { background: #9aad9a; }
+    .chat-demo-inner .yumi-phone .battery-body { border-color: #9aad9a; }
+    .chat-demo-inner .yumi-phone .battery-fill { background: #9aad9a; }
+    .chat-demo-inner .yumi-phone .battery-tip { background: #9aad9a; }
+    .chat-demo-inner .yumi-phone .yp-wordmark { color: #e8ede8; }
+    .chat-demo-inner .yumi-phone .yp-ambos-chip { color: #9aad9a; border-color: #2e352f; }
+    .chat-demo-inner .yumi-phone .yp-gasto-label { color: #9aad9a; }
+    .chat-demo-inner .yumi-phone .yp-gasto-amount { color: #e8ede8; }
+    .chat-demo-inner .yumi-phone .yp-gasto-vs { color: #9aad9a; }
+    .chat-demo-inner .yumi-phone .yp-stats { border-color: #2e352f; }
+    .chat-demo-inner .yumi-phone .yp-stat { border-color: #2e352f; }
+    .chat-demo-inner .yumi-phone .yp-stat-label { color: #9aad9a; }
+    .chat-demo-inner .yumi-phone .yp-stat-val { color: #e8ede8; }
+    .chat-demo-inner .yumi-phone .yp-card { border-color: #2e352f; background: #1e241f; }
+    .chat-demo-inner .yumi-phone .yp-card-title { color: #e8ede8; }
+    .chat-demo-inner .yumi-phone .yp-card-sublabel { color: #9aad9a; }
+    .chat-demo-inner .yumi-phone .yp-card-amount { color: #e8ede8; }
+    .chat-demo-inner .yumi-phone .yp-hairline { background: #2e352f; }
+    .chat-demo-inner .yumi-phone .yp-card-row-name { color: #e8ede8; }
+    .chat-demo-inner .yumi-phone .yp-card-row-sub { color: #9aad9a; }
+    .chat-demo-inner .yumi-phone .yp-card-row-amt { color: #e8ede8; }
+    .chat-demo-inner .yumi-phone .yp-cats-label { color: #9aad9a; }
+    .chat-demo-inner .yumi-phone .yp-cat-name { color: #e8ede8; }
+    .chat-demo-inner .yumi-phone .yp-cat-track { background: #2e352f; }
+    .chat-demo-inner .yumi-phone .yp-cat-amt { color: #e8ede8; }
+    .chat-demo-inner .yumi-phone .yp-bottomnav { border-color: #2e352f; }
+    .chat-demo-inner .yumi-phone .nav-svg { stroke: #516254; }
+    .chat-demo-inner .yumi-phone .nav-svg.active { stroke: #e8ede8; }
+    .chat-demo-inner .yumi-phone .yp-nav-label { color: #516254; }
+    .chat-demo-inner .yumi-phone .yp-nav-label.active { color: #e8ede8; }
+
+    .chat-bubble-demo {
       background: #2b3f2c;
       color: #d4e8d4;
       border-radius: 18px 18px 4px 18px;
-      padding: 10px 14px;
+      padding: 12px 16px;
       font-size: 14px;
-      max-width: 85%;
       line-height: 1.4;
+      max-width: 300px;
+      align-self: flex-end;
     }
-    .chat-msg-yumi {
-      align-self: flex-start;
+    .chat-reply-demo {
       background: #232924;
       border: 1px solid #2e352f;
-      color: #e8ede8;
-      border-radius: 18px 18px 18px 4px;
-      padding: 10px 14px;
-      font-size: 14px;
-      max-width: 85%;
-      line-height: 1.4;
-      opacity: 0;
-      transform: translateY(6px);
-    }
-    .chat-msg-yumi.confirm {
-      background: #0f2a10;
-      border-color: #1a4a1b;
       color: #7ee88b;
+      border-radius: 18px 18px 18px 4px;
+      padding: 12px 16px;
+      font-size: 14px;
+      line-height: 1.4;
+      max-width: 300px;
       display: flex;
       align-items: center;
       gap: 6px;
+      opacity: 0;
+      transform: translateY(6px);
     }
+
     .typing-cursor {
       display: inline-block;
       width: 2px;
@@ -834,6 +1188,9 @@
       .footer-top { flex-direction: column; }
       #topbar { padding: 14px 20px; }
       .word-big { font-size: clamp(48px, 14vw, 90px); }
+      .yumi-phone { width: 260px; }
+      .chat-demo-inner { justify-content: center; }
+      .chat-demo-right { min-width: unset; width: 100%; }
     }
   </style>
 </head>
@@ -909,78 +1266,166 @@
   <!-- ═══ CONVERGENCE ══════════════════════════════════════════════ -->
   <section id="convergence" aria-label="Todo en un lugar">
     <div id="conv-sticky">
-      <!-- Scattered cards that converge -->
-      <div class="conv-card" id="cc1" aria-hidden="true" style="top:18%;left:6%;">
-        <div class="cc-label">Este mes</div>
-        <div class="cc-val">$284.000</div>
-        <div class="cc-sub">Gastos compartidos</div>
-      </div>
-      <div class="conv-card voltage-card" id="cc2" aria-hidden="true" style="top:12%;right:8%;">
-        <div class="cc-label">Cuotas activas</div>
-        <div class="cc-val">7</div>
-        <div class="cc-sub">Total: $1.890.000</div>
-      </div>
-      <div class="conv-card dark-card" id="cc3" aria-hidden="true" style="top:55%;left:4%;">
-        <div class="cc-label">Dólar blue</div>
-        <div class="cc-val">$1.355</div>
-        <div class="cc-sub">Actualizado ahora</div>
-      </div>
-      <div class="conv-card" id="cc4" aria-hidden="true" style="top:65%;right:6%;">
-        <div class="cc-label">Próximo vencimiento</div>
-        <div class="cc-val">28 jun</div>
-        <div class="cc-sub">BBVA — $42.000</div>
-      </div>
-      <div class="conv-card voltage-card" id="cc5" aria-hidden="true" style="top:35%;right:3%;">
-        <div class="cc-label">Deuda entre ustedes</div>
-        <div class="cc-val">$17.500</div>
-        <div class="cc-sub">Él → ella</div>
-      </div>
 
-      <!-- Dashboard mock (destination) -->
-      <div id="dash-mock" aria-hidden="true">
-        <div class="dash-header">
-          <div class="dh-label">Saldo compartido · Junio</div>
-          <div class="dh-amount">$284.000</div>
+      <!-- Background layer: cards + mock — will be blurred/dimmed as headline appears -->
+      <div id="conv-bg-layer" aria-hidden="true">
+        <!-- Scattered cards that converge -->
+        <div class="conv-card" id="cc1" style="top:18%;left:6%;">
+          <div class="cc-label">Este mes</div>
+          <div class="cc-val">$284.000</div>
+          <div class="cc-sub">Gastos compartidos</div>
         </div>
-        <div class="dash-body">
-          <div class="dash-row">
-            <div class="dr-left">
-              <div class="dr-icon">🛒</div>
-              <div>
-                <div class="dr-name">Súper</div>
-                <div class="dr-sub">Galicia · Ayer</div>
-              </div>
-            </div>
-            <div class="dr-amt">$5.000</div>
-          </div>
-          <div class="dash-row">
-            <div class="dr-left">
-              <div class="dr-icon v">🎬</div>
-              <div>
-                <div class="dr-name">Netflix</div>
-                <div class="dr-sub">Cuota 4/12</div>
-              </div>
-            </div>
-            <div class="dr-amt">$8.799</div>
-          </div>
-          <div class="dash-row">
-            <div class="dr-left">
-              <div class="dr-icon">🍕</div>
-              <div>
-                <div class="dr-name">Delivery</div>
-                <div class="dr-sub">Personal · Sáb</div>
-              </div>
-            </div>
-            <div class="dr-amt">$14.200</div>
-          </div>
+        <div class="conv-card voltage-card" id="cc2" style="top:12%;right:8%;">
+          <div class="cc-label">Cuotas activas</div>
+          <div class="cc-val">7</div>
+          <div class="cc-sub">Total: $1.890.000</div>
         </div>
-      </div>
+        <div class="conv-card dark-card" id="cc3" style="top:55%;left:4%;">
+          <div class="cc-label">Dólar blue</div>
+          <div class="cc-val">$1.355</div>
+          <div class="cc-sub">Actualizado ahora</div>
+        </div>
+        <div class="conv-card" id="cc4" style="top:65%;right:6%;">
+          <div class="cc-label">Próximo vencimiento</div>
+          <div class="cc-val">28 jun</div>
+          <div class="cc-sub">BBVA — $42.000</div>
+        </div>
+        <div class="conv-card voltage-card" id="cc5" style="top:35%;right:3%;">
+          <div class="cc-label">Deuda entre ustedes</div>
+          <div class="cc-val">$17.500</div>
+          <div class="cc-sub">Él → ella</div>
+        </div>
 
-      <!-- Headline -->
+        <!-- Yumi Phone Mock (convergence end-state) -->
+        <div id="dash-mock">
+          <div class="yumi-phone">
+            <!-- Status row -->
+            <div class="yp-status">
+              <span>9:41</span>
+              <div class="yp-status-right">
+                <span class="wifi-bar"><span></span><span></span><span></span></span>
+                <span class="battery"><span class="battery-body"><span class="battery-fill"></span></span><span class="battery-tip"></span></span>
+              </div>
+            </div>
+            <!-- Wordmark row -->
+            <div class="yp-toprow">
+              <div class="yp-wordmark">Yu<span>mi</span></div>
+              <div class="yp-ambos-chip">Ambos ▾</div>
+            </div>
+            <!-- Gasto este mes -->
+            <div class="yp-gasto">
+              <div class="yp-gasto-label">Gastado este mes</div>
+              <div class="yp-gasto-amount">$612.300</div>
+              <div class="yp-gasto-vs"><span class="vs-arrow">▲</span> $72.300 vs mes pasado</div>
+              <div class="yp-tick"></div>
+            </div>
+            <!-- Stats row -->
+            <div class="yp-stats">
+              <div class="yp-stat">
+                <div class="yp-stat-label">Ingresos</div>
+                <div class="yp-stat-val">$980.000</div>
+              </div>
+              <div class="yp-stat">
+                <div class="yp-stat-label">Disponible</div>
+                <div class="yp-stat-val">$1.140.000</div>
+              </div>
+              <div class="yp-stat">
+                <div class="yp-stat-label">En cuotas</div>
+                <div class="yp-stat-val">$340.000</div>
+              </div>
+            </div>
+            <!-- Cuotas card -->
+            <div class="yp-card">
+              <div class="yp-card-title">Cuotas y tarjetas</div>
+              <div class="yp-card-sublabel">A pagar este mes</div>
+              <div class="yp-card-amount">$340.000</div>
+              <div class="yp-hairline"></div>
+              <div class="yp-card-row">
+                <div class="yp-card-row-left">
+                  <div class="yp-card-row-name">Visa Galicia</div>
+                  <div class="yp-card-row-sub">cierra en 3 días</div>
+                </div>
+                <div class="yp-card-row-right">
+                  <span class="yp-urgent-pill">3 días</span>
+                  <span class="yp-card-row-amt">$145.000</span>
+                </div>
+              </div>
+              <div class="yp-card-row">
+                <div class="yp-card-row-left">
+                  <div class="yp-card-row-name">Naranja</div>
+                  <div class="yp-card-row-sub">vence 12/07</div>
+                </div>
+                <div class="yp-card-row-right">
+                  <span class="yp-card-row-amt">$88.500</span>
+                </div>
+              </div>
+            </div>
+            <!-- Categories -->
+            <div class="yp-cats">
+              <div class="yp-cats-label">Gastos por categoría</div>
+              <div class="yp-cat-row">
+                <div class="yp-cat-name">Comida</div>
+                <div class="yp-cat-track"><div class="yp-cat-fill" style="width:78%"></div></div>
+                <div class="yp-cat-amt">$210.000</div>
+              </div>
+              <div class="yp-cat-row">
+                <div class="yp-cat-name">Transporte</div>
+                <div class="yp-cat-track"><div class="yp-cat-fill" style="width:37%"></div></div>
+                <div class="yp-cat-amt">$98.000</div>
+              </div>
+              <div class="yp-cat-row">
+                <div class="yp-cat-name">Servicios</div>
+                <div class="yp-cat-track"><div class="yp-cat-fill" style="width:29%"></div></div>
+                <div class="yp-cat-amt">$76.000</div>
+              </div>
+            </div>
+            <!-- Bottom nav -->
+            <div class="yp-bottomnav">
+              <div class="yp-nav-item">
+                <div class="yp-nav-icon">
+                  <!-- Home icon -->
+                  <svg class="nav-svg active" viewBox="0 0 24 24"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/><path d="M9 21V12h6v9"/></svg>
+                  <div class="yp-nav-dot"></div>
+                </div>
+                <div class="yp-nav-label active">Inicio</div>
+              </div>
+              <div class="yp-nav-item">
+                <div class="yp-nav-icon">
+                  <!-- List icon -->
+                  <svg class="nav-svg" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                </div>
+                <div class="yp-nav-label">Movim.</div>
+              </div>
+              <div class="yp-nav-item">
+                <div class="yp-nav-plus">+</div>
+              </div>
+              <div class="yp-nav-item">
+                <div class="yp-nav-icon">
+                  <!-- Credit card icon -->
+                  <svg class="nav-svg" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+                </div>
+                <div class="yp-nav-label">Tarjetas</div>
+              </div>
+              <div class="yp-nav-item">
+                <div class="yp-nav-icon">
+                  <!-- Wallet icon -->
+                  <svg class="nav-svg" viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 3H8a2 2 0 00-2 2v2h12V5a2 2 0 00-2-2z"/><circle cx="16" cy="13" r="1.5" fill="currentColor" stroke="none" style="fill:var(--sage)"/></svg>
+                </div>
+                <div class="yp-nav-label">Cuentas</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /#conv-bg-layer -->
+
+      <!-- Headline: always on top, has backdrop blur panel for legibility -->
       <div id="conv-headline">
-        <h2>Todo junto,<br><em>sin planillas.</em></h2>
-        <p>Un vistazo, dos personas, cero fricción.</p>
+        <div class="conv-headline-backdrop">
+          <h2>Todo junto,<br><em>sin planillas.</em></h2>
+          <p>Un vistazo, dos personas, cero fricción.</p>
+        </div>
       </div>
+
     </div>
   </section>
 
@@ -1049,19 +1494,128 @@
     <div class="container">
       <p class="section-label">En acción</p>
       <h2 id="chat-h2">Así de fácil es cargar un gasto.</h2>
-      <div class="chat-phone">
-        <div class="chat-topbar">
-          <div class="chat-avatar">Y</div>
-          <div>
-            <div class="chat-contact">Yumi</div>
-            <div class="chat-status">● en línea</div>
+      <div class="chat-demo-inner">
+        <!-- Faithful Yumi phone mock (dark variant for dark section) -->
+        <div class="yumi-phone" aria-hidden="true">
+          <!-- Status row -->
+          <div class="yp-status">
+            <span>9:41</span>
+            <div class="yp-status-right">
+              <span class="wifi-bar"><span></span><span></span><span></span></span>
+              <span class="battery"><span class="battery-body"><span class="battery-fill"></span></span><span class="battery-tip"></span></span>
+            </div>
+          </div>
+          <!-- Wordmark row -->
+          <div class="yp-toprow">
+            <div class="yp-wordmark">Yu<span>mi</span></div>
+            <div class="yp-ambos-chip">Ambos ▾</div>
+          </div>
+          <!-- Gasto este mes -->
+          <div class="yp-gasto">
+            <div class="yp-gasto-label">Gastado este mes</div>
+            <div class="yp-gasto-amount">$612.300</div>
+            <div class="yp-gasto-vs"><span class="vs-arrow">▲</span> $72.300 vs mes pasado</div>
+            <div class="yp-tick"></div>
+          </div>
+          <!-- Stats row -->
+          <div class="yp-stats">
+            <div class="yp-stat">
+              <div class="yp-stat-label">Ingresos</div>
+              <div class="yp-stat-val">$980.000</div>
+            </div>
+            <div class="yp-stat">
+              <div class="yp-stat-label">Disponible</div>
+              <div class="yp-stat-val">$1.140.000</div>
+            </div>
+            <div class="yp-stat">
+              <div class="yp-stat-label">En cuotas</div>
+              <div class="yp-stat-val">$340.000</div>
+            </div>
+          </div>
+          <!-- Cuotas card -->
+          <div class="yp-card">
+            <div class="yp-card-title">Cuotas y tarjetas</div>
+            <div class="yp-card-sublabel">A pagar este mes</div>
+            <div class="yp-card-amount">$340.000</div>
+            <div class="yp-hairline"></div>
+            <div class="yp-card-row">
+              <div class="yp-card-row-left">
+                <div class="yp-card-row-name">Visa Galicia</div>
+                <div class="yp-card-row-sub">cierra en 3 días</div>
+              </div>
+              <div class="yp-card-row-right">
+                <span class="yp-urgent-pill">3 días</span>
+                <span class="yp-card-row-amt">$145.000</span>
+              </div>
+            </div>
+            <div class="yp-card-row">
+              <div class="yp-card-row-left">
+                <div class="yp-card-row-name">Naranja</div>
+                <div class="yp-card-row-sub">vence 12/07</div>
+              </div>
+              <div class="yp-card-row-right">
+                <span class="yp-card-row-amt">$88.500</span>
+              </div>
+            </div>
+          </div>
+          <!-- Categories -->
+          <div class="yp-cats">
+            <div class="yp-cats-label">Gastos por categoría</div>
+            <div class="yp-cat-row">
+              <div class="yp-cat-name">Comida</div>
+              <div class="yp-cat-track"><div class="yp-cat-fill" style="width:78%"></div></div>
+              <div class="yp-cat-amt">$210.000</div>
+            </div>
+            <div class="yp-cat-row">
+              <div class="yp-cat-name">Transporte</div>
+              <div class="yp-cat-track"><div class="yp-cat-fill" style="width:37%"></div></div>
+              <div class="yp-cat-amt">$98.000</div>
+            </div>
+            <div class="yp-cat-row">
+              <div class="yp-cat-name">Servicios</div>
+              <div class="yp-cat-track"><div class="yp-cat-fill" style="width:29%"></div></div>
+              <div class="yp-cat-amt">$76.000</div>
+            </div>
+          </div>
+          <!-- Bottom nav -->
+          <div class="yp-bottomnav">
+            <div class="yp-nav-item">
+              <div class="yp-nav-icon">
+                <svg class="nav-svg active" viewBox="0 0 24 24"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/><path d="M9 21V12h6v9"/></svg>
+                <div class="yp-nav-dot"></div>
+              </div>
+              <div class="yp-nav-label active">Inicio</div>
+            </div>
+            <div class="yp-nav-item">
+              <div class="yp-nav-icon">
+                <svg class="nav-svg" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+              </div>
+              <div class="yp-nav-label">Movim.</div>
+            </div>
+            <div class="yp-nav-item">
+              <div class="yp-nav-plus">+</div>
+            </div>
+            <div class="yp-nav-item">
+              <div class="yp-nav-icon">
+                <svg class="nav-svg" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+              </div>
+              <div class="yp-nav-label">Tarjetas</div>
+            </div>
+            <div class="yp-nav-item">
+              <div class="yp-nav-icon">
+                <svg class="nav-svg" viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 3H8a2 2 0 00-2 2v2h12V5a2 2 0 00-2-2z"/></svg>
+              </div>
+              <div class="yp-nav-label">Cuentas</div>
+            </div>
           </div>
         </div>
-        <div class="chat-msgs" id="chat-msgs">
-          <div class="chat-msg-user" id="chat-user-msg">
+
+        <!-- Chat bubbles side panel -->
+        <div class="chat-demo-right">
+          <div class="chat-bubble-demo">
             <span id="chat-typed-text"></span><span class="typing-cursor" id="chat-cursor"></span>
           </div>
-          <div class="chat-msg-yumi confirm" id="chat-yumi-reply" aria-live="polite">
+          <div class="chat-reply-demo" id="chat-yumi-reply" aria-live="polite">
             ✓ Cargado: $5.000 · Comida · Galicia
           </div>
         </div>
@@ -1190,8 +1744,12 @@
         el.style.minHeight = 'auto';
       });
       document.querySelectorAll('.conv-card').forEach(function(el) { el.style.opacity = '1'; });
-      document.getElementById('dash-mock') && (document.getElementById('dash-mock').style.opacity = '1');
-      document.getElementById('conv-headline') && (document.getElementById('conv-headline').style.opacity = '1');
+      var bgLayer = document.getElementById('conv-bg-layer');
+      if (bgLayer) bgLayer.style.opacity = '1';
+      var dashMockEl = document.getElementById('dash-mock');
+      if (dashMockEl) dashMockEl.style.opacity = '1';
+      var convHeadEl = document.getElementById('conv-headline');
+      if (convHeadEl) convHeadEl.style.opacity = '1';
       return;
     }
 
@@ -1238,7 +1796,6 @@
     });
 
     /* ── Mouse parallax on hero cards ─────────────────────────── */
-    var heroSection = document.getElementById('hero');
     var mParallax = { x: 0, y: 0 };
     document.addEventListener('mousemove', function(e) {
       mParallax.x = (e.clientX / window.innerWidth - 0.5) * 2;
@@ -1247,7 +1804,6 @@
         var depth = 0.4 + (i % 3) * 0.3;
         gsap.to(card, {
           x: mParallax.x * 18 * depth,
-          y: '+=' + 0, // let idle float handle Y
           duration: 1.4,
           ease: 'power2.out',
           overwrite: 'auto'
@@ -1258,6 +1814,7 @@
     /* ── Convergence section ───────────────────────────────────── */
     var convSection = document.getElementById('convergence');
     var convSticky  = document.getElementById('conv-sticky');
+    var convBgLayer = document.getElementById('conv-bg-layer');
     var dashMock    = document.getElementById('dash-mock');
     var convHead    = document.getElementById('conv-headline');
     var convCards   = [
@@ -1268,24 +1825,32 @@
       document.getElementById('cc5')
     ];
 
-    // Initially hide headline
-    gsap.set(convHead, { opacity: 0, y: 24 });
+    // Initially hide headline and mock; show bg layer
+    gsap.set(convHead, { opacity: 0, scale: 1.25 });
     gsap.set(dashMock, { opacity: 0, scale: 0.88 });
+    gsap.set(convBgLayer, { filter: 'blur(0px)', opacity: 1 });
 
+    /* ── CHANGE 2: Shorter pin — +=90% of viewport height ─────── */
     var convTl = gsap.timeline({
       scrollTrigger: {
         trigger: convSection,
         start: 'top top',
-        end: '+=200%',
+        end: '+=90%',          /* shorter pin: was +=200% */
         pin: convSticky,
         scrub: 1.2,
         anticipatePin: 1
       }
     });
 
-    // Phase 1: cards scatter → center
-    var centerX = 0, centerY = 0;
-    convCards.forEach(function(card, i) {
+    // Phase 1 (0 → 0.45): cards scatter → center, fade out
+    var convCards_list = [
+      document.getElementById('cc1'),
+      document.getElementById('cc2'),
+      document.getElementById('cc3'),
+      document.getElementById('cc4'),
+      document.getElementById('cc5')
+    ];
+    convCards_list.forEach(function(card, i) {
       convTl.to(card, {
         left: '50%',
         top: '50%',
@@ -1293,19 +1858,34 @@
         yPercent: -50,
         scale: 0.7,
         opacity: 0,
-        duration: 0.5,
+        duration: 0.4,
         ease: 'power2.in'
-      }, i * 0.08);
+      }, i * 0.06);
     });
 
-    // Phase 2: dash mock appears
-    convTl.to(dashMock, { opacity: 1, scale: 1, duration: 0.4, ease: 'back.out(1.4)' }, 0.5);
+    // Phase 2 (0.35 → 0.6): Yumi phone mock appears
+    convTl.to(dashMock, { opacity: 1, scale: 1, duration: 0.3, ease: 'back.out(1.4)' }, 0.35);
 
-    // Phase 3: headline appears
-    convTl.to(convHead, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out' }, 0.7);
+    /* ── CHANGE 1: Blur + dim the bg layer as headline reveals ── */
+    // As mock appears, start blurring+dimming the bg layer
+    convTl.to(convBgLayer, {
+      filter: 'blur(10px)',
+      opacity: 0.35,
+      duration: 0.35,
+      ease: 'power2.inOut'
+    }, 0.45);
+
+    /* ── CHANGE 2 (scaling text): headline scales from 1.25 → 1 ─ */
+    // Headline fades in AND scales down (Jeton-style) tied to scrub
+    convTl.to(convHead, {
+      opacity: 1,
+      scale: 1,       /* starts at 1.25 (set above), lands at 1 */
+      duration: 0.35,
+      ease: 'power2.out'
+    }, 0.52);
 
     /* ── 3-Word pinned sequence ────────────────────────────────── */
-    var wordPin = document.getElementById('words-pin');
+    var wordPin    = document.getElementById('words-pin');
     var wordSticky = document.getElementById('words-sticky');
     var wordSlides = [
       document.getElementById('ws-1'),
@@ -1374,12 +1954,12 @@
     });
 
     /* ── Typewriter chat demo ──────────────────────────────────── */
-    var chatSection   = document.getElementById('chat-demo');
-    var typedText     = document.getElementById('chat-typed-text');
-    var typingCursor  = document.getElementById('chat-cursor');
-    var yumiReply     = document.getElementById('chat-yumi-reply');
-    var fullMsg       = 'pagué 5 lucas de súper con el Galicia 🛒';
-    var typingDone    = false;
+    var chatSection  = document.getElementById('chat-demo');
+    var typedText    = document.getElementById('chat-typed-text');
+    var typingCursor = document.getElementById('chat-cursor');
+    var yumiReply    = document.getElementById('chat-yumi-reply');
+    var fullMsg      = 'pagué 5 lucas de súper con el Galicia 🛒';
+    var typingDone   = false;
 
     function runTypewriter() {
       if (typingDone) return;
