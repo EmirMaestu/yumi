@@ -797,9 +797,9 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
+      min-height: auto;
       position: relative;
-      padding: 0 clamp(24px, 5vw, 80px);
+      padding: clamp(56px, 8vw, 110px) clamp(24px, 5vw, 80px);
     }
     /* Stack container — vertical column of word rows */
     #words-stack {
@@ -1311,6 +1311,20 @@
       will-change: opacity, transform;
     }
     .mf-line.mf-accent { font-style: italic; }
+
+    /* ── Punta: green wedge dropping into a dark section ──────────── */
+    #punta { background: #1b201c; position: relative; z-index: 1; overflow: hidden;
+      padding: clamp(150px, 22vw, 300px) 0 clamp(56px, 8vw, 110px); text-align: center; }
+    #punta-shape {
+      position: absolute; top: 0; left: 50%;
+      width: clamp(240px, 38vw, 540px); height: clamp(160px, 26vw, 360px);
+      background: var(--voltage); clip-path: polygon(0 0, 100% 0, 50% 100%);
+      transform: translateX(-50%); transform-origin: top center; will-change: transform;
+    }
+    #punta-content { position: relative; z-index: 1; }
+    .punta-label { color: var(--voltage); }
+    .punta-h2 { font-family: 'Fraunces', serif; font-weight: 300; letter-spacing: -0.03em;
+      line-height: 1.02; font-size: clamp(36px, 6.5vw, 84px); color: #eef3ee; margin-top: 14px; }
   </style>
 </head>
 
@@ -1849,6 +1863,15 @@
     </div>
   </section>
 
+  <!-- ═══ PUNTA (full-color triangle wedge, NewForm style) ═════════ -->
+  <section id="punta" aria-label="Menos apps, más ustedes">
+    <div id="punta-shape" aria-hidden="true"></div>
+    <div id="punta-content">
+      <p class="section-label punta-label">La idea</p>
+      <h2 class="punta-h2">Menos apps.<br>Más ustedes.</h2>
+    </div>
+  </section>
+
   <!-- ═══ PRIVACIDAD ═══════════════════════════════════════════════ -->
   <section id="privacidad" aria-labelledby="priv-h2">
     <div class="container priv-inner">
@@ -2172,34 +2195,25 @@
       }, 0.1 + i * 0.05);
     });
 
-    /* ── 3-Word pinned sequence (accumulate/stack — Jeton style) ── */
-    var wordPin    = document.getElementById('words-pin');
-    var wordSticky = document.getElementById('words-sticky');
-    var wordRows   = [
+    /* ── 3 words: staggered elastic reveal on enter (NO pin → no blank) ── */
+    var wordPin  = document.getElementById('words-pin');
+    var wordRows = [
       document.getElementById('ws-1'),
       document.getElementById('ws-2'),
       document.getElementById('ws-3')
     ];
-
-    // Hablá is FIXED/visible from the start (no blank screen); Compartí + Controlá
-    // accumulate as you scroll, stacking under Hablá.
-    gsap.set(wordRows[0], { opacity: 1, y: 0 });
-    gsap.set([wordRows[1], wordRows[2]], { opacity: 0, y: 28 });
-
-    var wordTl = gsap.timeline({
-      scrollTrigger: {
-        trigger: wordPin,
-        start: 'top top',
-        end: '+=55%',
-        pin: wordSticky,
-        scrub: 1,
-        anticipatePin: 1
+    gsap.set(wordRows, { opacity: 0, y: 44, scale: 0.96 });
+    ScrollTrigger.create({
+      trigger: wordPin,
+      start: 'top 78%',
+      once: true,
+      onEnter: function() {
+        gsap.to(wordRows, {
+          opacity: 1, y: 0, scale: 1,
+          duration: 0.9, stagger: 0.16, ease: 'back.out(1.5)'
+        });
       }
     });
-
-    // Compartí joins (stays), then Administrá joins (stays)
-    wordTl.to(wordRows[1], { opacity: 1, y: 0, duration: 0.3, ease: 'power3.out' }, 0.2);
-    wordTl.to(wordRows[2], { opacity: 1, y: 0, duration: 0.3, ease: 'power3.out' }, 0.6);
 
     /* ── Manifiesto: big words rise + fade in on scroll (full color) ── */
     var mfLines = gsap.utils.toArray('#manifiesto .mf-line');
@@ -2216,16 +2230,27 @@
       });
     }
 
+    /* ── Punta wedge: centre + grow ("forms") as the section scrolls in ── */
+    var puntaShape = document.getElementById('punta-shape');
+    if (puntaShape) {
+      gsap.set(puntaShape, { xPercent: -50, scaleY: 0.18, transformOrigin: 'top center' });
+      gsap.to(puntaShape, {
+        scaleY: 1, ease: 'none',
+        scrollTrigger: { trigger: '#punta', start: 'top bottom', end: 'top 25%', scrub: 1 }
+      });
+    }
+
     /* ── Feature cards stagger reveal ─────────────────────────── */
-    gsap.set('.feat-card', { opacity: 0, y: 44 });
+    gsap.set('.feat-card', { opacity: 0, y: 56, scale: 0.96 });
     ScrollTrigger.batch('.feat-card', {
       onEnter: function(els) {
         gsap.to(els, {
           opacity: 1,
           y: 0,
-          duration: 0.8,
+          scale: 1,
+          duration: 0.9,
           stagger: 0.12,
-          ease: 'power3.out'
+          ease: 'back.out(1.5)'
         });
       },
       start: 'top 88%',
@@ -2356,32 +2381,12 @@
       });
     });
 
-    /* ── Liquid skew: elements lean with scroll velocity, ease back ── */
-    var liquidSel = '.fcard, .feat-card, .price-card, .cap-row, .wa-chat, .ed-block, .priv-visual, #precios h2, #capacidades h2, #chat-demo h2';
-    if (document.querySelector(liquidSel)) {
-      var skewSetter = gsap.quickSetter(liquidSel, 'skewY', 'deg');
-      var liquid = { s: 0 };
-      var clampSkew = gsap.utils.clamp(-5, 5);
-      ScrollTrigger.create({
-        onUpdate: function(self) {
-          var sk = clampSkew(self.getVelocity() / -480);
-          if (Math.abs(sk) > Math.abs(liquid.s)) {
-            liquid.s = sk;
-            gsap.to(liquid, {
-              s: 0, duration: 0.8, ease: 'power3',
-              overwrite: true,
-              onUpdate: function() { skewSetter(liquid.s); }
-            });
-          }
-        }
-      });
-    }
 
-    /* ── Capacidades: slide in from the left, staggered ──────────── */
-    gsap.set('.cap-row', { opacity: 0, x: -48 });
+    /* ── Capacidades: slide in from the left, elastic stagger ─────── */
+    gsap.set('.cap-row', { opacity: 0, x: -56 });
     ScrollTrigger.batch('.cap-row', {
       onEnter: function(els) {
-        gsap.to(els, { opacity: 1, x: 0, duration: 0.8, stagger: 0.1, ease: 'power3.out' });
+        gsap.to(els, { opacity: 1, x: 0, duration: 0.9, stagger: 0.1, ease: 'back.out(1.6)' });
       },
       start: 'top 88%',
       once: true
