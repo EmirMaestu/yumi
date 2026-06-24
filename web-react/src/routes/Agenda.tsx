@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { useEventos, useEventosMutations } from '../hooks/useEventos'
 import { useRecordatorios, useRecordatoriosMutations, type SnoozePreset } from '../hooks/useRecordatorios'
 import { type Evento, type Recordatorio } from '../lib/types'
+import { cleanReminderText } from '../lib/format'
 import Card from '../components/ui/Card'
 import CardActions from '../components/ui/CardActions'
 import Modal from '../components/ui/Modal'
@@ -416,7 +417,7 @@ function RecordatorioCard({
             <span style={chipStyle('var(--color-mist)', 'var(--color-sage)')}>recordatorio</span>
           </div>
           <div style={{ fontSize: 14, fontWeight: 500, marginTop: 2, color: 'var(--color-obsidian-ink)' }}>
-            {rec.text}
+            {cleanReminderText(rec.text)}
           </div>
           {dimmed && (
             <button

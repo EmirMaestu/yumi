@@ -6,6 +6,16 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-24
+### Changed
+- **"A pagar" reemplaza a "deuda total" en todas las pantallas menos el detalle de la tarjeta.** Inicio, Tarjetas y Hoy muestran como número principal **lo que vence** (ciclo cerrado), no el total. La deuda total (consumos + cuotas por venir) queda solo en el detalle de cada tarjeta (`/tarjetas/:id`).
+
+### Added
+- **Home "Hoy" más completo:** nueva sección **"Lo que viene"** con los próximos eventos y recordatorios (después de hoy).
+
+### Fixed
+- **Recordatorios:** se limpia el prefijo "En 2880 min: …" que generaba el bot; ahora se ve el texto del recordatorio y la hora a la que avisa.
+
 ## [0.3.2] - 2026-06-24
 ### Added
 - Las tarjetas en Inicio/Finanzas ahora son clickeables → abren el detalle de la tarjeta directo, sin pasar por el menú.

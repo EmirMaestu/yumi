@@ -5,7 +5,7 @@ import Tarjetas from './Tarjetas'
 
 afterEach(() => vi.restoreAllMocks())
 
-test('muestra una tarjeta con la deuda total (consumos + cuotas) como número principal', async () => {
+test('muestra "a pagar" (ciclo cerrado) como número principal, no la deuda total', async () => {
   vi.stubGlobal('fetch', vi.fn((url: string) => {
     const u = String(url)
     // useAccountsWithBalances fetches /api/overview → { accounts: [...] }
@@ -34,15 +34,17 @@ test('muestra una tarjeta con la deuda total (consumos + cuotas) como número pr
   }))
   renderWithProviders(<Tarjetas />)
   expect(await screen.findByText('Visa Galicia')).toBeInTheDocument()
-  // deudaTotal = abs(-145000) + (6-2)*10000 = 145000 + 40000 = 185000
-  expect(screen.getByText('$185.000,00')).toBeInTheDocument()
-  // Label shows "Deuda"
-  expect(screen.getByText('Deuda')).toBeInTheDocument()
-  // Breakdown line
-  expect(screen.getByText(/Consumos.*En cuotas/)).toBeInTheDocument()
+  // A pagar = ciclo cerrado = 500000 (NO la deuda total 185000)
+  expect(screen.getByText('$500.000,00')).toBeInTheDocument()
+  expect(screen.getByText('A pagar')).toBeInTheDocument()
+  expect(screen.getByText(/vence 10\/07/)).toBeInTheDocument()
+  // El ciclo en curso aparece como secundario
+  expect(screen.getByText(/En curso/)).toBeInTheDocument()
+  // La deuda total NO se muestra en la lista
+  expect(screen.queryByText('$185.000,00')).not.toBeInTheDocument()
 })
 
-test('muestra deuda igual a consumos cuando no hay cuotas pendientes', async () => {
+test('muestra $0 a pagar cuando no hay resumen cerrado', async () => {
   vi.stubGlobal('fetch', vi.fn((url: string) => {
     const u = String(url)
     if (u.includes('/api/overview') && !u.includes('/api/overview2')) {
@@ -60,6 +62,7 @@ test('muestra deuda igual a consumos cuando no hay cuotas pendientes', async () 
   }))
   renderWithProviders(<Tarjetas />)
   expect(await screen.findByText('Mastercard')).toBeInTheDocument()
-  // deudaTotal = abs(-60000) + 0 = 60000
-  expect(screen.getByText('$60.000,00')).toBeInTheDocument()
+  // Sin vencimientos cargados → nada cerrado → a pagar $0
+  expect(screen.getByText('$0,00')).toBeInTheDocument()
+  expect(screen.getByText('sin resumen cerrado')).toBeInTheDocument()
 })

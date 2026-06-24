@@ -20,3 +20,10 @@ export function formatUsdApprox(amountArs: number, blue: number | null): string 
 export function formatMonthLabel(year: number, month1to12: number): string {
   return `${MESES[month1to12 - 1]} ${year}`
 }
+
+// El bot a veces guarda el texto del recordatorio como "En 2880 min: Turno…".
+// Lo limpiamos para mostrar el contenido (la hora se muestra aparte).
+export function cleanReminderText(text: string): string {
+  const cleaned = (text || '').replace(/^en\s+\d+\s*(min(?:utos)?|h(?:s|oras?)?|d(?:[ií]as?)?)\b\s*:?\s*/i, '').trim()
+  return cleaned || text
+}

@@ -4,7 +4,7 @@ import { useVencimientos } from '../hooks/useVencimientos'
 import { useAccountsWithBalances } from '../hooks/useAccounts'
 import { useRecurring } from '../hooks/useRecurring'
 import { formatMoney, formatUsdApprox } from '../lib/format'
-import { enCuotas as calcEnCuotas, deudaTotal } from '../lib/cards'
+import { enCuotas as calcEnCuotas, aPagarCard, aPagarTotal } from '../lib/cards'
 import Card from '../components/ui/Card'
 import TickMark from '../components/ui/TickMark'
 import StatNumber from '../components/ui/StatNumber'
@@ -31,7 +31,7 @@ export default function Inicio() {
   const creditCards = accounts.data?.filter((a) => a.type === 'credito') ?? []
 
   // Aggregate deuda total and enCuotas across all credit cards
-  const totalDeuda = creditCards.reduce((s, card) => s + deudaTotal(card.id, card, recurring.data), 0)
+  const totalAPagar = aPagarTotal(venc.data)
   const totalEnCuotas = creditCards.reduce((s, card) => s + calcEnCuotas(card.id, recurring.data), 0)
 
   return (
@@ -52,11 +52,11 @@ export default function Inicio() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 15, fontWeight: 500 }}><i className="ti ti-credit-card" style={{ marginRight: 7 }} aria-hidden />Cuotas y tarjetas</span>
           </div>
-          {/* PRIMARY: Deuda en tarjetas — sum of deudaTotal across cards */}
+          {/* PRIMARY: A pagar este mes — sum of ciclo cerrado (lo que vence) */}
           <div style={{ marginTop: 14 }}>
-            <div className="cap">Deuda en tarjetas</div>
-            <div className="num-serif" style={{ fontSize: 32, marginTop: 4 }}>{formatMoney(totalDeuda)}</div>
-            <div style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 4 }}>En cuotas: {formatMoney(totalEnCuotas)}</div>
+            <div className="cap">A pagar este mes</div>
+            <div className="num-serif" style={{ fontSize: 32, marginTop: 4 }}>{formatMoney(totalAPagar)}</div>
+            <div style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 4 }}>En cuotas (deuda futura): {formatMoney(totalEnCuotas)}</div>
           </div>
           <div style={{ height: 1, background: 'var(--color-mist)', margin: '16px 0' }} />
           {/* Per-card rows */}
@@ -64,7 +64,7 @@ export default function Inicio() {
           {creditCards.length === 0 && !accounts.isLoading && <EmptyState>Sin tarjetas de crédito.</EmptyState>}
           {creditCards.map((card) => {
             const v = venc.data?.find((x) => x.account_id === card.id)
-            const deuda = deudaTotal(card.id, card, recurring.data)
+            const aPagar = aPagarCard(v)
             const dias = daysUntil(v?.next_closing)
             return (
               <Link
@@ -81,7 +81,7 @@ export default function Inicio() {
                       : null}
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span className="num-serif" style={{ fontSize: 15, fontWeight: 500 }}>{formatMoney(deuda)}</span>
+                  <span className="num-serif" style={{ fontSize: 15, fontWeight: 500 }}>{formatMoney(aPagar)}</span>
                   <i className="ti ti-chevron-right" style={{ fontSize: 16, color: 'var(--color-sage)' }} aria-hidden />
                 </span>
               </Link>

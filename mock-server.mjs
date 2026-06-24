@@ -90,6 +90,7 @@ const routes = {
   'GET /api/recordatorios': [
     { id: 501, text: 'Llamar al plomero', remind_at: fmt(now) + ' 10:30', fired: 0, source: 'web', user_id: 1 },
     { id: 502, text: 'Sacar la basura', remind_at: fmt(now + day) + ' 08:00', fired: 0, source: 'bot', user_id: 1 },
+    { id: 503, text: 'En 2880 min: Turno Ginecología', remind_at: fmt(now + 5 * day) + ' 19:00', fired: 0, source: 'bot', user_id: 1 },
   ],
   'GET /api/habitos': {
     days: 7,

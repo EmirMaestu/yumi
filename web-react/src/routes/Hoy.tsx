@@ -2,8 +2,10 @@ import { Link } from 'react-router-dom'
 import { useOverview } from '../hooks/useOverview'
 import { useTareas } from '../hooks/useTareas'
 import { useVencimientos } from '../hooks/useVencimientos'
+import { useEventos } from '../hooks/useEventos'
+import { useRecordatorios } from '../hooks/useRecordatorios'
 import { aPagarTotal } from '../lib/cards'
-import { formatMoney } from '../lib/format'
+import { formatMoney, cleanReminderText } from '../lib/format'
 import { type HoyItem } from '../lib/types'
 import Card from '../components/ui/Card'
 import EmptyState from '../components/ui/EmptyState'
@@ -11,6 +13,15 @@ import EmptyState from '../components/ui/EmptyState'
 // --- Date header ---
 function todayLabel(): string {
   return new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())
+}
+
+// --- Upcoming item date/time label ---
+function whenDate(s: string): Date { return new Date((s || '').replace(' ', 'T')) }
+function whenLabel(s: string): string {
+  const d = whenDate(s)
+  const day = new Intl.DateTimeFormat('es-AR', { weekday: 'short', day: 'numeric', month: 'short' }).format(d)
+  const time = new Intl.DateTimeFormat('es-AR', { hour: '2-digit', minute: '2-digit' }).format(d)
+  return `${day} · ${time}`
 }
 
 // --- HoyItem icon map ---
@@ -68,6 +79,8 @@ export default function Hoy() {
   const overview = useOverview()
   const tareas = useTareas('pendiente')
   const venc = useVencimientos()
+  const eventos = useEventos(false)
+  const recordatorios = useRecordatorios(false)
 
   if (overview.isLoading) return <HoySkeleton />
   if (overview.isError || !overview.data) return <EmptyState>No pudimos cargar tus datos. Reintentá.</EmptyState>
@@ -77,6 +90,16 @@ export default function Hoy() {
 
   const pendientes = (tareas.data ?? []).filter((t) => t.status === 'pendiente')
   const top3 = pendientes.slice(0, 3)
+
+  // "Lo que viene": próximos eventos + recordatorios (después de hoy)
+  const endToday = new Date(); endToday.setHours(23, 59, 59, 999)
+  const upcoming = [
+    ...(eventos.data ?? []).map((e) => ({ id: `e${e.id}`, kind: 'evento', when: e.starts_at, title: e.title })),
+    ...(recordatorios.data ?? []).map((r) => ({ id: `r${r.id}`, kind: 'recordatorio', when: r.remind_at, title: cleanReminderText(r.text) })),
+  ]
+    .filter((i) => i.when && whenDate(i.when) > endToday)
+    .sort((a, b) => whenDate(a.when).getTime() - whenDate(b.when).getTime())
+    .slice(0, 5)
 
   return (
     <div style={{ padding: '8px 4px 24px' }}>
@@ -112,6 +135,27 @@ export default function Hoy() {
             </div>
           )}
       </section>
+
+      {/* Lo que viene */}
+      {upcoming.length > 0 && (
+        <section style={{ padding: '0 18px 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span className="cap">Lo que viene</span>
+            <Link to="/agenda" style={{ fontSize: 12, color: 'var(--color-sage)', textDecoration: 'none' }}>Ver agenda →</Link>
+          </div>
+          <div style={{ display: 'grid', gap: 12 }}>
+            {upcoming.map((item) => (
+              <Link key={item.id} to="/agenda" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', textDecoration: 'none', color: 'inherit' }}>
+                <TipoIcon tipo={item.kind} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, color: 'var(--color-sage)' }}>{whenLabel(item.when)}</div>
+                  <div style={{ fontSize: 15, fontWeight: 500 }}>{item.title}</div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Plata mini-card */}
       <div style={{ padding: '0 18px 20px' }}>

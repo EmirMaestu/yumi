@@ -25,7 +25,7 @@ test('muestra el gasto del mes como hero', async () => {
   expect(screen.getByText('Comida')).toBeInTheDocument()
 })
 
-test('deuda en tarjetas suma consumos + cuotas de todas las tarjetas', async () => {
+test('a pagar este mes suma el ciclo cerrado de todas las tarjetas (no la deuda total)', async () => {
   vi.stubGlobal('fetch', vi.fn((url: string) => {
     const u = String(url)
     if (u.includes('/api/overview2')) return Promise.resolve(new Response(JSON.stringify({
@@ -33,6 +33,12 @@ test('deuda en tarjetas suma consumos + cuotas de todas las tarjetas', async () 
       kpis: { gasto_mes: 55000, gasto_prev_alt: 45000, ingreso_mes: 200000, deuda_tarjetas: 0, cuotas_futuras: 0, cuotas_n: 0, disponible: 50000 },
       cashflow: [], hoy: [], por_categoria: [],
     }), { status: 200 }))
+    if (u.includes('/api/vencimientos')) {
+      return Promise.resolve(new Response(JSON.stringify([
+        { account_id: 1, account_name: 'Visa', next_due: '2026-07-10', next_closing: '2026-07-03', ciclo_cerrado: [{ currency: 'ARS', total: 70000 }], ciclo_abierto: [] },
+        { account_id: 2, account_name: 'Master', next_due: '2026-07-12', next_closing: '2026-07-05', ciclo_cerrado: [{ currency: 'ARS', total: 30000 }], ciclo_abierto: [] },
+      ]), { status: 200 }))
+    }
     if (u.includes('/api/overview') && !u.includes('/api/overview2')) {
       return Promise.resolve(new Response(JSON.stringify({
         accounts: [
@@ -42,7 +48,6 @@ test('deuda en tarjetas suma consumos + cuotas de todas las tarjetas', async () 
       }), { status: 200 }))
     }
     if (u.includes('/api/recurring')) {
-      // Visa: 2 cuotas remaining * $10000 = 20000
       return Promise.resolve(new Response(JSON.stringify([
         { id: 10, description: 'Cuota Visa', amount: 10000, currency: 'ARS', account_id: 1, next_occurrence: '2026-07-01', active: 1, total_installments: 5, installments_fired: 3 },
       ]), { status: 200 }))
@@ -50,8 +55,9 @@ test('deuda en tarjetas suma consumos + cuotas de todas las tarjetas', async () 
     return Promise.resolve(new Response('[]', { status: 200 }))
   }))
   renderWithProviders(<Inicio />)
-  // totalDeuda = (50000 + 20000) + (30000 + 0) = 100000
+  // a pagar este mes = ciclo cerrado Visa 70000 + Master 30000 = 100000 (NO la deuda total)
   expect(await screen.findByText('$100.000,00')).toBeInTheDocument()
-  // secondary line shows enCuotas
-  expect(screen.getByText(/En cuotas:/)).toBeInTheDocument()
+  expect(screen.getByText('A pagar este mes')).toBeInTheDocument()
+  // subline muestra las cuotas como deuda futura
+  expect(screen.getByText(/En cuotas \(deuda futura\)/)).toBeInTheDocument()
 })
