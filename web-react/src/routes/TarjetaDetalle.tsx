@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { useAccountsWithBalances, useAccountMutations } from '../hooks/useAccounts'
 import { useVencimientos } from '../hooks/useVencimientos'
 import { useRecurring, useRecurringMutations } from '../hooks/useRecurring'
+import { useTransactions } from '../hooks/useTransactions'
 import { type Account, type CicloTotal, type Recurring } from '../lib/types'
 import { formatMoney } from '../lib/format'
 import Card from '../components/ui/Card'
@@ -83,6 +84,40 @@ function CuotaModal({
         <button type="submit" style={ctaBtn}>Guardar</button>
       </form>
     </Modal>
+  )
+}
+
+function MovimientosTarjeta({ accId }: { accId: number }) {
+  const { data, isLoading } = useTransactions({ account_id: accId })
+  return (
+    <div>
+      <div className="cap" style={{ marginBottom: 10 }}>Movimientos de la tarjeta</div>
+      {isLoading && (
+        <>
+          <span aria-hidden className="nf-skel" style={{ height: 44, display: 'block', marginBottom: 1 }} />
+          <span aria-hidden className="nf-skel" style={{ height: 44, display: 'block' }} />
+        </>
+      )}
+      {!isLoading && data && data.length === 0 && (
+        <EmptyState>Sin movimientos este mes en esta tarjeta.</EmptyState>
+      )}
+      {data?.map((t) => (
+        <div
+          key={t.id}
+          style={{ display: 'flex', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--color-mist)' }}
+        >
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ fontSize: 14, fontWeight: 500 }}>{t.description}</span><br />
+            <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>
+              {t.cat_name ?? 'sin categoría'} · {t.occurred_at.slice(0, 10)}
+            </span>
+          </span>
+          <span style={{ fontSize: 15, fontWeight: 500, flexShrink: 0, color: t.type === 'ingreso' ? '#3b6d11' : 'var(--color-obsidian-ink)' }}>
+            {t.type === 'ingreso' ? '+' : '−'}{formatMoney(t.amount, t.currency)}
+          </span>
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -236,6 +271,9 @@ export default function TarjetaDetalle() {
           })
         }
       </div>
+
+      {/* Movimientos de la tarjeta */}
+      <MovimientosTarjeta accId={accId} />
 
       {/* Edit account modal */}
       <AccountForm
