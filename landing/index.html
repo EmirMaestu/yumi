@@ -342,7 +342,7 @@
     #conv-bg-layer {
       position: absolute;
       inset: 0;
-      z-index: 1;
+      z-index: 2;
       pointer-events: none;
       will-change: filter, opacity;
     }
@@ -759,7 +759,7 @@
     /* ── Convergence headline ─────────────────────────────────────── */
     #conv-headline {
       position: relative;
-      z-index: 10;
+      z-index: 1;
       text-align: center;
       pointer-events: none;
       max-width: 900px;
@@ -1868,24 +1868,22 @@
       document.getElementById('cc5')
     ];
 
-    // Stacked, no-overlap design: headline upper-center, phone lower-center.
-    // Center the phone via xPercent/yPercent (CSS sets left:50%/top:56%).
-    gsap.set(convHead, { opacity: 0, scale: 1.2, y: 12 });
-    gsap.set(dashMock, { xPercent: -50, yPercent: -50, opacity: 0, scale: 0.9, y: 24 });
+    // Jeton-style: the headline is the ANCHOR (visible + centered, BEHIND), and the
+    // scattered cards fly IN toward the center and pile ON TOP of it (overlap), not fade.
+    gsap.set(convHead, { opacity: 1, scale: 1 });
     gsap.set(convBgLayer, { opacity: 1 });
 
     var convTl = gsap.timeline({
       scrollTrigger: {
         trigger: convSection,
         start: 'top top',
-        end: '+=120%',
+        end: '+=140%',
         pin: convSticky,
         scrub: 1.2,
         anticipatePin: 1
       }
     });
 
-    // Phase 1 (0 → ~0.4): cards converge to center + fade out
     var convCards_list = [
       document.getElementById('cc1'),
       document.getElementById('cc2'),
@@ -1893,36 +1891,26 @@
       document.getElementById('cc4'),
       document.getElementById('cc5')
     ];
+    // Translate each card from its scattered spot toward the section center (+ a cluster
+    // offset) so they converge ONTO the headline, overlapping it. They stay visible.
+    var _sr = convSticky.getBoundingClientRect();
+    var _cx = _sr.left + _sr.width / 2;
+    var _cy = _sr.top + _sr.height / 2;
+    var _off = [ { x: -150, y: -56 }, { x: 158, y: -78 }, { x: -168, y: 70 }, { x: 170, y: 84 }, { x: 6, y: 132 } ];
     convCards_list.forEach(function(card, i) {
+      if (!card) return;
+      var r = card.getBoundingClientRect();
+      var dx = _cx - (r.left + r.width / 2) + _off[i].x;
+      var dy = _cy - (r.top + r.height / 2) + _off[i].y;
       convTl.to(card, {
-        left: '50%',
-        top: '50%',
-        xPercent: -50,
-        yPercent: -50,
-        scale: 0.55,
-        opacity: 0,
-        duration: 0.35,
-        ease: 'power2.in'
-      }, i * 0.05);
+        x: dx,
+        y: dy,
+        scale: 0.9,
+        rotate: (i - 2) * 2.5,
+        duration: 0.7,
+        ease: 'power2.inOut'
+      }, 0.1 + i * 0.05);
     });
-
-    // Phase 2 (0.3 → 0.6): headline appears upper-center, scales 1.2 → 1, then HELD
-    convTl.to(convHead, {
-      opacity: 1,
-      scale: 1,
-      y: 0,
-      duration: 0.3,
-      ease: 'power3.out'
-    }, 0.3);
-
-    // Phase 3 (0.45 → 0.8): faithful Yumi phone mock rises in lower-center, HELD
-    convTl.to(dashMock, {
-      opacity: 1,
-      scale: 1,
-      y: 0,
-      duration: 0.35,
-      ease: 'back.out(1.3)'
-    }, 0.45);
 
     /* ── 3-Word pinned sequence (accumulate/stack — Jeton style) ── */
     var wordPin    = document.getElementById('words-pin');
@@ -1933,32 +1921,26 @@
       document.getElementById('ws-3')
     ];
 
-    // Initial state: all rows hidden, translated down
-    gsap.set(wordRows, { opacity: 0, y: 28 });
+    // Hablá is FIXED/visible from the start (no blank screen); Compartí + Controlá
+    // accumulate as you scroll, stacking under Hablá.
+    gsap.set(wordRows[0], { opacity: 1, y: 0 });
+    gsap.set([wordRows[1], wordRows[2]], { opacity: 0, y: 28 });
 
     var wordTl = gsap.timeline({
       scrollTrigger: {
         trigger: wordPin,
         start: 'top top',
-        end: '+=280%',
+        end: '+=150%',
         pin: wordSticky,
         scrub: 1,
         anticipatePin: 1
       }
     });
 
-    // Row 1 reveals (~0 → 0.3) and STAYS — never hides
-    wordTl.to(wordRows[0], { opacity: 1, y: 0, duration: 0.25, ease: 'power3.out' }, 0.05);
-    // Hold row1 visible: do nothing — GSAP keeps it at opacity:1
-
-    // Row 2 reveals (~0.33 → 0.6) and STAYS
-    wordTl.to(wordRows[1], { opacity: 1, y: 0, duration: 0.25, ease: 'power3.out' }, 0.38);
-
-    // Row 3 reveals (~0.66 → 0.9) and STAYS
-    wordTl.to(wordRows[2], { opacity: 1, y: 0, duration: 0.25, ease: 'power3.out' }, 0.7);
-
-    // Hold all three visible at the end
-    wordTl.to({}, { duration: 0.3 }, 1.0);
+    // Compartí joins (stays), then Controlá joins (stays)
+    wordTl.to(wordRows[1], { opacity: 1, y: 0, duration: 0.3, ease: 'power3.out' }, 0.18);
+    wordTl.to(wordRows[2], { opacity: 1, y: 0, duration: 0.3, ease: 'power3.out' }, 0.58);
+    wordTl.to({}, { duration: 0.12 }, 1.0);
 
     /* ── Feature cards stagger reveal ─────────────────────────── */
     gsap.set('.feat-card', { opacity: 0, y: 44 });
