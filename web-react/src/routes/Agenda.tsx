@@ -7,6 +7,7 @@ import { useRecordatorios, useRecordatoriosMutations, type SnoozePreset } from '
 import { type Evento, type Recordatorio } from '../lib/types'
 import { cleanReminderText } from '../lib/format'
 import Card from '../components/ui/Card'
+import CalendarSubscribe from '../components/CalendarSubscribe'
 import CardActions from '../components/ui/CardActions'
 import Modal from '../components/ui/Modal'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
@@ -310,6 +311,11 @@ export default function Agenda() {
         >
           + Recordatorio
         </button>
+      </div>
+
+      {/* Calendar subscribe */}
+      <div style={{ padding: '0 0 2px' }}>
+        <CalendarSubscribe />
       </div>
 
       {/* Empty state */}
