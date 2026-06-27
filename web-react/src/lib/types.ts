@@ -109,7 +109,7 @@ export interface Account {
 
 export interface CategoryTotal { cat: string; color?: string; total: number }
 
-export interface HoyItem { tipo: string; titulo: string; sub: string; hora: string }
+export interface HoyItem { tipo: string; titulo: string; sub: string; hora: string; avisos?: string[] }
 
 export interface Overview2Kpis {
   gasto_mes: number

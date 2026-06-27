@@ -654,7 +654,10 @@ class _WAUpdate:
     def __init__(self, uid, name, to, text):
         self.effective_user = _WAUser(uid, name); self.message = _WAMessage(to, text)
 class _WAJobQueue:
-    def run_once(self, *a, **k): return None
+    # Devuelve truthy: en WhatsApp el disparo real lo hace el watchdog (lee la DB),
+    # pero schedule_reminder usa este retorno como "se agendó OK" (si fuera None,
+    # el bot diría falsamente "esa fecha ya pasó" aunque sea futura).
+    def run_once(self, *a, **k): return True
     def get_jobs_by_name(self, *a, **k): return []
 class _WAApp:
     def __init__(self): self.job_queue = _WAJobQueue()
@@ -964,9 +967,15 @@ def api_overview2(user=Depends(require_user), scope: str = Cookie("mine")):
         for r in conn.execute(
             f"SELECT id,title,starts_at,location FROM eventos WHERE substr(starts_at,1,10)=? {uf_x} ORDER BY starts_at",
             [hoy] + uf_xp).fetchall():
-            hoy_items.append({"tipo": "evento", "titulo": r["title"], "sub": r["location"] or "", "hora": r["starts_at"][11:16]})
+            # horas en que el evento te avisa (sus recordatorios), para mostrar un badge
+            avisos = [rr["t"].replace(' ', 'T')[11:16] for rr in conn.execute(
+                "SELECT remind_at AS t FROM recordatorios WHERE event_id=? AND fired=0 ORDER BY remind_at",
+                (r["id"],)).fetchall()]
+            hoy_items.append({"tipo": "evento", "titulo": r["title"], "sub": r["location"] or "",
+                              "hora": r["starts_at"][11:16], "avisos": avisos})
+        # Solo recordatorios SUELTOS (los de un evento se muestran como badge en el evento, no sueltos)
         for r in conn.execute(
-            f"SELECT id,text,remind_at FROM recordatorios WHERE fired=0 AND substr(REPLACE(remind_at,' ','T'),1,10)=? {uf_x} ORDER BY remind_at",
+            f"SELECT id,text,remind_at FROM recordatorios WHERE fired=0 AND event_id IS NULL AND substr(REPLACE(remind_at,' ','T'),1,10)=? {uf_x} ORDER BY remind_at",
             [hoy] + uf_xp).fetchall():
             hoy_items.append({"tipo": "recordatorio", "titulo": r["text"], "sub": "Recordatorio", "hora": r["remind_at"].replace(' ','T')[11:16]})
         for r in conn.execute(

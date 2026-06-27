@@ -137,6 +137,11 @@ export default function Hoy() {
                     {item.sub && (
                       <div style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 2 }}>{item.sub}</div>
                     )}
+                    {item.avisos && item.avisos.length > 0 && (
+                      <div style={{ fontSize: 11.5, color: 'var(--color-voltage-ink, var(--color-sage))', marginTop: 3 }}>
+                        🔔 te aviso {item.avisos.join(' · ')}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

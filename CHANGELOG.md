@@ -11,6 +11,8 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 - **Renombrar usuarios desde el panel admin** (botón ✏️ junto al nombre) — útil para los que entran por WhatsApp sin nombre de perfil (quedaban como "Usuario"). `PATCH /api/admin/users/{id}` ahora acepta `name`.
 
 ### Fixed
+- **WhatsApp decía "Esa fecha ya pasó" en recordatorios futuros.** En el shim de WhatsApp, `_WAJobQueue.run_once` devolvía `None`, y `schedule_reminder` lo tomaba como "no se pudo agendar" → el bot respondía "⚠️ Esa fecha ya pasó" aunque la fecha fuera futura (y por eso tampoco ofrecía el botón de calendario). El recordatorio igual se guardaba. Ahora devuelve OK (en WhatsApp el disparo lo hace el watchdog que lee la base).
+- **"Tu día" mostraba un recordatorio por cada aviso de un evento.** Un evento con avisos a 60/30/10 min aparecía como 3 filas sueltas. Ahora los recordatorios **de un evento** no se listan sueltos: se muestran como un **badge 🔔 "te aviso HH:MM · …"** en el evento (un solo item). Los recordatorios sueltos (sin evento) siguen mostrándose normal.
 - **El bot frenaba a TODOS tras pocos mensajes (tope global).** El tope diario global era US$5 y una sola búsqueda de precios lo había superado (US$6.79) → el `cost_gate` bloqueaba a cualquiera ("llegamos al límite de hoy"), sin registrar su uso (de ahí "0 msj hoy") y **sin importar su plan** (por eso cambiar a "pareja" no destrababa). Se subió el tope a **US$15** (la búsqueda de precios ya está apagada, que era la causa) → destrabado.
 
 ### Added
