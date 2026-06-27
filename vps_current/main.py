@@ -2279,11 +2279,29 @@ def _wa_only(update):
     except Exception:
         return False
 
-async def _send_wa_reminder_notice(update):
-    """Avisa a un usuario de WhatsApp que los recordatorios por WA están en desarrollo y le
-    ofrece la web (push) o Telegram con un deep-link que vincula las cuentas al instante."""
+PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "https://asistente.emir-maestu.site").rstrip("/")
+
+def _get_or_create_cal_token(user_id):
+    """Token del feed de calendario del usuario (lo crea si no existe). Mismo token que usa la web."""
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        row = conn.execute("SELECT cal_token FROM users WHERE id=?", (user_id,)).fetchone()
+        tok = row[0] if row and row[0] else None
+        if not tok:
+            tok = secrets.token_urlsafe(24)
+            conn.execute("UPDATE users SET cal_token=? WHERE id=?", (tok, user_id))
+            conn.commit()
+        return tok
+    finally:
+        conn.close()
+
+async def _send_wa_reminder_notice(update, rid=None):
+    """Avisa a un usuario de WhatsApp que los avisos por WA están en desarrollo y le ofrece:
+    (1) agregar ESTE recordatorio a su calendario en un toque (un evento con su alarma adentro), o
+    (2) pasarse a Telegram con un deep-link que vincula las cuentas al instante."""
     u = get_user_by_tg(update.effective_user.id)
     dl = None
+    cal_link = None
     if u:
         try:
             code = gen_referral_code(6).upper()
@@ -2296,12 +2314,18 @@ async def _send_wa_reminder_notice(update):
                 dl = f"https://t.me/{bot_un}?start=link_{code}"
         except Exception:
             log.exception("wa reminder deeplink")
-    msg = ("📌 Lo guardé, pero ojo: los avisos de recordatorios *por WhatsApp* todavía están en "
-           "desarrollo, así que por ahora no te puedo avisar acá cuando llegue la hora.\n\n"
-           "Para recibir el aviso, elegí una:\n"
-           f"• 🌐 Abrí la web, instalala y activá las notificaciones:\n{APP_URL}\n")
+        if rid:
+            try:
+                cal_link = f"{PUBLIC_BASE_URL}/api/cal/{_get_or_create_cal_token(u['id'])}/rec/{rid}.ics"
+            except Exception:
+                log.exception("wa reminder callink")
+    msg = ("📌 Lo guardé. Los avisos de recordatorios *por WhatsApp* todavía están en desarrollo, "
+           "así que para que igual te llegue, elegí una:\n")
+    if cal_link:
+        msg += ("\n📅 *Agregalo a tu calendario* (te avisa solo a la hora — un toque y listo):\n"
+                f"{cal_link}\n")
     if dl:
-        msg += ("\n• 📲 O pasate a Telegram — te aviso ahí y te dejo todo vinculado a esta misma "
+        msg += ("\n📲 O *pasate a Telegram* — te aviso por acá y te dejo todo vinculado a esta misma "
                 f"cuenta automáticamente:\n{dl}\n\n(El link vale 1 día.)")
     await update.message.reply_text(msg)
 
@@ -4184,7 +4208,7 @@ async def process_action(update, context, parsed, raw_id):
         if ok:
             await update.message.reply_text(f"⏰ Te recuerdo: «{r['text']}»\n📅 {fmt_dt(r['remind_at'])}{sufijo}")
             if _wa_only(update):
-                await _send_wa_reminder_notice(update)
+                await _send_wa_reminder_notice(update, rid)
         else:
             await update.message.reply_text("⚠️ Esa fecha ya paso.")
 

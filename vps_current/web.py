@@ -418,6 +418,24 @@ def cal_feed(token: str):
                     headers={"Content-Disposition": 'inline; filename="yumi.ics"'})
 
 
+@app.get("/api/cal/{token}/rec/{rid}.ics")
+def cal_event_rec(token: str, rid: int):
+    """Un solo recordatorio como .ics (con su alarma) → para 'Agregar a mi calendario' en un toque."""
+    import calfeed
+    with db() as conn:
+        u = conn.execute("SELECT id FROM users WHERE cal_token=? AND active=1", (token,)).fetchone()
+        if not u:
+            raise HTTPException(404, "No encontrado")
+        rec = conn.execute("SELECT id, text, remind_at, recurrence FROM recordatorios WHERE id=? AND user_id=?",
+                           (rid, u["id"])).fetchone()
+        if not rec:
+            raise HTTPException(404, "No encontrado")
+        recs = [dict(rec)]
+    body = calfeed.build_ics([], recs)
+    return Response(content=body, media_type="text/calendar; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="recordatorio.ics"'})
+
+
 @app.get("/api/me")
 def api_me(user=Depends(require_user), scope: str = Cookie("mine")):
     members = set(_household_member_ids(user["id"]))  # solo mi hogar (aislamiento)
