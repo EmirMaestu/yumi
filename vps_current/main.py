@@ -2385,6 +2385,8 @@ async def post_init(app):
             ("meta", "Meta semanal de un habito"),
             ("invitar", "Sumar a tu familia/pareja (segun tu plan)"),
             ("vincular", "Vincular este Telegram con tu WhatsApp"),
+            ("compartirtodo", "Compartir todo con mi hogar"),
+            ("privadotodo", "Volver todo a privado"),
             ("password", "Cambiar clave del dashboard"),
             ("help", "Ayuda"),
         ])
@@ -2532,6 +2534,35 @@ async def vincular_cmd(update, context):
     if num:
         msg += f"\n\nO tocá: https://wa.me/{num}?text=vincular%20{code}"
     await update.message.reply_text(msg, parse_mode="Markdown")
+
+
+async def compartirtodo_cmd(update, context):
+    """Interruptor maestro: compartir TODO lo mío con mi hogar."""
+    if not is_allowed(update):
+        await send_register_prompt(update); return
+    u = get_user_by_tg(update.effective_user.id)
+    if not u:
+        await send_register_prompt(update); return
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("UPDATE users SET share_all=1 WHERE id=?", (u["id"],)); conn.commit(); conn.close()
+    await update.message.reply_text(
+        "✅ Listo: ahora compartís *todo* con tu hogar (gastos, agenda, tareas, notas).\n"
+        "Para volver a privado: /privadotodo. También podés compartir cosas puntuales desde la app.",
+        parse_mode="Markdown")
+
+
+async def privadotodo_cmd(update, context):
+    """Apaga el interruptor maestro: tus cosas vuelven a ser privadas por default."""
+    if not is_allowed(update):
+        await send_register_prompt(update); return
+    u = get_user_by_tg(update.effective_user.id)
+    if not u:
+        await send_register_prompt(update); return
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("UPDATE users SET share_all=0 WHERE id=?", (u["id"],)); conn.commit(); conn.close()
+    await update.message.reply_text(
+        "🔒 Listo: tus cosas vuelven a ser *privadas* por default. Lo que hayas marcado como "
+        "compartido sigue compartido; el resto, solo tuyo.", parse_mode="Markdown")
 
 
 async def help_cmd(update, context):
@@ -5041,6 +5072,8 @@ def main():
     app.add_handler(CommandHandler("invitar", invitar_cmd))
     app.add_handler(CommandHandler("familia", invitar_cmd))
     app.add_handler(CommandHandler("vincular", vincular_cmd))
+    app.add_handler(CommandHandler("compartirtodo", compartirtodo_cmd))
+    app.add_handler(CommandHandler("privadotodo", privadotodo_cmd))
     app.add_handler(CommandHandler("buscar", buscar_cmd))
     app.add_handler(CommandHandler("tx", tx_cmd))
     app.add_handler(CommandHandler("resumen", resumen_cmd))
