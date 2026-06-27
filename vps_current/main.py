@@ -403,7 +403,8 @@ def init_db():
                   ("wa_id", "TEXT"),
                   ("household_id", "INTEGER"),
                   ("link_code", "TEXT"),
-                  ("link_code_exp", "TEXT")],
+                  ("link_code_exp", "TEXT"),
+                  ("cal_token", "TEXT")],
         "accounts": [("preferred_fx_rate", "TEXT"), ("closing_day", "INTEGER"), ("due_day", "INTEGER")],
         "recordatorios": [("recurrence", "TEXT"), ("list_id", "INTEGER"), ("event_id", "INTEGER")],
         "transactions": [("is_shared", "INTEGER DEFAULT 0")],
@@ -439,6 +440,7 @@ def init_db():
             _existing_codes.add(_code)
             conn.execute("UPDATE users SET referral_code=? WHERE id=?", (_code, _uid))
         conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_refcode ON users(referral_code)")
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_cal_token ON users(cal_token)")
     # Aislamiento por hogar (multi-inquilino). La pareja (ALLOWED_USER_IDS) comparte el hogar 1;
     # cualquier otro usuario = su propio hogar (household_id = su id). Idempotente.
     if "household_id" in [r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()]:
