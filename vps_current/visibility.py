@@ -13,7 +13,7 @@ def where(asker_id, scope_uid, members, alias="t", owner_col="user_id", shared_e
     `shared_expr`: SQL booleano que indica que la fila esta compartida (sin params). Para
     items: f"{alias}.shared=1". Para transacciones: subquery de cuentas compartidas.
     """
-    o = f"{alias}.{owner_col}"
+    o = f"{alias}.{owner_col}" if alias else owner_col
     sa = f"{o} IN (SELECT id FROM users WHERE share_all=1)"
     shared = f"({shared_expr} OR {sa})" if shared_expr else f"({sa})"
     if scope_uid is not None and scope_uid == asker_id:

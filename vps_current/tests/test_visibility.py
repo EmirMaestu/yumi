@@ -72,3 +72,13 @@ def test_cross_household_never():
     c.execute("INSERT INTO eventos(id,user_id,shared) VALUES (300,3,1)")
     frag, p = visibility.where(asker_id=1, scope_uid=None, members=_members(c,1), alias="e", shared_expr="e.shared=1")
     assert 300 not in _ids(c, "eventos", "e", frag, p)
+
+
+def test_bare_alias_no_prefix():
+    # alias="" -> referencias sin prefijo (user_id, shared), como en `FROM eventos` sin alias
+    c = _db()
+    c.execute("UPDATE eventos SET shared=1 WHERE id=202")
+    frag, p = visibility.where(asker_id=1, scope_uid=None, members=_members(c,1), alias="", shared_expr="shared=1")
+    assert "e.user_id" not in frag and "user_id" in frag
+    ids = sorted(r[0] for r in c.execute(f"SELECT id FROM eventos WHERE {frag}", p))
+    assert ids == [200, 201, 202]
