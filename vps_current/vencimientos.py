@@ -30,6 +30,21 @@ def _shift_month(d: date, n: int) -> date:
     return date(y, m, _safe_day(y, m, d.day))
 
 
+def _venc_para_cierre(cierre_date, closing_day, due_day):
+    """Fecha de vencimiento del resumen que cierra en `cierre_date`.
+    Si el dia de vencimiento es MAYOR al de cierre -> vence el MISMO mes
+    (ej. cierre 2 / venc 13 -> cierra 02/03, vence 13/03).
+    Si es menor o igual -> vence el mes SIGUIENTE (ej. cierre 28 / venc 5)."""
+    cd = max(1, min(31, closing_day or 1))
+    dd = max(1, min(31, due_day or 10))
+    if dd > cd:
+        vy, vm = cierre_date.year, cierre_date.month
+    else:
+        vy = cierre_date.year + (1 if cierre_date.month == 12 else 0)
+        vm = 1 if cierre_date.month == 12 else cierre_date.month + 1
+    return date(vy, vm, _safe_day(vy, vm, dd))
+
+
 def proximo_cierre_y_vencimiento(closing_day, due_day, today=None):
     """
     Para una tarjeta con dia de cierre y vencimiento, devuelve:
@@ -57,13 +72,11 @@ def proximo_cierre_y_vencimiento(closing_day, due_day, today=None):
         nm = 1 if today.month == 12 else today.month + 1
         next_closing = date(ny, nm, _safe_day(ny, nm, cd))
 
-    # vencimiento del cierre anterior: mes siguiente al cierre, dia=due_day
-    venc_y = last_closing.year + (1 if last_closing.month == 12 else 0)
-    venc_m = 1 if last_closing.month == 12 else last_closing.month + 1
-    next_due = date(venc_y, venc_m, _safe_day(venc_y, venc_m, dd))
-    # si ya pasó, avanzamos un mes mas
+    # vencimiento del resumen cerrado (last_closing): mismo mes o siguiente segun los dias
+    next_due = _venc_para_cierre(last_closing, cd, dd)
+    # si ya pasó, el proximo pago es el vencimiento del proximo cierre
     if next_due < today:
-        next_due = _shift_month(next_due, 1)
+        next_due = _venc_para_cierre(next_closing, cd, dd)
 
     return last_closing, next_closing, next_due
 
@@ -84,6 +97,17 @@ def proxima_fecha_para_cuota(closing_day, purchase_date=None):
     ny = purchase_date.year + (1 if purchase_date.month == 12 else 0)
     nm = 1 if purchase_date.month == 12 else purchase_date.month + 1
     return date(ny, nm, _safe_day(ny, nm, cd))
+
+
+def venc_de_cuota(closing_day, due_day, purchase_date=None):
+    """Fecha de VENCIMIENTO en la que se paga una compra en cuotas hecha en `purchase_date`.
+    = vencimiento del cierre donde postea la compra (misma convencion que el modulo:
+    el vencimiento cae el due_day del mes siguiente al cierre). None si falta algun dato.
+    Usar para setear `next_occurrence` de cuotas de tarjeta."""
+    if not closing_day or not due_day:
+        return None
+    cierre = proxima_fecha_para_cuota(closing_day, purchase_date)
+    return _venc_para_cierre(cierre, closing_day, due_day)
 
 
 def calcular_vencimiento(db_path, account_row, today=None):
@@ -110,15 +134,18 @@ def calcular_vencimiento(db_path, account_row, today=None):
     cycle_start = prev_prev + timedelta(days=1)
 
     conn = sqlite3.connect(db_path); conn.row_factory = sqlite3.Row
+    # OJO: excluimos las transacciones generadas por recurrentes (recurring_id IS NOT NULL):
+    # las cuotas/suscripciones se cuentan UNA sola vez vía el plan (recurrenteMensual en
+    # el front), no como transacción del ciclo. Si no, se duplicaban.
     rows = conn.execute(
         "SELECT currency, SUM(amount) AS s FROM transactions "
-        "WHERE account_id=? AND type='gasto' AND DATE(occurred_at) BETWEEN ? AND ? "
+        "WHERE account_id=? AND type='gasto' AND recurring_id IS NULL AND DATE(occurred_at) BETWEEN ? AND ? "
         "GROUP BY currency",
         (account_row["id"], cycle_start.isoformat(), last_closing.isoformat())).fetchall()
     # gastos que caen en el ciclo ACTUAL (todavia abierto, vencen al siguiente)
     rows_open = conn.execute(
         "SELECT currency, SUM(amount) AS s FROM transactions "
-        "WHERE account_id=? AND type='gasto' AND DATE(occurred_at) BETWEEN ? AND ? "
+        "WHERE account_id=? AND type='gasto' AND recurring_id IS NULL AND DATE(occurred_at) BETWEEN ? AND ? "
         "GROUP BY currency",
         (account_row["id"], (last_closing + timedelta(days=1)).isoformat(),
          next_closing.isoformat())).fetchall()

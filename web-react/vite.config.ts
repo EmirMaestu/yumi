@@ -33,6 +33,8 @@ export default defineConfig({
         // SW scope is /app/, so /api, /login, /logout are never intercepted
         navigateFallback: '/app/index.html',
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        // Handlers de push (notificaciones). push-sw.js está en public/ → /app/push-sw.js
+        importScripts: ['push-sw.js'],
       },
       devOptions: { enabled: false },
     }),

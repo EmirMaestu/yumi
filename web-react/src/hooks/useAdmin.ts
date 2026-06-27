@@ -34,6 +34,7 @@ interface UserPatch {
   id: number
   plan?: string
   active?: boolean
+  name?: string
 }
 
 export function useAdminUserMutations() {

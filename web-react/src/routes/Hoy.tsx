@@ -10,6 +10,7 @@ import { formatMoney, cleanReminderText } from '../lib/format'
 import { type HoyItem } from '../lib/types'
 import Card from '../components/ui/Card'
 import EmptyState from '../components/ui/EmptyState'
+import InstallNotifyBanner from '../components/InstallNotifyBanner'
 
 // --- Date header ---
 function todayLabel(): string {
@@ -111,6 +112,11 @@ export default function Hoy() {
         <div style={{ fontSize: 14, color: 'var(--color-sage)', marginTop: 4, textTransform: 'capitalize' }}>
           {todayLabel()}
         </div>
+      </section>
+
+      {/* Instalar app + activar notificaciones */}
+      <section style={{ padding: '0 18px 16px' }}>
+        <InstallNotifyBanner />
       </section>
 
       {/* Tu día */}

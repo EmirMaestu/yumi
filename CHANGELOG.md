@@ -5,6 +5,33 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 > Regla: cada tanda de features = bump de versión (MINOR), entrada en este archivo, tag de git (`vX.Y.Z`) y redeploy. `1.0.0` = lanzamiento del **asistente completo** (no solo finanzas).
 
 ## [Unreleased]
+### Added
+- **Recordatorios por WhatsApp: aviso "en desarrollo" + salida.** Cuando un usuario de WhatsApp (sin Telegram vinculado) crea un recordatorio, el bot guarda el recordatorio y le avisa que los avisos por WhatsApp están en desarrollo, ofreciéndole **(a)** instalar la web y activar notificaciones, o **(b)** un **link de Telegram que vincula las cuentas al instante** (`t.me/<bot>?start=link_<código>`). Nuevo deep-link `link_` en `start_cmd` + `link_telegram_via_code` (vincula la cuenta de WhatsApp al telegram_id que abre el link).
+- **Renombrar usuarios desde el panel admin** (botón ✏️ junto al nombre) — útil para los que entran por WhatsApp sin nombre de perfil (quedaban como "Usuario"). `PATCH /api/admin/users/{id}` ahora acepta `name`.
+
+### Fixed
+- **El bot frenaba a TODOS tras pocos mensajes (tope global).** El tope diario global era US$5 y una sola búsqueda de precios lo había superado (US$6.79) → el `cost_gate` bloqueaba a cualquiera ("llegamos al límite de hoy"), sin registrar su uso (de ahí "0 msj hoy") y **sin importar su plan** (por eso cambiar a "pareja" no destrababa). Se subió el tope a **US$15** (la búsqueda de precios ya está apagada, que era la causa) → destrabado.
+
+### Added
+- **Notificaciones push en la web (PWA).** La app instalada ahora puede recibir **notificaciones del navegador** (Web Push / VAPID, sin costo). Nuevo módulo `push_notify.py`, tabla `push_subscriptions`, endpoints `/api/push/{vapid-public-key,subscribe,unsubscribe,test}` y handlers `push`/`notificationclick` en el service worker. En iPhone requiere instalar la app primero (iOS 16.4+).
+- **Avisos de vencimiento también por push.** El job diario que ya avisaba por **Telegram** los vencimientos de tarjeta y recurrentes (3 y 1 días antes, `payment_calendar_daily`) ahora **también manda push web** a quien lo tenga activado.
+- **Banner "Instalá Yumi / Activá notificaciones"** en la home: botón real de instalar (Android/escritorio), instrucciones para iPhone, y activar notificaciones. Descartable. **Aclara que en iPhone la instalación es solo desde Safari** (no Brave/Chrome — iOS reserva "Agregar a inicio" a Safari). Guía completa en [docs/guia-instalar-app.md](docs/guia-instalar-app.md).
+
+### Fixed
+- **Vencimiento mal calculado en tarjetas con cierre temprano y vencimiento más tarde en el mes.** El cálculo asumía *siempre* "vencimiento = mes siguiente al cierre". Ahora: si el día de vencimiento es **mayor** al de cierre, vence el **mismo mes** (ej. cierre 2 / venc 13 → cierra 02/03, vence 13/03); si es menor o igual, el mes siguiente (ej. cierre 28 / venc 5). Centralizado en `_venc_para_cierre` (afecta `/vencimientos` y las cuotas). Se corrigieron las 7 cuotas de Santander/Amex que habían quedado un mes tarde.
+
+### Changed
+- **Búsqueda de precios online: interruptor para apagarla.** Es la función más cara del bot (web search + mucho texto). Nuevo flag `PRECIO_ENABLED` en el `.env` (default prendido). Apagada (`PRECIO_ENABLED=0`), el bot responde "temporalmente deshabilitada" en vez de buscar. El resumen semanal (`digest`, costo ~0) queda activo.
+
+### Fixed
+- **Las cuotas de tarjeta ahora caen en el VENCIMIENTO, no en el cierre.** Antes una cuota se "cobraba" el día de cierre de la tarjeta (ej. Naranja X cierre 27) cuando la plata recién sale en el vencimiento (~día 10). Ahora la cuota se programa y figura en "Hoy" en la fecha de vencimiento del resumen donde postea la compra (foto de cuotas + alta por texto). Si la tarjeta no tiene vencimiento cargado, se mantiene el cierre. **Se migraron las 9 cuotas activas** que estaban fechadas en el cierre. *(Requiere `due_day` en la tarjeta.)*
+- **Doble conteo de recurrentes en el "a pagar" de tarjetas — corregido.** Las cuotas/suscripciones se contaban dos veces (como transacción del ciclo **y** como plan). Ahora el cálculo del ciclo (`calcular_vencimiento`) **excluye** las transacciones generadas por recurrentes (`recurring_id`), y las cuotas se cuentan una sola vez vía el plan — tal como el front ya asumía. Efecto: las cuotas pasan a verse en "ciclo en curso" y dejan de inflar "a pagar ahora".
+- **Costos del admin: el gasto por persona no sumaba el total.** Las búsquedas de precio (`precio`, web search) y el resumen diario (`digest`) se registraban con `user_id` nulo → contaban en el "tope global" y "uso por modelo" pero en la tarjeta de nadie (este mes: US$6,65 de US$7,63 estaban sin asignar, 87%). Ahora se **atribuyen al usuario** que las dispara.
+
+### Changed
+- **Costo del web search acotado.** La búsqueda de precios pasó a **Haiku** (más barato), con **`max_uses: 3`** en la herramienta `web_search` y el loop de `pause_turn` limitado, para que una sola consulta no dispare la cuenta (una búsqueda llegó a costar **US$6,65 / ~2,1M tokens de entrada** en Sonnet).
+- **La estimación de costo ahora incluye el cargo del `web_search`** (~US$10/1000 búsquedas, que va aparte de los tokens) para acercarse a la factura real de la API.
+- **Panel admin → fila "Sistema (sin usuario)"** con el costo no atribuible (búsquedas/digest), para que *por-usuario + sistema = total*.
 
 ## [0.10.0] - 2026-06-27
 ### Security

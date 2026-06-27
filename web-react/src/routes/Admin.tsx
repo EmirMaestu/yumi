@@ -101,6 +101,14 @@ export default function Admin() {
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 15, fontWeight: 500 }}>
                   {u.name}
+                  <button
+                    onClick={() => {
+                      const nuevo = window.prompt('Nuevo nombre para este usuario:', u.name)
+                      if (nuevo && nuevo.trim() && nuevo.trim() !== u.name) update.mutate({ id: u.id, name: nuevo.trim() })
+                    }}
+                    title="Renombrar"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, marginLeft: 6, opacity: 0.6 }}
+                  >✏️</button>
                   {u.is_admin && <span style={badge}>admin</span>}
                   {!u.active && <span style={{ ...badge, background: 'var(--color-mist)', color: 'var(--color-sage)' }}>inactivo</span>}
                 </div>
@@ -128,6 +136,21 @@ export default function Admin() {
             </div>
           </Card>
         ))}
+        {o && o.cost_month_system > 0 && (
+          <Card style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, background: 'var(--color-linen)' }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 500 }}>
+                Sistema
+                <span style={{ ...badge, background: 'var(--color-mist)', color: 'var(--color-sage)' }}>sin usuario</span>
+              </div>
+              <div style={{ fontSize: 12.5, color: 'var(--color-sage)' }}>búsquedas de precio, resumen diario…</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 13, fontWeight: 500 }}>{fmtUsd(o.cost_month_system)}</div>
+              <div style={{ fontSize: 11.5, color: 'var(--color-sage)' }}>este mes</div>
+            </div>
+          </Card>
+        )}
       </div>
 
       {/* ── Familias ── */}

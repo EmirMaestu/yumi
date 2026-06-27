@@ -324,6 +324,49 @@ def logout(session: str = Cookie(None)):
     return resp
 
 
+# ─── Push web (notificaciones) ─────────────────────────────────────────────
+@app.get("/api/push/vapid-public-key")
+def push_vapid_key():
+    return {"key": os.environ.get("VAPID_PUBLIC_KEY", "")}
+
+
+@app.post("/api/push/subscribe")
+def push_subscribe(body: dict = Body(...), user=Depends(require_user)):
+    sub = body.get("subscription") or body
+    endpoint = sub.get("endpoint")
+    keys = sub.get("keys") or {}
+    p256dh = keys.get("p256dh"); auth = keys.get("auth")
+    if not endpoint or not p256dh or not auth:
+        raise HTTPException(400, "Suscripción inválida")
+    with db() as conn:
+        conn.execute(
+            "INSERT INTO push_subscriptions(user_id, endpoint, p256dh, auth) VALUES (?,?,?,?) "
+            "ON CONFLICT(endpoint) DO UPDATE SET user_id=excluded.user_id, p256dh=excluded.p256dh, auth=excluded.auth",
+            (user["id"], endpoint, p256dh, auth))
+        conn.commit()
+    return {"ok": True}
+
+
+@app.post("/api/push/unsubscribe")
+def push_unsubscribe(body: dict = Body(...), user=Depends(require_user)):
+    endpoint = body.get("endpoint") or ""
+    with db() as conn:
+        conn.execute("DELETE FROM push_subscriptions WHERE endpoint=? AND user_id=?", (endpoint, user["id"]))
+        conn.commit()
+    return {"ok": True}
+
+
+@app.post("/api/push/test")
+def push_test(user=Depends(require_user)):
+    try:
+        import push_notify
+        with db() as conn:
+            n = push_notify.send_to_user(conn, [user["id"]], "🔔 Yumi", "¡Las notificaciones funcionan!", "/app/")
+        return {"ok": True, "sent": n}
+    except Exception as e:
+        raise HTTPException(500, f"push falló: {e}")
+
+
 @app.get("/api/me")
 def api_me(user=Depends(require_user), scope: str = Cookie("mine")):
     members = set(_household_member_ids(user["id"]))  # solo mi hogar (aislamiento)
@@ -352,6 +395,7 @@ def api_admin_overview(user=Depends(require_admin)):
     out = {
         "users_total": 0, "users_active": 0,
         "cost_today": 0.0, "cost_month": 0.0,
+        "cost_today_system": 0.0, "cost_month_system": 0.0,
         "msgs_today": 0, "calls_today": 0,
         "by_model": [], "by_kind": [],
         "caps": {"daily_global_usd": DAILY_GLOBAL_CAP_USD, "free_daily_msgs": FREE_DAILY_MSGS},
@@ -368,6 +412,9 @@ def api_admin_overview(user=Depends(require_admin)):
             q = lambda sql: conn.execute(sql).fetchone()[0]
             out["cost_today"] = q("SELECT COALESCE(SUM(cost_usd),0) FROM api_usage WHERE date(created_at)=date('now')")
             out["cost_month"] = q("SELECT COALESCE(SUM(cost_usd),0) FROM api_usage WHERE strftime('%Y-%m',created_at)=strftime('%Y-%m','now')")
+            # Costo NO atribuible a un usuario (búsquedas de precio, digest, etc.) → fila "Sistema".
+            out["cost_today_system"] = q("SELECT COALESCE(SUM(cost_usd),0) FROM api_usage WHERE user_id IS NULL AND date(created_at)=date('now')")
+            out["cost_month_system"] = q("SELECT COALESCE(SUM(cost_usd),0) FROM api_usage WHERE user_id IS NULL AND strftime('%Y-%m',created_at)=strftime('%Y-%m','now')")
             out["msgs_today"] = q("SELECT COUNT(*) FROM api_usage WHERE kind='parser' AND date(created_at)=date('now')")
             out["calls_today"] = q("SELECT COUNT(*) FROM api_usage WHERE date(created_at)=date('now')")
             out["by_model"] = [dict(r) for r in conn.execute(
@@ -410,6 +457,10 @@ def api_admin_users(user=Depends(require_admin)):
 @app.patch("/api/admin/users/{uid}")
 def api_admin_user_update(uid: int, body: dict = Body(...), user=Depends(require_admin)):
     sets, vals = [], []
+    if "name" in body:
+        nm = (body.get("name") or "").strip()
+        if not nm: raise HTTPException(400, "Nombre vacío")
+        sets.append("name=?"); vals.append(nm[:60])
     if "plan" in body:
         plan = (body.get("plan") or "free").strip().lower()
         if plan not in ("free", "pareja", "pro"): raise HTTPException(400, "Plan inválido")

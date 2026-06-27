@@ -26,6 +26,8 @@ export interface AdminOverview {
   users_active: number
   cost_today: number
   cost_month: number
+  cost_today_system: number
+  cost_month_system: number
   msgs_today: number
   calls_today: number
   by_model: AdminModelRow[]

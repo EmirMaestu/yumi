@@ -115,6 +115,10 @@ def _log_usage(resp, user_id, model, kind):
         cw = getattr(u, "cache_creation_input_tokens", 0) or 0
         p = _PRICING.get(model, _PRICING_DEFAULT)
         cost = (it * p["in"] + ot * p["out"] + cr * p["in"] * 0.1 + cw * p["in"] * 1.25) / 1_000_000
+        # Cargo aparte del web_search (no son tokens): ~US$10 / 1000 búsquedas.
+        st = getattr(u, "server_tool_use", None)
+        ws = (getattr(st, "web_search_requests", 0) or 0) if st else 0
+        cost += ws * 0.01
         conn = sqlite3.connect(DB_PATH)
         conn.execute(
             "INSERT INTO api_usage(user_id,model,kind,input_tokens,output_tokens,cache_read,cache_write,cost_usd) "
@@ -127,6 +131,9 @@ def _log_usage(resp, user_id, model, kind):
 # ── Controles de costo ────────────────────────────────────────────────────────
 DAILY_GLOBAL_CAP_USD = float(os.environ.get("DAILY_GLOBAL_CAP_USD", "5") or 5)
 FREE_DAILY_MSGS = int(os.environ.get("FREE_DAILY_MSGS", "15") or 15)
+# Búsqueda de precios online (web_search): es lo más caro del bot. Se puede apagar
+# con PRECIO_ENABLED=0 en el .env (default: prendido).
+PRECIO_ENABLED = (os.environ.get("PRECIO_ENABLED", "1") or "1").strip().lower() not in ("0", "false", "no", "off")
 
 # ── Planes (límites por plan; los beneficios aplican al HOGAR, no al usuario) ──
 PLAN_RANK = {"free": 0, "pareja": 1, "pro": 2}
@@ -375,6 +382,13 @@ def init_db():
             created_at TEXT NOT NULL DEFAULT (datetime('now')));
         CREATE INDEX IF NOT EXISTS idx_api_usage_created ON api_usage(created_at);
         CREATE INDEX IF NOT EXISTS idx_api_usage_user ON api_usage(user_id, created_at);
+        CREATE TABLE IF NOT EXISTS push_subscriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            endpoint TEXT NOT NULL UNIQUE,
+            p256dh TEXT NOT NULL, auth TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')));
+        CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(user_id);
     """)
     for tbl in ("accounts","transactions","recurring","eventos","recordatorios","tareas","habito_logs","notas"):
         cols = [r[1] for r in conn.execute(f"PRAGMA table_info({tbl})").fetchall()]
@@ -610,6 +624,33 @@ def link_whatsapp(code, phone):
     except Exception:
         log.exception("link_whatsapp fallo")
         return False, None
+    finally:
+        conn.close()
+
+def link_telegram_via_code(code, telegram_id):
+    """Vincula una cuenta de WhatsApp (que generó link_code) con un telegram_id real.
+    Para el deep-link t.me/<bot>?start=link_<code> que abre el usuario de WhatsApp en Telegram.
+    Devuelve (ok, name, reason). reason: None | 'invalid' | 'already_telegram'."""
+    if not code or telegram_id is None:
+        return False, None, "invalid"
+    conn = sqlite3.connect(DB_PATH); conn.row_factory = sqlite3.Row
+    try:
+        wa = conn.execute(
+            "SELECT * FROM users WHERE link_code=? AND active=1 "
+            "AND (link_code_exp IS NULL OR link_code_exp >= datetime('now'))", (code.strip().upper(),)).fetchone()
+        if not wa:
+            return False, None, "invalid"
+        existing = conn.execute("SELECT * FROM users WHERE telegram_id=? AND active=1", (telegram_id,)).fetchone()
+        if existing and existing["id"] != wa["id"]:
+            # El que abre ya tiene cuenta de Telegram propia → que use /vincular desde ahí (evita merge riesgoso).
+            return False, existing["name"], "already_telegram"
+        conn.execute("UPDATE users SET telegram_id=?, link_code=NULL, link_code_exp=NULL WHERE id=?",
+                     (telegram_id, wa["id"]))
+        conn.commit()
+        return True, wa["name"], None
+    except Exception:
+        log.exception("link_telegram_via_code fallo")
+        return False, None, "invalid"
     finally:
         conn.close()
 
@@ -1140,11 +1181,16 @@ def save_recurring(r, raw_id, user_id, fire_immediately=True):
         total = r.get("total_installments")
         cuota_str = f" (cuota 1/{total})" if total else ""
         desc_full = r["description"] + cuota_str
-        # Para tarjetas de credito con dia de cierre, la primer cuota se carga
-        # en la fecha del proximo cierre (no hoy).
+        # Para tarjetas de credito con cierre Y vencimiento, la cuota se cobra en el
+        # VENCIMIENTO del cierre donde postea hoy (no el cierre). Si falta el vencimiento,
+        # caemos al cierre como antes.
         _occ_now = now_local()
         _cd = acc.get("closing_day") if acc.get("type") == "credito" else None
-        if total and _cd:
+        _dd = acc.get("due_day") if acc.get("type") == "credito" else None
+        if total and _cd and _dd:
+            _venc = vencimientos.venc_de_cuota(_cd, _dd, _occ_now.date())
+            occurred_at = _venc.strftime("%Y-%m-%dT09:00")
+        elif total and _cd:
             _close = vencimientos.proxima_fecha_para_cuota(_cd, _occ_now.date())
             occurred_at = _close.strftime("%Y-%m-%dT09:00")
         else:
@@ -1158,10 +1204,15 @@ def save_recurring(r, raw_id, user_id, fire_immediately=True):
         if total and 1 >= total:
             conn.execute("UPDATE recurring SET active=0, installments_fired=1 WHERE id=?", (rid,))
         else:
-            base = now_local().date().strftime("%Y-%m-%d")
-            new_next = recurrence.next_occurrence(
-                r.get("frequency", "monthly"), base, r.get("day_of_month"))
-            conn.execute("UPDATE recurring SET next_occurrence=?, installments_fired=1 WHERE id=?", (new_next, rid))
+            if total and _cd and _dd:
+                # próxima cuota = vencimiento del mes siguiente; fijamos day_of_month=vencimiento
+                new_next = recurrence.next_occurrence(r.get("frequency","monthly"), occurred_at[:10], _dd)
+                conn.execute("UPDATE recurring SET next_occurrence=?, day_of_month=?, installments_fired=1 WHERE id=?",
+                             (new_next, _dd, rid))
+            else:
+                base = now_local().date().strftime("%Y-%m-%d")
+                new_next = recurrence.next_occurrence(r.get("frequency", "monthly"), base, r.get("day_of_month"))
+                conn.execute("UPDATE recurring SET next_occurrence=?, installments_fired=1 WHERE id=?", (new_next, rid))
     conn.commit(); conn.close()
     return rid, fired_tx_id
 
@@ -2116,14 +2167,19 @@ async def callback_handler(update, context):
                 return
             cat = get_category_by_name(op.get("category","Otros"))
 
-            # next_occurrence = proximo cierre de la tarjeta
+            # next_occurrence = VENCIMIENTO del cierre donde postea la compra (no el cierre).
             closing_day = acc.get("closing_day")
-            day = closing_day if closing_day else now_local().day
+            due_day = acc.get("due_day")
+            day = due_day or closing_day or now_local().day
             try:
                 import vencimientos as _v
-                if closing_day:
-                    _next = _v.proxima_fecha_para_cuota(closing_day, now_local().date())
-                    next_occ_str = _next.strftime("%Y-%m-%d")
+                if closing_day and due_day:
+                    _venc = _v.venc_de_cuota(closing_day, due_day, now_local().date())
+                    next_occ_str = _venc.strftime("%Y-%m-%d")
+                    day = due_day
+                elif closing_day:  # sin vencimiento cargado, caemos al cierre (como antes)
+                    next_occ_str = _v.proxima_fecha_para_cuota(closing_day, now_local().date()).strftime("%Y-%m-%d")
+                    day = closing_day
                 else:
                     next_occ_str = compute_next_monthly(now_local().strftime("%Y-%m-%d"), day)
             except Exception:
@@ -2147,7 +2203,7 @@ async def callback_handler(update, context):
 
             restantes = n - installments_fired_initial  # cuotas que aun van a caer (la proxima + las siguientes)
             if cuota_actual == 1:
-                explain = (f"   Cuota <b>1/{n}</b> es la próxima — cae el <b>{next_occ_str}</b> (cierre de la tarjeta).\n"
+                explain = (f"   Cuota <b>1/{n}</b> es la próxima — cae el <b>{next_occ_str}</b> (vencimiento de la tarjeta).\n"
                            f"   Quedan {restantes} cuotas en total ({restantes-1} más después).")
             else:
                 explain = (f"   Cuotas 1 a {cuota_actual-1}: asumidas como ya pagadas en meses anteriores.\n"
@@ -2214,6 +2270,39 @@ def each_user():
         return [(r["id"], r["telegram_id"]) for r in
                 c.execute("SELECT id, telegram_id FROM users WHERE active=1").fetchall()]
 
+def _wa_only(update):
+    """True si el usuario llega por WhatsApp sin Telegram vinculado (telegram_id negativo)."""
+    try:
+        return int(update.effective_user.id) < 0
+    except Exception:
+        return False
+
+async def _send_wa_reminder_notice(update):
+    """Avisa a un usuario de WhatsApp que los recordatorios por WA están en desarrollo y le
+    ofrece la web (push) o Telegram con un deep-link que vincula las cuentas al instante."""
+    u = get_user_by_tg(update.effective_user.id)
+    dl = None
+    if u:
+        try:
+            code = gen_referral_code(6).upper()
+            conn = sqlite3.connect(DB_PATH)
+            conn.execute("UPDATE users SET link_code=?, link_code_exp=datetime('now','+1 day') WHERE id=?",
+                         (code, u["id"]))
+            conn.commit(); conn.close()
+            bot_un = os.environ.get("BOT_USERNAME", "").lstrip("@")
+            if bot_un:
+                dl = f"https://t.me/{bot_un}?start=link_{code}"
+        except Exception:
+            log.exception("wa reminder deeplink")
+    msg = ("📌 Lo guardé, pero ojo: los avisos de recordatorios *por WhatsApp* todavía están en "
+           "desarrollo, así que por ahora no te puedo avisar acá cuando llegue la hora.\n\n"
+           "Para recibir el aviso, elegí una:\n"
+           f"• 🌐 Abrí la web, instalala y activá las notificaciones:\n{APP_URL}\n")
+    if dl:
+        msg += ("\n• 📲 O pasate a Telegram — te aviso ahí y te dejo todo vinculado a esta misma "
+                f"cuenta automáticamente:\n{dl}\n\n(El link vale 1 día.)")
+    await update.message.reply_text(msg)
+
 async def on_error(update, context):
     """Error handler global: loguea y avisa al dueno por Telegram (observabilidad sin infra nueva)."""
     log.exception("Error no manejado", exc_info=context.error)
@@ -2263,6 +2352,23 @@ async def post_init(app):
 
 
 async def start_cmd(update, context):
+    code0 = (context.args[0].strip() if getattr(context, "args", None) else "")
+    # Deep-link de vinculación (lo abre un usuario de WhatsApp en Telegram → une las cuentas).
+    if code0.startswith("link_"):
+        ok, name, reason = link_telegram_via_code(code0[5:], update.effective_user.id)
+        if ok:
+            await update.message.reply_text(
+                f"✅ ¡Listo{(' ' + name) if name else ''}! Vinculé tu WhatsApp con Telegram. "
+                "Ahora te aviso los recordatorios por acá y ves lo mismo en los dos lados.")
+        elif reason == "already_telegram":
+            await update.message.reply_text(
+                "Ya tenés una cuenta en Telegram 🙂 Para unirla con tu WhatsApp, "
+                "mandá /vincular acá y seguí los pasos.")
+        else:
+            await update.message.reply_text(
+                "Ese link de vinculación venció o no es válido 😕 Pedí uno nuevo desde WhatsApp "
+                "(mandá «recordame ...» y te paso un link nuevo).")
+        return
     u = get_user_by_tg(update.effective_user.id)
     if u:
         await update.message.reply_text(
@@ -4073,8 +4179,12 @@ async def process_action(update, context, parsed, raw_id):
                 c.execute("UPDATE recordatorios SET recurrence=? WHERE id=?", (rec, rid))
         ok = schedule_reminder(context.application.job_queue, rid, r["text"], r["remind_at"], update.effective_user.id)
         sufijo = {"daily": " · se repite a diario", "weekly": " · se repite semanal", "monthly": " · se repite mensual"}.get(rec, "")
-        if ok: await update.message.reply_text(f"⏰ Te recuerdo: «{r['text']}»\n📅 {fmt_dt(r['remind_at'])}{sufijo}")
-        else: await update.message.reply_text("⚠️ Esa fecha ya paso.")
+        if ok:
+            await update.message.reply_text(f"⏰ Te recuerdo: «{r['text']}»\n📅 {fmt_dt(r['remind_at'])}{sufijo}")
+            if _wa_only(update):
+                await _send_wa_reminder_notice(update)
+        else:
+            await update.message.reply_text("⚠️ Esa fecha ya paso.")
 
     elif intent == "tarea" and parsed.get("tarea"):
         t = parsed["tarea"]; tid = save_tarea(t, raw_id, uid)
@@ -4322,9 +4432,11 @@ async def reminder_watchdog(context):
         log.exception("watchdog")
 
 
-PRICE_TOOL = [{"type": "web_search_20260209", "name": "web_search"}]
+# max_uses acota cuántas búsquedas hace Claude por consulta (control de costo:
+# cada búsqueda re-ingesta resultados y dispara los tokens de entrada).
+PRICE_TOOL = [{"type": "web_search_20260209", "name": "web_search", "max_uses": 3}]
 
-def _price_search(query):
+def _price_search(query, user_id=None):
     """Compara precios online via web search de Claude. Sync -> correr con asyncio.to_thread."""
     msgs = [{"role": "user", "content":
         f"Buscá en la web precios actuales en PESOS ARGENTINOS de: {query}. "
@@ -4333,9 +4445,10 @@ def _price_search(query):
         f"Devolve una linea por tienda con '<tienda>: $<precio>' y al final marcá la mas barata. "
         f"Se conciso, SIN tablas markdown. Aclará en una linea que son precios de referencia."}]
     r = None
-    for _ in range(4):
-        r = anthropic_client.messages.create(model=MODEL_SMART, max_tokens=1024, tools=PRICE_TOOL, messages=msgs)
-        _log_usage(r, None, MODEL_SMART, "precio")
+    # Haiku (más barato) + máx 3 vueltas de pause_turn; el costo se atribuye al usuario.
+    for _ in range(3):
+        r = anthropic_client.messages.create(model=MODEL, max_tokens=1024, tools=PRICE_TOOL, messages=msgs)
+        _log_usage(r, user_id, MODEL, "precio")
         if r.stop_reason == "pause_turn":
             msgs = [msgs[0], {"role": "assistant", "content": r.content}]
             continue
@@ -4344,12 +4457,17 @@ def _price_search(query):
     return txt or "No encontré precios para eso 😕"
 
 async def handle_precio_intent(update, context, data):
+    if not PRECIO_ENABLED:
+        await update.message.reply_text(
+            "🔧 La búsqueda de precios online está temporalmente deshabilitada "
+            "(la estamos ajustando para que no consuma tanto). Probá más tarde 🙏")
+        return
     query = (data.get("query") or "").strip()
     if not query:
         await update.message.reply_text("¿Precio de qué? Ej: «cuánto está el aceite Natura 1.5L»"); return
     notice = await update.message.reply_text(f"🔎 Buscando precios de «{query}»… (unos segundos)")
     try:
-        res = await asyncio.to_thread(_price_search, query)
+        res = await asyncio.to_thread(_price_search, query, current_user_id(update))
     except Exception:
         log.exception("precio")
         await notice.edit_text("No pude buscar precios ahora 🔌 Probá en un rato."); return
@@ -4633,7 +4751,9 @@ def _pay_button(push_item):
 
 async def payment_calendar_daily(context):
     try:
+        import push_notify
         today = now_local().date()
+        pconn = sqlite3.connect(DB_PATH); pconn.row_factory = sqlite3.Row
         for uid, tg in each_user():
             recs = _recurrings_for_calendar(uid)
             cards = _cards_due_for_calendar(uid, today)
@@ -4641,6 +4761,12 @@ async def payment_calendar_daily(context):
             for p in proactive.due_pushes_for(items, lead_days=(3, 1)):
                 kb = _pay_button(p) if p["kind"] == "card" else None
                 await notify_user(context.application, tg, p["text"], reply_markup=kb)
+                try:  # mismo aviso por push web (si el usuario lo activó)
+                    url = "/app/tarjetas" if p.get("kind") == "card" else "/app/"
+                    push_notify.send_to_user(pconn, [uid], "💳 Pago próximo", p["text"], url)
+                except Exception:
+                    log.exception("payment push uid=%s", uid)
+        pconn.close()
     except Exception:
         log.exception("payment_calendar_daily")
 
@@ -4806,7 +4932,7 @@ DIGEST_WEEKDAY_DEFAULT = 0   # lunes
 DIGEST_HOUR = 9
 
 
-def _digest_prose(facts):
+def _digest_prose(facts, user_id=None):
     """LLM escribe un parrafo humano. Fallback determinista si falla."""
     try:
         resp = anthropic_client.messages.create(
@@ -4816,7 +4942,7 @@ def _digest_prose(facts):
                     "a partir de estos hechos. Menciona las categorias top, cualquier anomalia, "
                     "y cerra con UN consejo concreto. Montos en ARS. Maximo 4 oraciones."),
             messages=[{"role": "user", "content": json.dumps(facts, ensure_ascii=False)}])
-        _log_usage(resp, None, MODEL_SMART, "digest")
+        _log_usage(resp, user_id, MODEL_SMART, "digest")
         for block in resp.content:
             if getattr(block, "type", None) == "text" and block.text.strip():
                 return block.text.strip()
@@ -4855,7 +4981,7 @@ async def weekly_digest(context):
                 [{"category": r["category"], "currency": r["currency"],
                   "total": r["total"], "n": r["n"]} for r in prev],
                 viars)
-            prose = _digest_prose(facts)
+            prose = _digest_prose(facts, user_id)
             await notify_user(context.application, telegram_id, "🗓️ Resumen de la semana\n\n" + prose)
     except Exception:
         log.exception("weekly_digest fallo")
