@@ -8,6 +8,7 @@ export interface Me {
   scope: string
   others: { name: string; scope_value: string }[]
   is_admin?: boolean
+  share_all?: boolean
 }
 
 export interface AdminModelRow {
@@ -104,6 +105,7 @@ export interface Account {
   active: number
   closing_day?: number | null
   due_day?: number | null
+  shared?: number
   balances?: Balance[]
 }
 

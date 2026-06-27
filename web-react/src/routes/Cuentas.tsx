@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { apiPost } from '../lib/api'
 import { useAccountsWithBalances, useAccountMutations } from '../hooks/useAccounts'
 import { useRecurring } from '../hooks/useRecurring'
 import { type Account } from '../lib/types'
@@ -24,6 +26,11 @@ export default function Cuentas() {
   const { data, isLoading } = useAccountsWithBalances()
   const recurring = useRecurring()
   const { remove } = useAccountMutations()
+  const qc = useQueryClient()
+  const toggleShared = async (a: Account) => {
+    await apiPost('/api/share', { entity: 'accounts', id: a.id, shared: a.shared ? 0 : 1 })
+    qc.invalidateQueries()
+  }
 
   const [createOpen, setCreateOpen] = useState(false)
   const [editAccount, setEditAccount] = useState<Account | null>(null)
@@ -52,8 +59,12 @@ export default function Cuentas() {
             />
           </div>
           {/* Secondary meta below name */}
-          <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span className="cap" style={{ fontSize: 10.5 }}>{TYPE_LABEL[a.type] ?? a.type}</span>
+            <button onClick={() => toggleShared(a)} title="Privada solo vos / Compartida con tu pareja"
+              style={a.shared ? sharedPill : privatePill}>
+              {a.shared ? '👥 Compartida' : '🔒 Privada'}
+            </button>
           </div>
 
           {a.type === 'credito' ? (
@@ -133,6 +144,13 @@ const ghostBtn: React.CSSProperties = {
   padding: '7px 14px',
   fontSize: 13,
   cursor: 'pointer',
+}
+const privatePill: React.CSSProperties = {
+  background: 'var(--color-mist)', color: 'var(--color-sage)', border: 'none',
+  borderRadius: 9999, padding: '2px 8px', fontSize: 10.5, cursor: 'pointer', font: 'inherit',
+}
+const sharedPill: React.CSSProperties = {
+  ...privatePill, background: 'var(--color-voltage)', color: 'var(--voltage-on-dark)',
 }
 const adjustBtn: React.CSSProperties = {
   background: 'transparent',
