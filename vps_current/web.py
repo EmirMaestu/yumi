@@ -473,6 +473,7 @@ def api_me(user=Depends(require_user), scope: str = Cookie("mine")):
         "scope": scope or "mine",
         "others": [{"name": u["name"], "scope_value": f"user:{u['name']}"} for u in other],
         "is_admin": is_admin(user),
+        "share_all": bool(user["share_all"]) if "share_all" in user.keys() else False,
     }
 
 
@@ -862,10 +863,9 @@ def api_overview(user=Depends(require_user), scope: str = Cookie("mine")):
     mes_ini = now.strftime("%Y-%m-01")
     nowstr = now.strftime("%Y-%m-%dT%H:%M")
     uf_t, uf_p = user_filter(scope, user, "t")
-    uf_x, uf_xp = user_filter_eq(scope, user, "user_id")
+    uf_x, uf_xp = vis_filter_item(scope, user)
     scope_uid = resolve_scope_uid(scope, user)
-    acc_filter = "" if scope_uid is None else "AND user_id=?"
-    acc_params = [] if scope_uid is None else [scope_uid]
+    acc_filter, acc_params = vis_filter_item(scope, user)  # cuentas: visibilidad por `shared` (accounts tiene la columna)
 
     with db() as conn:
         accounts = [dict(r) for r in conn.execute(
@@ -881,8 +881,8 @@ def api_overview(user=Depends(require_user), scope: str = Cookie("mine")):
             if a['type'] == 'credito':
                 pendientes = conn.execute(
                     f"SELECT id, amount, currency, description, total_installments, installments_fired "
-                    f"FROM recurring WHERE active=1 AND account_id=? {acc_filter}",
-                    [a['id']] + acc_params).fetchall()
+                    f"FROM recurring WHERE active=1 AND account_id=?",
+                    [a['id']]).fetchall()
                 cuotas_pendientes = []
                 for r in pendientes:
                     total = r['total_installments']
@@ -928,10 +928,9 @@ def api_overview2(user=Depends(require_user), scope: str = Cookie("mine")):
     hoy = now.strftime("%Y-%m-%d")
     blue = get_dolar_rate("blue") or 0
     uf_t, uf_p = user_filter(scope, user, "t")
-    uf_x, uf_xp = user_filter_eq(scope, user, "user_id")
+    uf_x, uf_xp = vis_filter_item(scope, user)
     scope_uid = resolve_scope_uid(scope, user)
-    acc_filter = "" if scope_uid is None else "AND user_id=?"
-    acc_params = [] if scope_uid is None else [scope_uid]
+    acc_filter, acc_params = vis_filter_item(scope, user)  # cuentas: visibilidad por `shared` (accounts tiene la columna)
 
     def ars(amount, currency):
         return amount * (blue if currency in ("USD","EUR") and blue else 1)
@@ -1038,11 +1037,8 @@ def api_accounts(include_inactive: bool = False, user=Depends(require_user), sco
         params = []
         conds = []
         if not include_inactive: conds.append("active=1")
-        if scope_uid is not None:
-            conds.append("user_id=?"); params.append(scope_uid)
-        else:  # "ambos" = mi hogar (no global)
-            _m = _household_member_ids(user["id"])
-            conds.append(f"user_id IN ({','.join('?' for _ in _m)})"); params.extend(_m)
+        _vf, _vp = vis_filter_item(scope, user)  # cuentas visibles: propias + compartidas + share_all del dueño
+        conds.append(_vf[4:]); params.extend(_vp)  # _vf empieza con "AND "; acá va como una condición más
         if conds: base += " WHERE " + " AND ".join(conds)
         base += " ORDER BY active DESC, name" if include_inactive else " ORDER BY name"
         rows = conn.execute(base, params).fetchall()
@@ -1072,6 +1068,7 @@ def api_acc_update(aid: int, body: dict = Body(...), user=Depends(require_user))
         for k in ("name","type","color","icon","closing_day","due_day"):
             if k in body: fields.append(f"{k}=?"); params.append(body[k])
         if "active" in body: fields.append("active=?"); params.append(1 if body["active"] else 0)
+        if "shared" in body: fields.append("shared=?"); params.append(1 if body["shared"] else 0)
         if not fields: raise HTTPException(400, "Sin cambios")
         params.append(aid)
         conn.execute(f"UPDATE accounts SET {', '.join(fields)} WHERE id=?", params); conn.commit()
@@ -1090,6 +1087,33 @@ def api_acc_delete(aid: int, user=Depends(require_user)):
             return {"ok": True, "archived": True}
         conn.execute("DELETE FROM accounts WHERE id=?", (aid,)); conn.commit()
     return {"ok": True}
+
+
+# ─── Privacidad: compartir ítems / interruptor maestro ─────────────────────
+@app.post("/api/share")
+def api_set_shared(body: dict = Body(...), user=Depends(require_user)):
+    """Marca un ítem como compartido (1) o privado (0). SOLO el dueño puede cambiarlo."""
+    entity = (body.get("entity") or "").strip()
+    iid = body.get("id")
+    shared = 1 if body.get("shared") else 0
+    if entity not in ("eventos", "tareas", "notas", "recordatorios", "accounts", "lists"):
+        raise HTTPException(400, "entity inválida")
+    owner_col = "owner_user_id" if entity == "lists" else "user_id"
+    with db() as conn:
+        row = conn.execute(f"SELECT {owner_col} AS o FROM {entity} WHERE id=?", (iid,)).fetchone()
+        if not row: raise HTTPException(404, "No existe")
+        if row["o"] != user["id"]: raise HTTPException(403, "No es tuyo")
+        conn.execute(f"UPDATE {entity} SET shared=? WHERE id=?", (shared, iid)); conn.commit()
+    return {"ok": True, "shared": shared}
+
+
+@app.post("/api/settings/share_all")
+def api_set_share_all(body: dict = Body(...), user=Depends(require_user)):
+    """Interruptor maestro: compartir TODO lo mío con mi hogar (1) o nada por default (0)."""
+    val = 1 if body.get("value") else 0
+    with db() as conn:
+        conn.execute("UPDATE users SET share_all=? WHERE id=?", (val, user["id"])); conn.commit()
+    return {"ok": True, "share_all": val}
 
 
 # ─── Categories (por hogar; household_id NULL = compartida/default) ─────────
@@ -1317,7 +1341,7 @@ def export_csv(year: int = None, month: int = None, user=Depends(require_user), 
 # ─── Recurring ────────────────────────────────────────────────────────────
 @app.get("/api/recurring")
 def api_recurring(include_inactive: bool = False, user=Depends(require_user), scope: str = Cookie("mine")):
-    uf_x, uf_xp = user_filter_eq(scope, user, "r.user_id")
+    uf_x, uf_xp = vis_filter_recurring(scope, user, alias="r")
     with db() as conn:
         sql = ("SELECT r.*, a.name AS acc_name, a.color AS acc_color, a.icon AS acc_icon, "
                "c.name AS cat_name, c.color AS cat_color, c.icon AS cat_icon "
@@ -1359,7 +1383,7 @@ def del_rec_rec(rid: int, user=Depends(require_user)):
 # ─── Eventos / Tareas / Habitos / Recordatorios / Notas ───────────────────
 @app.get("/api/eventos")
 def api_eventos(past: bool = False, user=Depends(require_user), scope: str = Cookie("mine")):
-    uf_x, uf_xp = user_filter_eq(scope, user, "user_id")
+    uf_x, uf_xp = vis_filter_item(scope, user)
     nowstr = now_local().strftime("%Y-%m-%dT%H:%M")
     with db() as conn:
         if past:
@@ -1474,7 +1498,7 @@ def api_habitos(days: int = 30, user=Depends(require_user), scope: str = Cookie(
 
 @app.get("/api/recordatorios")
 def api_recs(include_fired: bool = False, user=Depends(require_user), scope: str = Cookie("mine")):
-    uf_x, uf_xp = user_filter_eq(scope, user, "user_id")
+    uf_x, uf_xp = vis_filter_item(scope, user)
     with db() as conn:
         if include_fired:
             rows = conn.execute(f"SELECT * FROM recordatorios WHERE 1=1 {uf_x} ORDER BY remind_at DESC LIMIT 100", uf_xp).fetchall()
@@ -1545,7 +1569,7 @@ def api_currencies(user=Depends(require_user), scope: str = Cookie("mine")):
     respetando el scope. Sirve para poblar dinámicamente los filtros de moneda.
     Siempre incluye ARS como base. Orden: ARS, USD, EUR primero, resto alfabético."""
     uf_t, uf_p = user_filter(scope, user, "t")
-    uf_x, uf_xp = user_filter_eq(scope, user, "user_id")
+    uf_x, uf_xp = vis_filter_recurring(scope, user)
     found = set()
     with db() as conn:
         for r in conn.execute(
@@ -1598,25 +1622,18 @@ def _web_account_balances(scope_uid):
 
 @app.get("/api/networth")
 def api_networth(user=Depends(require_user), scope: str = Cookie("mine")):
-    scope_uid = resolve_scope_uid(scope, user)
-    # serie historica de snapshots
+    # Patrimonio es PERSONAL bajo el modelo de privacidad: cada uno ve solo el suyo
+    # (no exponemos el patrimonio del otro integrante del hogar).
     with db() as conn:
-        if scope_uid is None:
-            # 'ambos': sumar los snapshots de ambos usuarios por dia
-            rows = conn.execute(
-                "SELECT substr(taken_at,1,10) AS day, SUM(total_ars) AS total_ars, SUM(total_usd) AS total_usd "
-                "FROM net_worth_snapshots "
-                "GROUP BY day ORDER BY day").fetchall()
-        else:
-            rows = conn.execute(
-                "SELECT substr(taken_at,1,10) AS day, total_ars, total_usd "
-                "FROM net_worth_snapshots WHERE user_id=? ORDER BY taken_at", (scope_uid,)).fetchall()
+        rows = conn.execute(
+            "SELECT substr(taken_at,1,10) AS day, total_ars, total_usd "
+            "FROM net_worth_snapshots WHERE user_id=? ORDER BY taken_at", (user["id"],)).fetchall()
     series = [{"day": r["day"], "total_ars": r["total_ars"], "total_usd": r["total_usd"]} for r in rows]
 
     # punto "ahora" en vivo (no persiste; solo para el grafico/encabezado)
     now_point = None
     try:
-        balances = _web_account_balances(scope_uid)
+        balances = _web_account_balances(user["id"])  # patrimonio personal (solo mis cuentas)
         res = networth.net_worth(balances, get_dolar_rate, takenos_manual=_web_takenos_manual())
         now_point = {
             "total_ars": res["total_ars"], "total_usd": res["total_usd"],
@@ -1671,7 +1688,9 @@ def api_upcoming(days: int = 45, user=Depends(require_user), scope: str = Cookie
     horizon = (now + timedelta(days=days)).strftime("%Y-%m-%d")
     today = now.strftime("%Y-%m-%d")
     nowstr = now.strftime("%Y-%m-%dT%H:%M")
-    uf_x, uf_xp = user_filter_eq(scope, user, "user_id")
+    uf_rec, uf_recp = vis_filter_recurring(scope, user)   # recurrentes/cuotas: por cuenta
+    uf_item, uf_itemp = vis_filter_item(scope, user)      # eventos/recordatorios: por ítem
+    uf_acc, uf_accp = vis_filter_item(scope, user)        # cuentas: por `shared` (accounts tiene shared)
     scope_uid = resolve_scope_uid(scope, user)
     pagos = []
     agenda = []
@@ -1679,29 +1698,28 @@ def api_upcoming(days: int = 45, user=Depends(require_user), scope: str = Cookie
         # --- PAGOS: recurrentes ---
         for r in conn.execute(
             f"SELECT description, amount, currency, next_occurrence "
-            f"FROM recurring WHERE active=1 AND next_occurrence<=? {uf_x} "
-            f"ORDER BY next_occurrence", [horizon] + uf_xp).fetchall():
+            f"FROM recurring WHERE active=1 AND next_occurrence<=? {uf_rec} "
+            f"ORDER BY next_occurrence", [horizon] + uf_recp).fetchall():
             pagos.append({"date": r["next_occurrence"][:10], "kind": "recurrente",
                           "title": r["description"], "amount": r["amount"], "currency": r["currency"]})
         # --- AGENDA: eventos (vida) ---
         for r in conn.execute(
             f"SELECT title, starts_at, location FROM eventos "
-            f"WHERE starts_at>=? AND substr(starts_at,1,10)<=? {uf_x} ORDER BY starts_at",
-            [nowstr, horizon] + uf_xp).fetchall():
+            f"WHERE starts_at>=? AND substr(starts_at,1,10)<=? {uf_item} ORDER BY starts_at",
+            [nowstr, horizon] + uf_itemp).fetchall():
             agenda.append({"date": r["starts_at"][:10], "datetime": r["starts_at"],
                            "kind": "evento", "title": r["title"],
                            "sub": r["location"] or "", "amount": None, "currency": None})
         # --- AGENDA: recordatorios (vida) ---
         for r in conn.execute(
             f"SELECT text, REPLACE(remind_at,' ','T') AS ra FROM recordatorios "
-            f"WHERE fired=0 AND REPLACE(remind_at,' ','T')<=? {uf_x} ORDER BY ra",
-            [horizon + "T23:59"] + uf_xp).fetchall():
+            f"WHERE fired=0 AND REPLACE(remind_at,' ','T')<=? {uf_item} ORDER BY ra",
+            [horizon + "T23:59"] + uf_itemp).fetchall():
             agenda.append({"date": r["ra"][:10], "datetime": r["ra"],
                            "kind": "recordatorio", "title": r["text"],
                            "sub": "", "amount": None, "currency": None})
-        cards_sql = ("SELECT * FROM accounts WHERE type='credito' AND active=1"
-                     + ("" if scope_uid is None else " AND user_id=?"))
-        cards = conn.execute(cards_sql, () if scope_uid is None else (scope_uid,)).fetchall()
+        cards = conn.execute(
+            f"SELECT * FROM accounts WHERE type='credito' AND active=1 {uf_acc}", uf_accp).fetchall()
     from datetime import date as _date
     for c in cards:
         d = vencimientos.calcular_vencimiento(str(DB_PATH), dict(c), _date.today())
