@@ -389,6 +389,7 @@ def init_db():
             p256dh TEXT NOT NULL, auth TEXT NOT NULL,
             created_at TEXT NOT NULL DEFAULT (datetime('now')));
         CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(user_id);
+        CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT);
     """)
     for tbl in ("accounts","transactions","recurring","eventos","recordatorios","tareas","habito_logs","notas"):
         cols = [r[1] for r in conn.execute(f"PRAGMA table_info({tbl})").fetchall()]
@@ -404,11 +405,12 @@ def init_db():
                   ("household_id", "INTEGER"),
                   ("link_code", "TEXT"),
                   ("link_code_exp", "TEXT"),
-                  ("cal_token", "TEXT")],
-        "accounts": [("preferred_fx_rate", "TEXT"), ("closing_day", "INTEGER"), ("due_day", "INTEGER")],
-        "recordatorios": [("recurrence", "TEXT"), ("list_id", "INTEGER"), ("event_id", "INTEGER")],
+                  ("cal_token", "TEXT"),
+                  ("share_all", "INTEGER DEFAULT 0")],
+        "accounts": [("preferred_fx_rate", "TEXT"), ("closing_day", "INTEGER"), ("due_day", "INTEGER"), ("shared", "INTEGER DEFAULT 0")],
+        "recordatorios": [("recurrence", "TEXT"), ("list_id", "INTEGER"), ("event_id", "INTEGER"), ("shared", "INTEGER DEFAULT 0")],
         "transactions": [("is_shared", "INTEGER DEFAULT 0")],
-        "eventos": [("kind", "TEXT")],
+        "eventos": [("kind", "TEXT"), ("shared", "INTEGER DEFAULT 0")],
         "notas": [("description", "TEXT")],
         "shopping_items": [("list_id", "INTEGER"), ("qty", "REAL"), ("unit", "TEXT"),
                            ("note", "TEXT"), ("category", "TEXT"), ("priority", "TEXT"),
@@ -421,6 +423,17 @@ def init_db():
         for _col, _decl in _newcols:
             if _col not in _existing:
                 conn.execute(f"ALTER TABLE {_tbl} ADD COLUMN {_col} {_decl}")
+    # Privacidad: empezar de cero (todo privado) UNA sola vez. NO repetir en cada reinicio
+    # (si no, borraria lo que los usuarios vayan compartiendo).
+    if not conn.execute("SELECT 1 FROM app_meta WHERE key='privacy_reset_done'").fetchone():
+        for _t in ("accounts", "eventos", "recordatorios", "tareas", "notas", "lists"):
+            try:
+                conn.execute(f"UPDATE {_t} SET shared=0")
+            except Exception:
+                log.exception("privacy reset %s", _t)
+        conn.execute("UPDATE users SET share_all=0")
+        conn.execute("INSERT INTO app_meta(key,value) VALUES('privacy_reset_done','1')")
+        log.info("privacy reset aplicado (todo privado)")
     # La pareja (usuarios whitelisteados) = plan ilimitado. Idempotente: solo toca a
     # los que están en ALLOWED_USER_IDS, nunca a un usuario free que se registre después.
     if ALLOWED_USER_IDS:
