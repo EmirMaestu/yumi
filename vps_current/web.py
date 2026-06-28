@@ -1151,7 +1151,10 @@ def _own_category_or_403(conn, cid, user):
     (household_id NULL) o de otro hogar, tira 403; si no existe, 404."""
     row = conn.execute("SELECT * FROM categories WHERE id=?", (cid,)).fetchone()
     if not row: raise HTTPException(404, "No existe")
-    if row["household_id"] is None: raise HTTPException(403, "Categoría compartida (no editable)")
+    if row["household_id"] is None:
+        # Las categorías default (compartidas por todos) solo las cura el admin.
+        if is_admin(user): return row
+        raise HTTPException(403, "Categoría compartida (no editable)")
     if row["household_id"] != _household_id_of(user): raise HTTPException(403, "No es de tu hogar")
     return row
 

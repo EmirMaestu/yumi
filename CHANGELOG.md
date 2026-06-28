@@ -5,6 +5,13 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 > Regla: cada tanda de features = bump de versión (MINOR), entrada en este archivo, tag de git (`vX.Y.Z`) y redeploy. `1.0.0` = lanzamiento del **asistente completo** (no solo finanzas).
 
 ## [Unreleased]
+### Fixed
+- **El select de categoría cerraba el modal/sheet al tocarlo (sobre todo en móvil).** El guard solo cubría `onInteractOutside`; en touch se disparaba `pointerDownOutside`/scroll del desplegable y cerraba todo. Ahora el guard cubre ambos eventos y reconoce el contenido del Select (popper/listbox).
+
+### Changed
+- **Más tipos de cuenta:** se agregaron **Débito**, **Dólares (USD)** y **Cripto** (además de Efectivo, Billetera, Crédito, Banco, Inversión).
+- **Borrar categorías default:** las categorías compartidas (las que vienen por defecto) ahora las puede borrar/editar el **admin** (para curar la lista global); cada hogar sigue gestionando solo las suyas. *(Para borrado por-hogar de las defaults haría falta un "ocultar por hogar" — pendiente si hace falta.)*
+
 ### Added
 - **Privacidad por hogar (todo privado por default).** Antes, dentro de un hogar la pareja se veía casi todo. Ahora **todo nace privado** y cada uno comparte lo que quiere: por **cuenta** (finanzas — los gastos/recurrentes heredan), o **todo** con el interruptor maestro (`share_all`). Regla de visibilidad central (`visibility.py`, con tests): ves lo tuyo siempre; lo ajeno solo si el dueño activó "compartir todo" o el ítem/cuenta está compartido. Aplicada en el **bot** (consultas, incl. lenguaje natural "cuánto gastó X") y en la **web** (cuentas, overview, movimientos, recurrentes, próximos pagos, listas) → el bot/web **no acceden a data privada ajena**. Reset inicial a privado, una sola vez. UI: switch "Compartir todo" en Perfil + toggle privada/compartida por cuenta. Comandos `/compartirtodo` y `/privadotodo`. *(De paso se taparon fugas cross-hogar en próximos-pagos y patrimonio.)* **Pendiente (próxima): toggle por ítem en la web (evento/tarea/nota) — por ahora se comparten con "compartir todo"; el patrimonio quedó personal; los hábitos siguen a nivel hogar.**
 - **`/invitar` y `/vincular` en el menú de comandos de Telegram** (antes existían pero no figuraban en la lista del bot).

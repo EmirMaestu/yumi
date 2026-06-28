@@ -99,7 +99,7 @@ export interface Balance { currency: Currency; balance: number }
 export interface Account {
   id: number
   name: string
-  type: 'efectivo' | 'billetera' | 'credito' | 'banco' | 'inversion'
+  type: 'efectivo' | 'billetera' | 'debito' | 'credito' | 'banco' | 'dolares' | 'cripto' | 'inversion'
   color?: string
   icon?: string
   active: number

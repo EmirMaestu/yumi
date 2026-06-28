@@ -9,7 +9,7 @@ import Select from './ui/Select'
 
 const schema = z.object({
   name: z.string().min(1, 'Requerido'),
-  type: z.enum(['efectivo', 'billetera', 'credito', 'banco', 'inversion']),
+  type: z.enum(['efectivo', 'billetera', 'debito', 'credito', 'banco', 'dolares', 'cripto', 'inversion']),
   closing_day: z.number().min(1).max(31).optional(),
   due_day: z.number().min(1).max(31).optional(),
 })
@@ -19,8 +19,11 @@ type FormValues = z.infer<typeof schema>
 const TYPE_OPTS = [
   { value: 'efectivo', label: 'Efectivo' },
   { value: 'billetera', label: 'Billetera' },
+  { value: 'debito', label: 'Débito' },
   { value: 'credito', label: 'Crédito' },
   { value: 'banco', label: 'Banco' },
+  { value: 'dolares', label: 'Dólares (USD)' },
+  { value: 'cripto', label: 'Cripto' },
   { value: 'inversion', label: 'Inversión' },
 ]
 

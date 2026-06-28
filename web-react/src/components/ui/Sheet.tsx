@@ -9,9 +9,13 @@ export default function Sheet({ open, onClose, title, children }: { open: boolea
         <Dialog.Content
           className="nf-sheet"
           onOpenAutoFocus={(e) => e.preventDefault()}
+          onPointerDownOutside={(e) => {
+            const t = e.target as HTMLElement | null
+            if (t && t.closest('[data-radix-popper-content-wrapper],[data-radix-select-viewport],[role="listbox"]')) e.preventDefault()
+          }}
           onInteractOutside={(e) => {
             const t = e.target as HTMLElement | null
-            if (t && t.closest('[data-radix-popper-content-wrapper]')) e.preventDefault()
+            if (t && t.closest('[data-radix-popper-content-wrapper],[data-radix-select-viewport],[role="listbox"]')) e.preventDefault()
           }}
           style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 61, margin: '0 auto', width: '100%', maxWidth: 480, maxHeight: '88vh', overflowY: 'auto', background: 'var(--color-linen)', borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 22 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>

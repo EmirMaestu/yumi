@@ -17,8 +17,11 @@ import AdjustBalanceModal from '../components/AdjustBalanceModal'
 const TYPE_LABEL: Record<string, string> = {
   efectivo: 'Efectivo',
   billetera: 'Billetera',
+  debito: 'Débito',
   credito: 'Crédito',
   banco: 'Banco',
+  dolares: 'Dólares (USD)',
+  cripto: 'Cripto',
   inversion: 'Inversión',
 }
 
