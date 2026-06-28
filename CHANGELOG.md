@@ -6,7 +6,7 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 
 ## [Unreleased]
 ### Fixed
-- **Los selects ahora usan el picker NATIVO del sistema (arregla 2 bugs de móvil).** El `<Select>` de Radix dentro de un modal/sheet (1) cerraba el modal al tocar una opción y (2) se reabría al volver a tocar el trigger para cerrarlo. Se reemplazó por un `<select>` nativo: en el celular abre el picker de iOS/Android y no tiene ninguno de esos problemas. Misma apariencia y misma API (no cambian los formularios).
+- **Selects estilizados (Radix) de vuelta, con el bug del modal arreglado.** El `<select>` nativo que se había puesto se veía feo en desktop, así que se restauró el Select lindo (Radix). Los 2 bugs que motivaron el nativo quedan cubiertos: (1) cerrar el modal al tocar una opción → guards en `Modal.tsx`/`Sheet.tsx` que ignoran el desplegable del Select; (2) reabrirse al tocar el trigger estando abierto → `onCloseAutoFocus` preventDefault en el contenido del Select.
 - **Borrar un aviso de un evento (la ✕) no se reflejaba hasta refrescar.** El borrado de recordatorio solo invalidaba la lista de recordatorios, pero los avisos se muestran embebidos en el evento → ahora también se refresca la agenda (eventos) y desaparece al instante.
 - **Inputs que llegaban al borde del modal en el celular.** El contenedor del sheet sumaba su padding al ancho (`width:100%` sin `box-sizing`), corriendo los inputs fuera de pantalla a la derecha. Se agregó un reset global de `box-sizing: border-box` + se emparejaron los estilos de input que faltaban (`width:100%`/`box-sizing`) en QuickAdd y editar-movimiento.
 
