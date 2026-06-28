@@ -1,0 +1,7 @@
+[Unit]
+Description=Yumi health check
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /home/emir/yumi/deploy/check.sh
+User=emir

@@ -1,0 +1,27 @@
+name: release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Versión semver sin la v (ej: 0.11.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+      - name: Tag + GitHub Release (notas = sección del CHANGELOG)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V="${{ github.event.inputs.version }}"
+          git tag "v$V" -m "v$V" && git push origin "v$V"
+          awk "/^## \\[$V\\]/{f=1;next} /^## \\[/{if(f)exit} f" CHANGELOG.md > /tmp/notes.md
+          gh release create "v$V" --title "v$V" --notes-file /tmp/notes.md
