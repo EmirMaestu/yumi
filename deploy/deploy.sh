@@ -19,6 +19,9 @@ else
   WEBROOT="/var/www/juntu"; HEALTH="http://127.0.0.1:8000/api/health"
   SVC_BOT="asistente"; SVC_WEB="asistente-web"
 fi
+# Backup del frontend en el home de emir (NO en /var/www, que es de root, ni en
+# $RUN, que el rsync de código limpiaría).
+WEBPREV="/home/emir/.yumi-webroot-prev-$ENVN"
 
 log(){ echo "[deploy $TS][$ENVN] $*"; }
 
@@ -52,7 +55,7 @@ log "ref=$REF prev=${PREV_REF:-none}"
 # 1) Backup DB + frontend actual
 log "backup DB"
 ( cd "$RUN" && "$RUN/venv/bin/python" backup_db.py ) || cp -a "$RUN/data.db" "$RUN/backups/data.db.$TS" 2>/dev/null || true
-if [ -d "$WEBROOT" ]; then rm -rf "${WEBROOT}.prev"; cp -a "$WEBROOT" "${WEBROOT}.prev"; fi
+if [ -d "$WEBROOT" ]; then rm -rf "$WEBPREV"; cp -a "$WEBROOT" "$WEBPREV"; fi
 
 # 2) Checkout del ref pedido
 log "git checkout $REF"
@@ -69,12 +72,14 @@ if [ -f "$RUN/requirements.txt" ]; then
   "$RUN/venv/bin/pip" install -q -r "$RUN/requirements.txt"
 fi
 
-# 5) Frontend (artefacto buildeado por CI, dejado en $REPO/web-react/dist)
+# 5) Frontend (artefacto buildeado por CI, en $REPO/web-react/dist).
+# Sincronizamos el CONTENIDO dentro de $WEBROOT (emir es dueño del contenido); no
+# creamos/renombramos entradas en /var/www (eso es de root).
 if [ -d "$REPO/web-react/dist" ]; then
   log "deploy frontend -> $WEBROOT"
-  rm -rf "${WEBROOT}.new"; cp -a "$REPO/web-react/dist" "${WEBROOT}.new"
-  chmod -R a+rX "${WEBROOT}.new"
-  rm -rf "$WEBROOT"; mv "${WEBROOT}.new" "$WEBROOT"
+  mkdir -p "$WEBROOT"
+  rsync -a --delete "$REPO/web-react/dist/" "$WEBROOT/"
+  chmod -R a+rX "$WEBROOT"
 fi
 
 # 6) Restart
@@ -89,7 +94,7 @@ if healthy; then
 fi
 
 log "FALLO health-check -> rollback"
-if [ -d "${WEBROOT}.prev" ]; then rm -rf "$WEBROOT"; mv "${WEBROOT}.prev" "$WEBROOT"; fi
+if [ -d "$WEBPREV" ]; then rsync -a --delete "$WEBPREV/" "$WEBROOT/"; chmod -R a+rX "$WEBROOT"; fi
 if [ -n "$PREV_REF" ]; then
   git -C "$REPO" checkout -f "$PREV_REF" || true
   rsync -a --delete --exclude-from="$EXCLUDES" "$REPO/vps_current/" "$RUN/"
