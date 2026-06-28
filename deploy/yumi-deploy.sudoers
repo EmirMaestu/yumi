@@ -1,0 +1,4 @@
+# /etc/sudoers.d/yumi-deploy
+# Permite a 'emir' reiniciar SOLO estos servicios (y recargar Caddy) sin contraseña.
+# Instalar con: sudo install -m 0440 yumi-deploy.sudoers /etc/sudoers.d/yumi-deploy && sudo visudo -cf /etc/sudoers.d/yumi-deploy
+emir ALL=(root) NOPASSWD: /bin/systemctl restart asistente, /bin/systemctl restart asistente-web, /bin/systemctl restart asistente-staging, /bin/systemctl restart asistente-web-staging, /bin/systemctl reload caddy
