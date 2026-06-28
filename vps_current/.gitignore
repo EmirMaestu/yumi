@@ -13,8 +13,7 @@ photos/
 # backups y artefactos
 backups/
 webapp/
-*.bak
-*.bak.*
+*.bak*
 *.new
 # estado de deploy
 .health_state
