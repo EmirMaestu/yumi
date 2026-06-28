@@ -46,7 +46,9 @@ healthy(){ # web 200 en /api/health  +  bot active y estable
   return 0
 }
 
-restart_services(){ sudo systemctl restart "$SVC_BOT" "$SVC_WEB"; }
+# Reiniciar de a UNO: el sudoers acotado permite cada servicio por separado,
+# no el comando combinado. -n nunca pide contraseña (falla rápido si no matchea).
+restart_services(){ sudo -n systemctl restart "$SVC_BOT"; sudo -n systemctl restart "$SVC_WEB"; }
 
 PREV_REF="$(cat "$RUN/.last_good_ref" 2>/dev/null || echo '')"
 
