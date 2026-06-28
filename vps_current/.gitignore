@@ -1,0 +1,26 @@
+# datos y secretos
+data.db
+data.db-shm
+data.db-wal
+data.db.*
+.env
+.env.*
+vapid_private.pem
+credenciales*
+# media temporal
+voice/
+photos/
+# backups y artefactos
+backups/
+webapp/
+*.bak
+*.bak.*
+*.new
+# estado de deploy
+.health_state
+.last_good_ref
+# python
+__pycache__/
+*.pyc
+.pytest_cache/
+venv/
