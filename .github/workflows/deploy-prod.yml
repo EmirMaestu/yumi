@@ -23,22 +23,19 @@ jobs:
           cache-dependency-path: web-react/package-lock.json
       - run: cd web-react && npm install --no-audit --no-fund && npm run build
 
-      # ssh setup
-      - name: SSH key
+      # ssh setup + upload + deploy (un solo paso, robusto)
+      - name: Deploy over SSH
+        env:
+          KEY: ${{ secrets.VPS_SSH_KEY }}
+          HOST: ${{ secrets.VPS_HOST }}
+          USER: ${{ secrets.VPS_USER }}
+          REF: ${{ github.ref_name }}
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          printf '%s\n' "$KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
-
-      # subir el dist buildeado al checkout del VPS
-      - name: Upload frontend dist
-        run: |
-          ssh -i ~/.ssh/id_ed25519 ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} 'rm -rf ~/yumi/web-react/dist && mkdir -p ~/yumi/web-react'
-          scp -i ~/.ssh/id_ed25519 -r web-react/dist ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:'~/yumi/web-react/dist'
-
-      # ejecutar deploy.sh con el tag
-      - name: Deploy
-        run: |
-          ssh -i ~/.ssh/id_ed25519 ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
-            "cd ~/yumi && git fetch --all --tags -q && bash deploy/deploy.sh '${{ github.ref_name }}' prod"
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          SSH="ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new"
+          $SSH "$USER@$HOST" 'rm -rf ~/yumi/web-react/dist && mkdir -p ~/yumi/web-react'
+          scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -r web-react/dist "$USER@$HOST:~/yumi/web-react/dist"
+          $SSH "$USER@$HOST" "cd ~/yumi && git fetch --all --tags -q && bash deploy/deploy.sh '$REF' prod"
