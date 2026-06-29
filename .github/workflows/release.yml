@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  actions: write   # para `gh workflow run deploy-prod` (workflow_dispatch vía API)
 
 jobs:
   release:
@@ -25,3 +26,9 @@ jobs:
           git tag "v$V" -m "v$V" && git push origin "v$V"
           awk "/^## \\[$V\\]/{f=1;next} /^## \\[/{if(f)exit} f" CHANGELOG.md > /tmp/notes.md
           gh release create "v$V" --title "v$V" --notes-file /tmp/notes.md
+      # El push del tag con GITHUB_TOKEN NO dispara `on: push: tags` (regla anti-loop de
+      # GitHub). Por eso lo disparamos explícito: workflow_dispatch SÍ se gatilla con GITHUB_TOKEN.
+      - name: Disparar deploy-prod
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy-prod.yml -f ref="v${{ github.event.inputs.version }}"
