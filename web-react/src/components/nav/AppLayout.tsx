@@ -3,11 +3,13 @@ import { Outlet } from 'react-router-dom'
 import TopBar from './TopBar'
 import BottomNav from './BottomNav'
 import Sidebar from './Sidebar'
+import MoreSheet from './MoreSheet'
 import QuickAddSheet from '../QuickAddSheet'
 
 export default function AppLayout({ children }: { children?: ReactNode }) {
   const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= 1024)
   const [addOpen, setAddOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1024px)')
@@ -31,7 +33,8 @@ export default function AppLayout({ children }: { children?: ReactNode }) {
         <TopBar />
       </div>
       <main style={{ paddingBottom: 96 }}>{children ?? <Outlet />}</main>
-      <BottomNav onAdd={() => setAddOpen(true)} />
+      <BottomNav onAdd={() => setAddOpen(true)} onMore={() => setMoreOpen(true)} />
+      <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} />
       <QuickAddSheet open={addOpen} onClose={() => setAddOpen(false)} />
     </div>
   )

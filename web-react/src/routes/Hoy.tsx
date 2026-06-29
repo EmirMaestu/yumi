@@ -5,16 +5,12 @@ import { useVencimientos } from '../hooks/useVencimientos'
 import { useEventos } from '../hooks/useEventos'
 import { useRecordatorios } from '../hooks/useRecordatorios'
 import { useRecurring } from '../hooks/useRecurring'
-import { useHabitos } from '../hooks/useHabitos'
-import { useListas } from '../hooks/useListas'
-import { useNotas } from '../hooks/useNotas'
 import { cicloEnCursoTotal } from '../lib/cards'
 import { formatMoney, cleanReminderText } from '../lib/format'
 import { type HoyItem } from '../lib/types'
 import Card from '../components/ui/Card'
 import EmptyState from '../components/ui/EmptyState'
 import InstallNotifyBanner from '../components/InstallNotifyBanner'
-import SectionCard from '../components/ui/SectionCard'
 
 // --- Date header ---
 function todayLabel(): string {
@@ -96,9 +92,6 @@ export default function Hoy() {
   const recurring = useRecurring()
   const eventos = useEventos(false)
   const recordatorios = useRecordatorios(false)
-  const habitos = useHabitos()
-  const listas = useListas()
-  const notas = useNotas()
 
   if (overview.isLoading) return <HoySkeleton />
   if (overview.isError || !overview.data) return <EmptyState>No pudimos cargar tus datos. Reintentá.</EmptyState>
@@ -118,10 +111,6 @@ export default function Hoy() {
     .filter((i) => i.when && whenDate(i.when) > endToday)
     .sort((a, b) => whenDate(a.when).getTime() - whenDate(b.when).getTime())
     .slice(0, 5)
-
-  const nHab = habitos.data?.resumen?.length ?? 0
-  const nList = listas.data?.length ?? 0
-  const nNot = notas.data?.length ?? 0
 
   return (
     <div style={{ padding: '8px 4px 24px' }}>
@@ -253,11 +242,6 @@ export default function Hoy() {
           </Card>
         </Link>
       </div>
-
-      {/* Secciones del asistente como cards clickeables */}
-      <SectionCard to="/habitos" icon="ti-flame" label="Hábitos" summary={nHab > 0 ? `${nHab} hábito${nHab === 1 ? '' : 's'}` : 'Seguí tus hábitos'} />
-      <SectionCard to="/listas" icon="ti-shopping-cart" label="Listas" summary={nList > 0 ? `${nList} lista${nList === 1 ? '' : 's'}` : 'Tus listas de compras'} />
-      <SectionCard to="/notas" icon="ti-note" label="Notas" summary={nNot > 0 ? `${nNot} nota${nNot === 1 ? '' : 's'}` : 'Tus notas'} />
     </div>
   )
 }

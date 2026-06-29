@@ -6,6 +6,10 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.10.6] - 2026-06-29
+### Changed
+- **Inicio rediseñado con barra "Más".** Inicio queda limpio (solo tu día + plata + pendientes). La barra inferior pasa a `Inicio · Finanzas · + · Agenda · Más`: el botón **"Más"** abre una hoja con **Tareas, Listas, Hábitos, Notas y Yo**. Se quitaron las cards de secciones de Inicio.
+
 ## [0.10.5] - 2026-06-29
 ### Changed
 - **Finanzas con secciones como cards** (igual que Inicio): se reemplazó el riel de chips por **cards clickeables** (Movimientos, Tarjetas, Cuentas, Categorías, Recurrentes) con un resumen.

@@ -1,10 +1,18 @@
 export interface NavItem { to: string; label: string; icon: string }
 
-// Barra inferior (mobile): 4 hubs + el FAB "+" (que se renderiza al medio en BottomNav).
+// Barra inferior (mobile): 3 tabs + el FAB "+" (al medio) + el botón "Más" (abre hoja).
 export const BOTTOM_NAV: NavItem[] = [
   { to: '/', label: 'Inicio', icon: 'ti-sparkles' },
   { to: '/finanzas', label: 'Finanzas', icon: 'ti-coin' },
   { to: '/agenda', label: 'Agenda', icon: 'ti-calendar' },
+]
+
+// Lo que vive en la hoja "Más" (lo secundario, alcanzable desde la barra).
+export const MORE_LINKS: NavItem[] = [
+  { to: '/tareas', label: 'Tareas', icon: 'ti-checkbox' },
+  { to: '/listas', label: 'Listas', icon: 'ti-shopping-cart' },
+  { to: '/habitos', label: 'Hábitos', icon: 'ti-flame' },
+  { to: '/notas', label: 'Notas', icon: 'ti-note' },
   { to: '/yo', label: 'Yo', icon: 'ti-user' },
 ]
 

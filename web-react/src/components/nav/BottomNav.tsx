@@ -5,7 +5,7 @@ import { BOTTOM_NAV } from './navItems'
 // pill flotante, translúcida con blur del fondo, borde hairline y sombra suave.
 // El <nav> ocupa todo el ancho pero con pointer-events:none, y solo la pill captura
 // toques → los costados dejan pasar el tap al contenido de atrás.
-export default function BottomNav({ onAdd }: { onAdd: () => void }) {
+export default function BottomNav({ onAdd, onMore }: { onAdd: () => void; onMore: () => void }) {
   return (
     <nav
       aria-label="Navegación principal"
@@ -40,6 +40,15 @@ export default function BottomNav({ onAdd }: { onAdd: () => void }) {
           <i className="ti ti-plus" style={{ fontSize: 26, color: 'var(--voltage-on-dark)' }} aria-hidden />
         </button>
         {BOTTOM_NAV.slice(2).map((i) => <Item key={i.to} {...i} />)}
+        <button onClick={onMore} aria-label="Más"
+          style={{
+            flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+            background: 'none', border: 'none', cursor: 'pointer', font: 'inherit',
+            padding: '6px 4px', color: 'var(--color-sage)',
+          }}>
+          <i className="ti ti-dots" style={{ fontSize: 21 }} aria-hidden />
+          <span style={{ fontSize: 10, fontWeight: 400 }}>Más</span>
+        </button>
       </div>
     </nav>
   )
