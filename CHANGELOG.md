@@ -6,6 +6,14 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.10.3] - 2026-06-29
+### Added
+- **Rediseño de navegación (mobile): adiós al menú lateral.** Los usuarios no descubrían el cajón lateral (☰), así que se eliminó. Ahora:
+  - **Barra inferior estilo *liquid glass*** (pill flotante translúcida con blur) con `Hoy · Finanzas · + · Agenda · Yo`.
+  - **Nuevo hub "Yo"** que junta todo lo de cuenta: perfil, privacidad (compartir todo), panel admin, exportar CSV, cerrar sesión, dashboard viejo. `/perfil` redirige a `/yo`.
+  - **Rieles de acceso visibles** dentro de cada hub: Hoy → Agenda/Tareas/Listas/Hábitos/Notas; Finanzas → Movimientos/Tarjetas/Cuentas/Categorías/Recurrentes.
+  - **Navegación contextual** en Finanzas: "Patrimonio" → Cuentas, "En cuotas" → Recurrentes, "Cuotas y tarjetas" → Tarjetas, y cada barra de "Gastos por categoría" → Movimientos filtrado por esa categoría (Movimientos ahora lee filtros de la URL).
+
 ## [0.10.2] - 2026-06-29
 ### Fixed
 - **Las listas no aparecían en la web (afectaba a todos).** `get_listas` generaba SQL con un alias (`t.owner_user_id`) que la query no declaraba → fallaba con "no such column" y la web mostraba "Sin listas aún" aunque hubiera listas con ítems (las creadas por WhatsApp/Telegram tampoco se veían). Corregido (alias vacío → columnas sin prefijo).
