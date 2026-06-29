@@ -14,6 +14,7 @@ import { type HoyItem } from '../lib/types'
 import Card from '../components/ui/Card'
 import EmptyState from '../components/ui/EmptyState'
 import InstallNotifyBanner from '../components/InstallNotifyBanner'
+import SectionCard from '../components/ui/SectionCard'
 
 // --- Date header ---
 function todayLabel(): string {
@@ -84,26 +85,6 @@ function HoySkeleton() {
         <Skel h={64} w="100%" />
         <Skel h={100} w="100%" />
       </div>
-    </div>
-  )
-}
-
-// Card-resumen de una sección (Hábitos/Listas/Notas): se clickea y lleva a su pantalla.
-function SectionCard({ to, icon, label, summary }: { to: string; icon: string; label: string; summary: string }) {
-  return (
-    <div style={{ padding: '0 18px 20px' }}>
-      <Link to={to} style={{ textDecoration: 'none', color: 'inherit' }}>
-        <Card>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <i className={`ti ${icon}`} style={{ fontSize: 16, color: 'var(--color-sage)' }} aria-hidden />
-              <span className="cap">{label}</span>
-            </div>
-            <i className="ti ti-chevron-right" style={{ fontSize: 16, color: 'var(--color-sage)' }} aria-hidden />
-          </div>
-          <div style={{ fontSize: 14, color: 'var(--color-sage)', marginTop: 10 }}>{summary}</div>
-        </Card>
-      </Link>
     </div>
   )
 }

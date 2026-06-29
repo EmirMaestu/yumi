@@ -4,6 +4,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useMe } from '../hooks/useMe'
 import { apiPost } from '../lib/api'
 import Card from '../components/ui/Card'
+import NotifToggle from '../components/NotifToggle'
+import CalendarSubscribe from '../components/CalendarSubscribe'
 
 // Hub "Yo": todo lo de cuenta/usuario, antes disperso en el drawer lateral.
 export default function Yo() {
@@ -44,6 +46,9 @@ export default function Yo() {
           </button>
         </div>
       </Card>
+
+      <NotifToggle />
+      <CalendarSubscribe />
 
       {me?.is_admin && (
         <Link to="/admin" style={rowLink}><i className="ti ti-shield-lock" style={{ marginRight: 8 }} aria-hidden />Panel de administración</Link>

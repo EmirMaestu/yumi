@@ -13,8 +13,7 @@ import CategoryBar from '../components/ui/CategoryBar'
 import AlertPill from '../components/ui/AlertPill'
 import { InicioSkeleton } from '../components/ui/skeletons'
 import EmptyState from '../components/ui/EmptyState'
-import SectionRail from '../components/nav/SectionRail'
-import { FINANZAS_RAIL } from '../components/nav/navItems'
+import SectionCard from '../components/ui/SectionCard'
 
 function daysUntil(dateStr?: string): number | null { if (!dateStr) return null; return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86_400_000) }
 
@@ -37,6 +36,9 @@ export default function Inicio() {
   // Aggregate deuda total and enCuotas across all credit cards
   const totalEnCurso = cicloEnCursoTotal(venc.data, recurring.data)
   const totalEnCuotas = creditCards.reduce((s, card) => s + calcEnCuotas(card.id, recurring.data), 0)
+  const nCuentas = accounts.data?.length ?? 0
+  const nCats = cats.data?.length ?? 0
+  const nRec = recurring.data?.length ?? 0
 
   return (
     <div style={{ padding: '8px 4px 24px' }}>
@@ -50,10 +52,6 @@ export default function Inicio() {
         <StatNumber label="Ingresos" to="/movimientos">{formatMoney(k.ingreso_mes)}</StatNumber>
         <StatNumber label="Patrimonio" to="/cuentas">{formatMoney(data.patrimonio_ars)}</StatNumber>
         <StatNumber label="En cuotas" to="/recurrentes">{formatMoney(totalEnCuotas)}</StatNumber>
-      </section>
-      {/* Riel de accesos a las secciones de finanzas */}
-      <section style={{ padding: '8px 18px 0' }}>
-        <SectionRail items={FINANZAS_RAIL} />
       </section>
       <div style={{ padding: '12px 18px 0' }}>
         <Card>
@@ -107,6 +105,17 @@ export default function Inicio() {
             return <CategoryBar key={c.cat} label={c.cat} total={c.total} max={maxCat} to={catId ? `/movimientos?category_id=${catId}` : '/movimientos'} />
           })}
       </section>
+
+      {/* Secciones de finanzas como cards clickeables */}
+      <section style={{ padding: '12px 18px 6px' }}>
+        <div className="cap">Secciones</div>
+      </section>
+      <SectionCard to="/movimientos" icon="ti-arrows-left-right" label="Movimientos" summary="Buscar y filtrar tus gastos e ingresos" />
+      <SectionCard to="/tarjetas" icon="ti-credit-card" label="Tarjetas" summary={`${creditCards.length} tarjeta${creditCards.length === 1 ? '' : 's'} de crédito`} />
+      <SectionCard to="/cuentas" icon="ti-wallet" label="Cuentas" summary={`${nCuentas} cuenta${nCuentas === 1 ? '' : 's'}`} />
+      <SectionCard to="/categorias" icon="ti-tags" label="Categorías" summary={`${nCats} categoría${nCats === 1 ? '' : 's'}`} />
+      <SectionCard to="/recurrentes" icon="ti-repeat" label="Recurrentes" summary={`${nRec} recurrente${nRec === 1 ? '' : 's'}`} />
+
       {formatUsdApprox(data.patrimonio_ars, data.blue) && (
         <div style={{ padding: '0 18px', fontSize: 12, color: 'var(--color-sage)' }}>Patrimonio {formatUsdApprox(data.patrimonio_ars, data.blue)} · blue {formatMoney(data.blue)}</div>
       )}
