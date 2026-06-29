@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import * as Checkbox from '@radix-ui/react-checkbox'
 import { useTransactions, useTxMutations } from '../hooks/useTransactions'
 import { type TxFilters } from '../hooks/useTransactions'
@@ -21,7 +22,14 @@ const PERIOD_OPTS = [
 ]
 
 export default function Movimientos() {
-  const [filters, setFilters] = useState<TxFilters>({ period: 'mes' })
+  // Filtros iniciales desde la URL (deep-links contextuales, ej. /movimientos?category_id=3).
+  const [sp] = useSearchParams()
+  const [filters, setFilters] = useState<TxFilters>(() => {
+    const f: TxFilters = { period: sp.get('period') || 'mes' }
+    const c = sp.get('category_id'); if (c) f.category_id = Number(c)
+    const a = sp.get('account_id'); if (a) f.account_id = Number(a)
+    return f
+  })
   const { data, isLoading } = useTransactions(filters)
   const accounts = useAccounts()
   const categories = useCategories()

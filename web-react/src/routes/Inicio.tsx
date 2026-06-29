@@ -3,6 +3,7 @@ import { useOverview } from '../hooks/useOverview'
 import { useVencimientos } from '../hooks/useVencimientos'
 import { useAccountsWithBalances } from '../hooks/useAccounts'
 import { useRecurring } from '../hooks/useRecurring'
+import { useCategories } from '../hooks/useCategories'
 import { formatMoney, formatUsdApprox } from '../lib/format'
 import { enCuotas as calcEnCuotas, cicloEnCurso, cicloEnCursoTotal } from '../lib/cards'
 import Card from '../components/ui/Card'
@@ -12,6 +13,8 @@ import CategoryBar from '../components/ui/CategoryBar'
 import AlertPill from '../components/ui/AlertPill'
 import { InicioSkeleton } from '../components/ui/skeletons'
 import EmptyState from '../components/ui/EmptyState'
+import SectionRail from '../components/nav/SectionRail'
+import { FINANZAS_RAIL } from '../components/nav/navItems'
 
 function daysUntil(dateStr?: string): number | null { if (!dateStr) return null; return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86_400_000) }
 
@@ -20,6 +23,7 @@ export default function Inicio() {
   const venc = useVencimientos()
   const accounts = useAccountsWithBalances()
   const recurring = useRecurring()
+  const cats = useCategories()
 
   if (isLoading) return <InicioSkeleton />
   if (isError || !data) return <EmptyState>No pudimos cargar tus datos. Reintentá.</EmptyState>
@@ -43,20 +47,25 @@ export default function Inicio() {
         <div style={{ marginTop: 16 }}><TickMark /></div>
       </section>
       <section style={{ display: 'flex', gap: 6, padding: '16px 18px 6px' }}>
-        <StatNumber label="Ingresos">{formatMoney(k.ingreso_mes)}</StatNumber>
-        <StatNumber label="Patrimonio">{formatMoney(data.patrimonio_ars)}</StatNumber>
-        <StatNumber label="En cuotas">{formatMoney(totalEnCuotas)}</StatNumber>
+        <StatNumber label="Ingresos" to="/movimientos">{formatMoney(k.ingreso_mes)}</StatNumber>
+        <StatNumber label="Patrimonio" to="/cuentas">{formatMoney(data.patrimonio_ars)}</StatNumber>
+        <StatNumber label="En cuotas" to="/recurrentes">{formatMoney(totalEnCuotas)}</StatNumber>
+      </section>
+      {/* Riel de accesos a las secciones de finanzas */}
+      <section style={{ padding: '8px 18px 0' }}>
+        <SectionRail items={FINANZAS_RAIL} />
       </section>
       <div style={{ padding: '12px 18px 0' }}>
         <Card>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Link to="/tarjetas" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', textDecoration: 'none', color: 'inherit' }}>
             <span style={{ fontSize: 15, fontWeight: 500 }}><i className="ti ti-credit-card" style={{ marginRight: 7 }} aria-hidden />Cuotas y tarjetas</span>
-          </div>
+            <i className="ti ti-chevron-right" style={{ fontSize: 16, color: 'var(--color-sage)' }} aria-hidden />
+          </Link>
           {/* PRIMARY: A pagar este mes — ciclo en curso (transacciones + cuotas del mes) */}
           <div style={{ marginTop: 14 }}>
             <div className="cap">A pagar este mes</div>
             <div className="num-serif" style={{ fontSize: 32, marginTop: 4 }}>{formatMoney(totalEnCurso)}</div>
-            <div style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 4 }}>En cuotas (deuda futura): {formatMoney(totalEnCuotas)}</div>
+            <Link to="/recurrentes" style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 4, display: 'inline-block', textDecoration: 'none' }}>En cuotas (deuda futura): {formatMoney(totalEnCuotas)} →</Link>
           </div>
           <div style={{ height: 1, background: 'var(--color-mist)', margin: '16px 0' }} />
           {/* Per-card rows */}
@@ -93,7 +102,10 @@ export default function Inicio() {
         <div className="cap" style={{ marginBottom: 12 }}>Gastos por categoría</div>
         {data.por_categoria.length === 0
           ? <EmptyState>Todavía no cargaste gastos este mes — escribile al bot o tocá +.</EmptyState>
-          : data.por_categoria.slice(0, 6).map((c) => <CategoryBar key={c.cat} label={c.cat} total={c.total} max={maxCat} />)}
+          : data.por_categoria.slice(0, 6).map((c) => {
+            const catId = cats.data?.find((x) => x.name === c.cat)?.id
+            return <CategoryBar key={c.cat} label={c.cat} total={c.total} max={maxCat} to={catId ? `/movimientos?category_id=${catId}` : '/movimientos'} />
+          })}
       </section>
       {formatUsdApprox(data.patrimonio_ars, data.blue) && (
         <div style={{ padding: '0 18px', fontSize: 12, color: 'var(--color-sage)' }}>Patrimonio {formatUsdApprox(data.patrimonio_ars, data.blue)} · blue {formatMoney(data.blue)}</div>

@@ -11,6 +11,8 @@ import { type HoyItem } from '../lib/types'
 import Card from '../components/ui/Card'
 import EmptyState from '../components/ui/EmptyState'
 import InstallNotifyBanner from '../components/InstallNotifyBanner'
+import SectionRail from '../components/nav/SectionRail'
+import { HOY_RAIL } from '../components/nav/navItems'
 
 // --- Date header ---
 function todayLabel(): string {
@@ -120,6 +122,11 @@ export default function Hoy() {
         <div style={{ fontSize: 14, color: 'var(--color-sage)', marginTop: 4, textTransform: 'capitalize' }}>
           {todayLabel()}
         </div>
+      </section>
+
+      {/* Riel de accesos a las secciones del asistente */}
+      <section style={{ padding: '0 18px 16px' }}>
+        <SectionRail items={HOY_RAIL} />
       </section>
 
       {/* Instalar app + activar notificaciones */}

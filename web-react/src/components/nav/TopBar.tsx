@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import ScopeToggle from './ScopeToggle'
 
-export default function TopBar({ onMenu }: { onMenu: () => void }) {
+export default function TopBar() {
   const navigate = useNavigate()
   return (
     <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 22px' }}>
@@ -15,9 +15,6 @@ export default function TopBar({ onMenu }: { onMenu: () => void }) {
         <ScopeToggle />
         <button onClick={() => navigate('/buscar')} aria-label="Buscar" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
           <i className="ti ti-search" style={{ fontSize: 20, color: 'var(--color-obsidian-ink)' }} aria-hidden />
-        </button>
-        <button onClick={onMenu} aria-label="Menú" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-          <i className="ti ti-menu-2" style={{ fontSize: 20, color: 'var(--color-obsidian-ink)' }} aria-hidden />
         </button>
       </span>
     </header>
