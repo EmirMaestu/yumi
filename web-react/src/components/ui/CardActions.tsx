@@ -1,8 +1,25 @@
 import { type CSSProperties } from 'react'
 
-export default function CardActions({ onEdit, onDelete }: { onEdit?: () => void; onDelete?: () => void }) {
+export default function CardActions({
+  onEdit,
+  onDelete,
+  onShare,
+}: {
+  onEdit?: () => void
+  onDelete?: () => void
+  onShare?: () => void
+}) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+      {onShare && (
+        <button
+          aria-label="Compartir"
+          onClick={(e) => { e.stopPropagation(); onShare() }}
+          style={btn}
+        >
+          <i className="ti ti-users" aria-hidden />
+        </button>
+      )}
       {onEdit && (
         <button
           aria-label="Editar"

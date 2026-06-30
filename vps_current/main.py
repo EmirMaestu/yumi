@@ -1054,10 +1054,11 @@ def _default_list_id(uid):
     members = household_member_ids(uid)
     ph = ",".join("?" for _ in members)
     with db() as c:
-        r = c.execute(f"SELECT id FROM lists WHERE name='Súper' AND owner_user_id IN ({ph}) LIMIT 1", members).fetchone()
+        vis = _list_vis_sql(uid)
+        r = c.execute(f"SELECT id FROM lists WHERE name='Súper' AND owner_user_id IN ({ph}) AND {vis} LIMIT 1", members).fetchone()
         if r:
             return r["id"]
-        r = c.execute(f"SELECT id FROM lists WHERE COALESCE(is_template,0)=0 AND owner_user_id IN ({ph}) ORDER BY id LIMIT 1", members).fetchone()
+        r = c.execute(f"SELECT id FROM lists WHERE COALESCE(is_template,0)=0 AND owner_user_id IN ({ph}) AND {vis} ORDER BY id LIMIT 1", members).fetchone()
         return r["id"] if r else None
 
 
@@ -1085,6 +1086,18 @@ def _guess_list_meta(name_norm):
 _LIST_COLS = "id,name,icon,kind,target_date,recurrence"
 
 
+def _list_vis_sql(uid, alias=""):
+    """Fragmento SQL (sin params) para listas VISIBLES por uid: propia, compartida con
+    todo el hogar (shared=1), dueño con share_all, o compartida per-member conmigo.
+    Se usa ANDeado a `owner_user_id IN (members)` (que ya acota al hogar). uid es int → seguro."""
+    a = f"{alias}." if alias else ""
+    u = int(uid)
+    return (f"({a}owner_user_id={u} OR {a}shared=1 "
+            f"OR {a}owner_user_id IN (SELECT id FROM users WHERE share_all=1) "
+            f"OR EXISTS (SELECT 1 FROM item_shares ish WHERE ish.entity='lists' "
+            f"AND ish.item_id={a}id AND ish.shared_with_user_id={u}))")
+
+
 def _resolve_list(name, uid, create=True):
     """Devuelve {id,name,icon,kind,target_date,recurrence} de la lista por nombre
     (insensible a acentos/mayus). name vacio -> lista por defecto (Súper) DEL HOGAR de uid.
@@ -1105,7 +1118,7 @@ def _resolve_list(name, uid, create=True):
         return dict(r) if r else None
     q = _norm_name(name)
     with db() as c:
-        rows = c.execute(f"SELECT {_LIST_COLS} FROM lists WHERE COALESCE(is_template,0)=0 AND owner_user_id IN ({ph})", members).fetchall()
+        rows = c.execute(f"SELECT {_LIST_COLS} FROM lists WHERE COALESCE(is_template,0)=0 AND owner_user_id IN ({ph}) AND {_list_vis_sql(uid)}", members).fetchall()
         for r in rows:
             if _norm_name(r["name"]) == q:
                 return dict(r)
@@ -1985,22 +1998,31 @@ async def callback_handler(update, context):
     # (callback_data lo controla el cliente → si no se filtra, es IDOR cross-usuario).
     if action == "tdone":
         try:
-            tid = int(arg); m = household_member_ids(current_user_id(update)); ph = ",".join("?" for _ in m)
+            import visibility
+            tid = int(arg); uid = current_user_id(update)
             conn = sqlite3.connect(DB_PATH)
-            cur = conn.execute(f"UPDATE tareas SET status='hecha', completed_at=datetime('now') WHERE id=? AND user_id IN ({ph})", [tid]+m)
-            conn.commit(); n = cur.rowcount; conn.close()
-            await q.answer(f"✓ Tarea #{tid} hecha" if n else "No es tuya", show_alert=not n)
+            # Marcar hecha = colaborar (dueño o con quien esté compartida).
+            if not visibility.can_collaborate(conn, "tareas", tid, uid):
+                conn.close(); await q.answer("No es tuya", show_alert=True); return
+            conn.execute("UPDATE tareas SET status='hecha', completed_at=datetime('now') WHERE id=?", (tid,))
+            conn.commit(); conn.close()
+            await q.answer(f"✓ Tarea #{tid} hecha")
         except Exception:
             log.exception("tdone"); await q.answer("Error", show_alert=True)
         return
 
     if action == "tdel":
         try:
-            tid = int(arg); m = household_member_ids(current_user_id(update)); ph = ",".join("?" for _ in m)
+            import visibility
+            tid = int(arg); uid = current_user_id(update)
             conn = sqlite3.connect(DB_PATH)
-            cur = conn.execute(f"DELETE FROM tareas WHERE id=? AND user_id IN ({ph})", [tid]+m)
-            conn.commit(); n = cur.rowcount; conn.close()
-            await q.answer(f"× Tarea #{tid} borrada" if n else "No es tuya", show_alert=not n)
+            # Borrar = SOLO el dueño.
+            if not visibility.is_owner(conn, "tareas", tid, uid):
+                conn.close(); await q.answer("Solo el dueño puede borrar", show_alert=True); return
+            conn.execute("DELETE FROM tareas WHERE id=?", (tid,))
+            conn.execute("DELETE FROM item_shares WHERE entity='tareas' AND item_id=?", (tid,))
+            conn.commit(); conn.close()
+            await q.answer(f"× Tarea #{tid} borrada")
         except Exception:
             log.exception("tdel"); await q.answer("Error", show_alert=True)
         return
@@ -2109,14 +2131,15 @@ async def callback_handler(update, context):
 
     if action == "lscheck":
         try:
-            iid = int(arg)
-            m = household_member_ids(current_user_id(update)); ph = ",".join("?" for _ in m)
+            import visibility
+            iid = int(arg); uid = current_user_id(update)
             with db() as c:
-                row = c.execute(
-                    f"SELECT s.done, s.list_id FROM shopping_items s JOIN lists l ON l.id=s.list_id "
-                    f"WHERE s.id=? AND l.owner_user_id IN ({ph})", [iid]+m).fetchone()
+                row = c.execute("SELECT done, list_id FROM shopping_items WHERE id=?", (iid,)).fetchone()
                 if not row:
                     await q.answer("Ese item ya no esta"); return
+                # Tildar/destildar = colaborar sobre la lista contenedora.
+                if not visibility.can_collaborate(c, "lists", row["list_id"], uid, owner_col="owner_user_id"):
+                    await q.answer("No es tuya", show_alert=True); return
                 new_done = 0 if row["done"] else 1
                 c.execute(
                     "UPDATE shopping_items SET done=?, "
@@ -2135,10 +2158,11 @@ async def callback_handler(update, context):
 
     if action == "lsclear":
         try:
-            lid = int(arg)
-            m = household_member_ids(current_user_id(update)); ph = ",".join("?" for _ in m)
+            import visibility
+            lid = int(arg); uid = current_user_id(update)
             with db() as c:
-                if not c.execute(f"SELECT 1 FROM lists WHERE id=? AND owner_user_id IN ({ph})", [lid]+m).fetchone():
+                # Limpiar tachados = colaborar sobre la lista.
+                if not visibility.can_collaborate(c, "lists", lid, uid, owner_col="owner_user_id"):
                     await q.answer("No es tuya", show_alert=True); return
                 c.execute("DELETE FROM shopping_items WHERE list_id=? AND done=1", (lid,))
             await q.answer("🧹 Listo")
@@ -3035,7 +3059,9 @@ async def tareas_cmd(update, context):
     conn = sqlite3.connect(DB_PATH)
     rows = conn.execute(
         "SELECT id,text,priority,due_at,COALESCE(shared,0) AS sh FROM tareas WHERE status='pendiente' "
-        f"AND (user_id=? OR (COALESCE(shared,0)=1 AND user_id IN ({_mph}))) "
+        f"AND (user_id=? OR ((COALESCE(shared,0)=1 OR EXISTS (SELECT 1 FROM item_shares ish "
+        f"WHERE ish.entity='tareas' AND ish.item_id=tareas.id AND ish.shared_with_user_id={int(uid)})) "
+        f"AND user_id IN ({_mph}))) "
         "ORDER BY CASE priority WHEN 'alta' THEN 1 WHEN 'media' THEN 2 ELSE 3 END, "
         "COALESCE(due_at,'9999'), id LIMIT 30", [uid] + _m).fetchall()
     conn.close()
@@ -3062,10 +3088,12 @@ async def done_cmd(update, context):
     try: tid = int(context.args[0].lstrip("#"))
     except ValueError: await update.message.reply_text("Pasame un numero."); return
     uid = current_user_id(update)
+    import visibility
     conn = sqlite3.connect(DB_PATH)
-    row = conn.execute("SELECT text,status FROM tareas WHERE id=? AND user_id=?", (tid, uid)).fetchone()
-    if not row: conn.close(); await update.message.reply_text(f"No encontre la tarea #{tid}"); return
-    if row[1] == "hecha": conn.close(); await update.message.reply_text(f"#{tid} ya estaba hecha."); return
+    if not visibility.can_collaborate(conn, "tareas", tid, uid):
+        conn.close(); await update.message.reply_text(f"No encontre la tarea #{tid}"); return
+    row = conn.execute("SELECT status FROM tareas WHERE id=?", (tid,)).fetchone()
+    if row and row[0] == "hecha": conn.close(); await update.message.reply_text(f"#{tid} ya estaba hecha."); return
     conn.execute("UPDATE tareas SET status='hecha', completed_at=datetime('now') WHERE id=?", (tid,))
     conn.commit(); conn.close()
     await update.message.reply_text(f"✅ Hecho: {row[0]}")
@@ -3144,10 +3172,10 @@ async def notas_cmd(update, context):
     q = " ".join(context.args).strip() if (context and getattr(context,"args",None)) else None
     conn = sqlite3.connect(DB_PATH)
     if q:
-        rows = conn.execute(f"SELECT id,text,created_at,COALESCE(shared,0) AS sh FROM notas WHERE (user_id=? OR (COALESCE(shared,0)=1 AND user_id IN ({_mph}))) AND text LIKE ? ORDER BY created_at DESC LIMIT 10",[uid] + _m + [f"%{q}%"]).fetchall()
+        rows = conn.execute(f"SELECT id,text,created_at,COALESCE(shared,0) AS sh FROM notas WHERE (user_id=? OR ((COALESCE(shared,0)=1 OR EXISTS (SELECT 1 FROM item_shares ish WHERE ish.entity='notas' AND ish.item_id=notas.id AND ish.shared_with_user_id={int(uid)})) AND user_id IN ({_mph}))) AND text LIKE ? ORDER BY created_at DESC LIMIT 10",[uid] + _m + [f"%{q}%"]).fetchall()
         header = f"📓 Notas con «{q}»\n\n"
     else:
-        rows = conn.execute(f"SELECT id,text,created_at,COALESCE(shared,0) AS sh FROM notas WHERE (user_id=? OR (COALESCE(shared,0)=1 AND user_id IN ({_mph}))) ORDER BY created_at DESC LIMIT 10", [uid] + _m).fetchall()
+        rows = conn.execute(f"SELECT id,text,created_at,COALESCE(shared,0) AS sh FROM notas WHERE (user_id=? OR ((COALESCE(shared,0)=1 OR EXISTS (SELECT 1 FROM item_shares ish WHERE ish.entity='notas' AND ish.item_id=notas.id AND ish.shared_with_user_id={int(uid)})) AND user_id IN ({_mph}))) ORDER BY created_at DESC LIMIT 10", [uid] + _m).fetchall()
         header = "📓 Ultimas notas\n\n"
     conn.close()
     if not rows: await update.message.reply_text("Sin notas."); return
@@ -4726,14 +4754,15 @@ async def lista_cmd(update, context):
 
 async def listas_cmd(update, context):
     if not is_allowed(update): return
-    members = household_member_ids(current_user_id(update))
+    uid = current_user_id(update)
+    members = household_member_ids(uid)
     ph = ",".join("?" for _ in members)
     with db() as c:
         rows = c.execute(
             "SELECT l.id, l.name, l.icon, l.target_date, l.recurrence, "
             "  COALESCE(SUM(CASE WHEN s.done=0 THEN 1 ELSE 0 END),0) AS pend, COUNT(s.id) AS total "
             "FROM lists l LEFT JOIN shopping_items s ON s.list_id=l.id "
-            f"WHERE COALESCE(l.is_template,0)=0 AND l.owner_user_id IN ({ph}) "
+            f"WHERE COALESCE(l.is_template,0)=0 AND l.owner_user_id IN ({ph}) AND {_list_vis_sql(uid, 'l')} "
             "GROUP BY l.id ORDER BY l.id", members).fetchall()
         tpls = c.execute(
             "SELECT l.name, l.icon, COUNT(s.id) AS total "

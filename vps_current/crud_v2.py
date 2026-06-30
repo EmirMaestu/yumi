@@ -120,17 +120,20 @@ def patch_table(conn, table: str, row_id: int, fields: dict):
         raise HTTPException(404, f"#{row_id} no existe")
 
 
-def assert_ownership(conn, table, row_id, user_id, allow_shared=False):
-    """Tira 403 si la fila no es del usuario. Si allow_shared=True, permite items
-    `shared=1` SOLO si su dueño pertenece al MISMO HOGAR (aislamiento multi-inquilino).
-    `user_id NULL` (legacy/huérfano) ya NO se permite a cualquiera."""
-    row = conn.execute(f"SELECT * FROM {table} WHERE id=?", (row_id,)).fetchone()
-    if not row: raise HTTPException(404, f"{table} #{row_id} no existe")
-    uid = row["user_id"] if "user_id" in row.keys() else None
-    if uid is not None and uid == user_id: return
-    if allow_shared and "shared" in row.keys() and row["shared"] and uid in _hh_member_ids(conn, user_id):
-        return
-    raise HTTPException(403, f"{table} #{row_id} no es tuyo")
+def assert_ownership(conn, table, row_id, user_id, allow_shared=False, owner_col="user_id"):
+    """Tira 403 si la fila no se puede tocar.
+    - allow_shared=False (default): SOLO el dueño (acciones 'borrar/renombrar/editar').
+    - allow_shared=True: permite COLABORAR — dueño, o ítem compartido con el hogar
+      (`shared=1`), o dueño con share_all, o compartido per-member (item_shares) conmigo;
+      todo acotado al MISMO HOGAR. Cubre el modelo de compartir por integrante."""
+    import visibility
+    if not conn.execute(f"SELECT 1 FROM {table} WHERE id=?", (row_id,)).fetchone():
+        raise HTTPException(404, f"{table} #{row_id} no existe")
+    ok = (visibility.can_collaborate(conn, table, row_id, user_id, owner_col=owner_col)
+          if allow_shared else
+          visibility.is_owner(conn, table, row_id, user_id, owner_col=owner_col))
+    if not ok:
+        raise HTTPException(403, f"{table} #{row_id} no es tuyo")
 
 
 # ════════════════════════════════ RECURRENTES ════════════════════════════════
@@ -240,7 +243,8 @@ class TareaPatch(BaseModel):
 @router.patch("/tareas/{tarea_id}")
 def patch_tarea(tarea_id: int, t: TareaPatch, user=Depends(require_user_crud)):
     with db() as conn:
-        assert_ownership(conn, "tareas", tarea_id, user["id"], allow_shared=True)
+        # Editar texto/prioridad/fecha de una tarea = SOLO el dueño (colaborar = done/undone).
+        assert_ownership(conn, "tareas", tarea_id, user["id"], allow_shared=False)
         patch_table(conn, "tareas", tarea_id, t.model_dump())
         audit(conn, "tareas", tarea_id, "update", "", user["id"])
         conn.commit()
@@ -557,10 +561,13 @@ def get_listas(user=Depends(require_user_crud)):
         # Sin esto, visibility.where usa el alias por defecto "t" y genera
         # `t.owner_user_id` → "no such column: t.owner_user_id" → el endpoint
         # fallaba y la web mostraba "Sin listas aún" aunque hubiera listas.
-        vf, vp = visibility.where(user["id"], None, members, alias="", owner_col="owner_user_id", shared_expr="shared=1")
+        se = visibility.shared_expr_item_member("", "lists", user["id"])
+        vf, vp = visibility.where(user["id"], None, members, alias="", owner_col="owner_user_id", shared_expr=se)
         lists = conn.execute(
-            "SELECT id, name, icon, kind, target_date, recurrence FROM lists "
-            f"WHERE COALESCE(is_template,0)=0 AND {vf} ORDER BY id", vp
+            "SELECT id, name, icon, kind, target_date, recurrence, COALESCE(shared,0) AS shared, "
+            "(SELECT COUNT(*) FROM item_shares s WHERE s.entity='lists' AND s.item_id=lists.id) AS share_count, "
+            "(owner_user_id=?) AS is_owner "
+            f"FROM lists WHERE COALESCE(is_template,0)=0 AND {vf} ORDER BY id", [user["id"]] + vp
         ).fetchall()
         out = []
         for l in lists:
@@ -602,10 +609,15 @@ def create_lista(l: ListaIn, user=Depends(require_user_crud)):
 
 @router.delete("/listas/{lid}")
 def delete_lista(lid: int, user=Depends(require_user_crud)):
+    import visibility
     with db() as conn:
-        members = _hh_member_ids(conn, user["id"]); ph = ",".join("?" for _ in members)
-        if not conn.execute(f"SELECT 1 FROM lists WHERE id=? AND owner_user_id IN ({ph})", [lid] + members).fetchone():
+        if not conn.execute("SELECT 1 FROM lists WHERE id=?", (lid,)).fetchone():
             raise HTTPException(404, "Lista no existe")
+        # Borrar la lista = SOLO el dueño (aunque esté compartida).
+        if not visibility.is_owner(conn, "lists", lid, user["id"], owner_col="owner_user_id"):
+            raise HTTPException(403, "Solo el dueño puede borrar la lista")
+        # Limpia también las filas de compartido per-member de esta lista.
+        conn.execute("DELETE FROM item_shares WHERE entity='lists' AND item_id=?", (lid,))
         conn.execute("DELETE FROM shopping_items WHERE list_id=?", (lid,))
         conn.execute("DELETE FROM lists WHERE id=?", (lid,))
         audit(conn, "lists", lid, "delete", "", user["id"])
@@ -618,9 +630,12 @@ def add_list_item(lid: int, it: ItemIn, user=Depends(require_user_crud)):
     text = (it.text or "").strip()
     if not text:
         raise HTTPException(400, "Texto requerido")
+    import visibility
     with db() as conn:
-        members = _hh_member_ids(conn, user["id"]); ph = ",".join("?" for _ in members)
-        if not conn.execute(f"SELECT 1 FROM lists WHERE id=? AND owner_user_id IN ({ph})", [lid] + members).fetchone():
+        if not conn.execute("SELECT 1 FROM lists WHERE id=?", (lid,)).fetchone():
+            raise HTTPException(404, "Lista no existe")
+        # Agregar ítems = colaborar (dueño o con quien esté compartida).
+        if not visibility.can_collaborate(conn, "lists", lid, user["id"], owner_col="owner_user_id"):
             raise HTTPException(404, "Lista no existe")
         p = shopping.parse_item(text)
         cat = shopping.aisle(p["text"])
@@ -635,12 +650,13 @@ def add_list_item(lid: int, it: ItemIn, user=Depends(require_user_crud)):
 
 @router.post("/listas/items/{iid}/toggle")
 def toggle_list_item(iid: int, user=Depends(require_user_crud)):
+    import visibility
     with db() as conn:
-        members = _hh_member_ids(conn, user["id"]); ph = ",".join("?" for _ in members)
-        row = conn.execute(
-            f"SELECT s.done FROM shopping_items s JOIN lists l ON l.id=s.list_id "
-            f"WHERE s.id=? AND l.owner_user_id IN ({ph})", [iid] + members).fetchone()
+        row = conn.execute("SELECT done, list_id FROM shopping_items WHERE id=?", (iid,)).fetchone()
         if not row:
+            raise HTTPException(404, "Item no existe")
+        # Tildar/destildar = colaborar sobre la lista contenedora.
+        if not visibility.can_collaborate(conn, "lists", row["list_id"], user["id"], owner_col="owner_user_id"):
             raise HTTPException(404, "Item no existe")
         new_done = 0 if row["done"] else 1
         conn.execute(
@@ -653,33 +669,38 @@ def toggle_list_item(iid: int, user=Depends(require_user_crud)):
 
 @router.delete("/listas/items/{iid}")
 def delete_list_item(iid: int, user=Depends(require_user_crud)):
+    import visibility
     with db() as conn:
-        members = _hh_member_ids(conn, user["id"]); ph = ",".join("?" for _ in members)
-        conn.execute(
-            f"DELETE FROM shopping_items WHERE id=? AND list_id IN "
-            f"(SELECT id FROM lists WHERE owner_user_id IN ({ph}))", [iid] + members)
+        row = conn.execute("SELECT list_id FROM shopping_items WHERE id=?", (iid,)).fetchone()
+        if not row:
+            return {"ok": True}
+        # Quitar un ítem = colaborar sobre la lista contenedora.
+        if not visibility.can_collaborate(conn, "lists", row["list_id"], user["id"], owner_col="owner_user_id"):
+            raise HTTPException(404, "Item no existe")
+        conn.execute("DELETE FROM shopping_items WHERE id=?", (iid,))
         conn.commit()
     return {"ok": True}
 
 
 @router.post("/listas/{lid}/clear")
 def clear_list_done(lid: int, user=Depends(require_user_crud)):
+    import visibility
     with db() as conn:
-        members = _hh_member_ids(conn, user["id"]); ph = ",".join("?" for _ in members)
-        cur = conn.execute(
-            f"DELETE FROM shopping_items WHERE list_id=? AND done=1 AND list_id IN "
-            f"(SELECT id FROM lists WHERE owner_user_id IN ({ph}))", [lid] + members)
+        if not visibility.can_collaborate(conn, "lists", lid, user["id"], owner_col="owner_user_id"):
+            raise HTTPException(404, "Lista no existe")
+        cur = conn.execute("DELETE FROM shopping_items WHERE list_id=? AND done=1", (lid,))
         conn.commit()
     return {"removed": cur.rowcount, "ok": True}
 
 
 @router.post("/listas/{lid}/buy-all")
 def buy_all_items(lid: int, user=Depends(require_user_crud)):
+    import visibility
     with db() as conn:
-        members = _hh_member_ids(conn, user["id"]); ph = ",".join("?" for _ in members)
+        if not visibility.can_collaborate(conn, "lists", lid, user["id"], owner_col="owner_user_id"):
+            raise HTTPException(404, "Lista no existe")
         cur = conn.execute(
-            f"UPDATE shopping_items SET done=1, done_at=datetime('now') WHERE list_id=? AND done=0 "
-            f"AND list_id IN (SELECT id FROM lists WHERE owner_user_id IN ({ph}))", [lid] + members)
+            "UPDATE shopping_items SET done=1, done_at=datetime('now') WHERE list_id=? AND done=0", (lid,))
         conn.commit()
     return {"marked": cur.rowcount, "ok": True}
 

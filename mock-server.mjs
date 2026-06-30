@@ -6,6 +6,11 @@ const now = Date.now()
 
 const routes = {
   'GET /api/me': { id: 1, name: 'Emir', username: 'emir', color: '#2bee4b', scope: 'both', others: [{ name: 'Lisa', scope_value: 'user:Lisa' }] },
+  'GET /api/household/members': [
+    { id: 1, name: 'Emir', color: '#2bee4b', is_me: true },
+    { id: 2, name: 'Lisa', color: '#e84393', is_me: false },
+  ],
+  'GET /api/share': { shared: 0, members: [2] },
   'GET /api/overview2': {
     patrimonio_ars: 2480500, patrimonio_usd: 2067, blue: 1200,
     kpis: { gasto_mes: 612300, gasto_prev_alt: 540000, ingreso_mes: 980000, deuda_tarjetas: 340000, cuotas_futuras: 340000, cuotas_n: 8, disponible: 1140000 },
@@ -71,16 +76,16 @@ const routes = {
   ],
   'GET /api/cotizacion': { blue: { compra: 1180, venta: 1220 }, oficial: { compra: 980, venta: 1020 }, mep: { compra: 1150, venta: 1170 } },
   'GET /api/tareas': [
-    { id: 201, text: 'Pagar el alquiler', priority: 'alta', due_at: fmt(now), status: 'pendiente', completed_at: null, shared: 1, user_id: 1, created_at: fmt(now - day) },
-    { id: 202, text: 'Comprar regalo de cumple', priority: 'media', due_at: fmt(now + 4 * day), status: 'pendiente', completed_at: null, shared: 0, user_id: 1, created_at: fmt(now - 2 * day) },
-    { id: 203, text: 'Renovar la SUBE', priority: 'baja', due_at: null, status: 'pendiente', completed_at: null, shared: 1, user_id: 1, created_at: fmt(now - 3 * day) },
-    { id: 204, text: 'Sacar turno médico', priority: 'media', due_at: null, status: 'hecha', completed_at: fmt(now - day), shared: 0, user_id: 1, created_at: fmt(now - 5 * day) },
+    { id: 201, text: 'Pagar el alquiler', priority: 'alta', due_at: fmt(now), status: 'pendiente', completed_at: null, shared: 1, share_count: 0, user_id: 1, created_at: fmt(now - day) },
+    { id: 202, text: 'Comprar regalo de cumple', priority: 'media', due_at: fmt(now + 4 * day), status: 'pendiente', completed_at: null, shared: 0, share_count: 1, user_id: 1, created_at: fmt(now - 2 * day) },
+    { id: 203, text: 'Renovar la SUBE (de Lisa)', priority: 'baja', due_at: null, status: 'pendiente', completed_at: null, shared: 0, share_count: 0, user_id: 2, created_at: fmt(now - 3 * day) },
+    { id: 204, text: 'Sacar turno médico', priority: 'media', due_at: null, status: 'hecha', completed_at: fmt(now - day), shared: 0, share_count: 0, user_id: 1, created_at: fmt(now - 5 * day) },
   ],
   // tags stored as a JSON string by the backend (json.dumps), mirror that here
   'GET /api/notas': [
-    { id: 301, text: 'Wifi vecino: ClaroAR_8821 / clave 5tg9hh2k', tags: '["claves"]', shared: 1, user_id: 1, created_at: fmt(now - day) },
-    { id: 302, text: 'Idea: planear viaje a Bariloche en septiembre', tags: '["viajes","ideas"]', shared: 1, user_id: 1, created_at: fmt(now - 6 * day) },
-    { id: 303, text: 'Talle de zapatillas de Lisa: 38', tags: null, shared: 0, user_id: 1, created_at: fmt(now - 10 * day) },
+    { id: 301, text: 'Wifi vecino: ClaroAR_8821 / clave 5tg9hh2k', tags: '["claves"]', shared: 1, share_count: 0, user_id: 1, created_at: fmt(now - day) },
+    { id: 302, text: 'Idea: planear viaje a Bariloche en septiembre', tags: '["viajes","ideas"]', shared: 0, share_count: 1, user_id: 1, created_at: fmt(now - 6 * day) },
+    { id: 303, text: 'Lista del súper (de Lisa)', tags: null, shared: 0, share_count: 0, user_id: 2, created_at: fmt(now - 10 * day) },
   ],
   'GET /api/eventos': [
     { id: 401, title: 'Cena con los viejos', starts_at: fmt(now) + 'T21:00', location: 'Casa de mamá', notes: '', user_id: 1, reminders: [] },
@@ -118,6 +123,7 @@ const routes = {
     lists: [
       {
         id: 701, name: 'Supermercado', icon: '🛒', kind: 'compras', target_date: null, recurrence: null, pend: 3, total: 4,
+        shared: 1, share_count: 0, is_owner: 1,
         items: [
           { id: 7011, text: 'Leche', done: 0, qty: 2, unit: 'L', category: 'Lácteos' },
           { id: 7012, text: 'Pan', done: 0, qty: 1, unit: '', category: 'Panadería' },
@@ -126,7 +132,8 @@ const routes = {
         ],
       },
       {
-        id: 702, name: 'Farmacia', icon: '💊', kind: 'compras', target_date: null, recurrence: null, pend: 1, total: 1,
+        id: 702, name: 'Farmacia (de Lisa)', icon: '💊', kind: 'compras', target_date: null, recurrence: null, pend: 1, total: 1,
+        shared: 0, share_count: 0, is_owner: 0,
         items: [{ id: 7021, text: 'Ibuprofeno', done: 0, qty: 1, unit: '', category: '' }],
       },
     ],
