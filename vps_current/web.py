@@ -254,13 +254,18 @@ def user_filter_eq(scope_cookie, user, col="user_id"):
     return f"AND {col} IN ({ph})", list(m)
 
 
-def vis_filter_item(scope_cookie, user, alias=""):
+def vis_filter_item(scope_cookie, user, alias="", entity=None):
     """Visibilidad para ítems con columna `shared` (eventos/tareas/notas/recordatorios).
-    alias="" → columnas sin prefijo (FROM tabla sin alias); alias="r" → r.user_id / r.shared."""
+    alias="" → columnas sin prefijo (FROM tabla sin alias); alias="r" → r.user_id / r.shared.
+    Si se pasa `entity` (eventos/recordatorios/...), suma el compartir POR INTEGRANTE
+    (item_shares), igual que tareas/notas/listas."""
     import visibility
     uid = resolve_scope_uid(scope_cookie, user)
     m = _household_member_ids(user["id"])
-    se = visibility.shared_expr_item(alias) if alias else "shared=1"
+    if entity:
+        se = visibility.shared_expr_item_member(alias, entity, user["id"])
+    else:
+        se = visibility.shared_expr_item(alias) if alias else "shared=1"
     frag, params = visibility.where(user["id"], uid, m, alias=alias, shared_expr=se)
     return "AND " + frag, params
 
@@ -1095,7 +1100,7 @@ def api_acc_delete(aid: int, user=Depends(require_user)):
 
 # ─── Privacidad: compartir ítems / interruptor maestro ─────────────────────
 _SHARE_ENTITIES = ("eventos", "tareas", "notas", "recordatorios", "accounts", "lists")
-_PER_MEMBER_ENTITIES = ("tareas", "notas", "lists")  # soportan compartir por integrante
+_PER_MEMBER_ENTITIES = ("tareas", "notas", "lists", "eventos", "recordatorios")  # soportan compartir por integrante
 
 
 def _share_state(conn, entity, iid):
@@ -1446,14 +1451,15 @@ def del_rec_rec(rid: int, user=Depends(require_user)):
 # ─── Eventos / Tareas / Habitos / Recordatorios / Notas ───────────────────
 @app.get("/api/eventos")
 def api_eventos(past: bool = False, user=Depends(require_user), scope: str = Cookie("mine")):
-    uf_x, uf_xp = vis_filter_item(scope, user)
+    uf_x, uf_xp = vis_filter_item(scope, user, entity="eventos")
+    sc = "(SELECT COUNT(*) FROM item_shares s WHERE s.entity='eventos' AND s.item_id=eventos.id) AS share_count"
     nowstr = now_local().strftime("%Y-%m-%dT%H:%M")
     with db() as conn:
         if past:
-            rows = conn.execute(f"SELECT * FROM eventos WHERE starts_at<? {uf_x} ORDER BY starts_at DESC LIMIT 50",
+            rows = conn.execute(f"SELECT *, {sc} FROM eventos WHERE starts_at<? {uf_x} ORDER BY starts_at DESC LIMIT 50",
                                 [nowstr] + uf_xp).fetchall()
         else:
-            rows = conn.execute(f"SELECT * FROM eventos WHERE starts_at>=? {uf_x} ORDER BY starts_at ASC",
+            rows = conn.execute(f"SELECT *, {sc} FROM eventos WHERE starts_at>=? {uf_x} ORDER BY starts_at ASC",
                                 [nowstr] + uf_xp).fetchall()
         events = [dict(r) for r in rows]
         # adjuntar recordatorios linkeados a cada evento
@@ -1475,7 +1481,8 @@ def del_ev(eid: int, user=Depends(require_user)):
     with db() as conn:
         row = conn.execute("SELECT user_id FROM eventos WHERE id=?", (eid,)).fetchone()
         if row and row["user_id"] != user["id"]: raise HTTPException(403, "No es tuyo")
-        conn.execute("DELETE FROM eventos WHERE id=?", (eid,)); conn.commit()
+        conn.execute("DELETE FROM eventos WHERE id=?", (eid,))
+        conn.execute("DELETE FROM item_shares WHERE entity='eventos' AND item_id=?", (eid,)); conn.commit()
     return {"ok": True}
 
 
@@ -1568,12 +1575,13 @@ def api_habitos(days: int = 30, user=Depends(require_user), scope: str = Cookie(
 
 @app.get("/api/recordatorios")
 def api_recs(include_fired: bool = False, user=Depends(require_user), scope: str = Cookie("mine")):
-    uf_x, uf_xp = vis_filter_item(scope, user)
+    uf_x, uf_xp = vis_filter_item(scope, user, entity="recordatorios")
+    sc = "(SELECT COUNT(*) FROM item_shares s WHERE s.entity='recordatorios' AND s.item_id=recordatorios.id) AS share_count"
     with db() as conn:
         if include_fired:
-            rows = conn.execute(f"SELECT * FROM recordatorios WHERE 1=1 {uf_x} ORDER BY remind_at DESC LIMIT 100", uf_xp).fetchall()
+            rows = conn.execute(f"SELECT *, {sc} FROM recordatorios WHERE 1=1 {uf_x} ORDER BY remind_at DESC LIMIT 100", uf_xp).fetchall()
         else:
-            rows = conn.execute(f"SELECT * FROM recordatorios WHERE fired=0 {uf_x} ORDER BY remind_at ASC", uf_xp).fetchall()
+            rows = conn.execute(f"SELECT *, {sc} FROM recordatorios WHERE fired=0 {uf_x} ORDER BY remind_at ASC", uf_xp).fetchall()
     return [dict(r) for r in rows]
 
 
@@ -1582,7 +1590,8 @@ def del_rec(rid: int, user=Depends(require_user)):
     with db() as conn:
         row = conn.execute("SELECT user_id FROM recordatorios WHERE id=?", (rid,)).fetchone()
         if row and row["user_id"] != user["id"]: raise HTTPException(403, "No es tuyo")
-        conn.execute("DELETE FROM recordatorios WHERE id=?", (rid,)); conn.commit()
+        conn.execute("DELETE FROM recordatorios WHERE id=?", (rid,))
+        conn.execute("DELETE FROM item_shares WHERE entity='recordatorios' AND item_id=?", (rid,)); conn.commit()
     return {"ok": True}
 
 

@@ -6,6 +6,15 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-06-30
+### Added
+- **Compartir eventos y recordatorios por integrante** (igual que notas/tareas/listas): botón Compartir → Privada / Todo el plan / Personas puntuales, con indicador. Editar = colabora quien lo recibe; borrar = solo el dueño.
+- **Vincular recordatorios a eventos:** al crear/editar un recordatorio podés elegir un evento; queda enganchado debajo de ese evento en la Agenda.
+### Fixed
+- **Selectores (Categoría, etc.):** ya no se salen de la pantalla — tienen alto máximo y scroll.
+- **Selectores en iPhone:** al tocar el desplegable abierto ya no se vuelve a abrir solo.
+- **Inputs de fecha/hora en iPhone:** ya no se desbordan hacia la derecha fuera de los límites.
+
 ## [0.11.2] - 2026-06-30
 ### Changed
 - **Iconos cargan casi al instante.** Antes se bajaba toda la tipografía de iconos (~447 KB, 5.800 iconos) y se veían en blanco hasta que terminaba; ahora se genera un **subset con solo los iconos en uso (~6 KB)** y se **precarga**. Mejora notoria en primera carga y al refrescar fuerte (típico tras deployar).
