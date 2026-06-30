@@ -74,6 +74,53 @@ def test_cross_household_never():
     assert 300 not in _ids(c, "eventos", "e", frag, p)
 
 
+def _db_items():
+    c = sqlite3.connect(":memory:"); c.row_factory = sqlite3.Row
+    c.executescript("""
+      CREATE TABLE users(id INTEGER PRIMARY KEY, household_id INTEGER, share_all INTEGER DEFAULT 0);
+      CREATE TABLE tareas(id INTEGER PRIMARY KEY, user_id INTEGER, shared INTEGER DEFAULT 0);
+      CREATE TABLE item_shares(id INTEGER PRIMARY KEY AUTOINCREMENT, entity TEXT, item_id INTEGER,
+                               owner_user_id INTEGER, shared_with_user_id INTEGER);
+      INSERT INTO users(id,household_id,share_all) VALUES (1,1,0),(2,1,0),(3,3,0);
+      INSERT INTO tareas(id,user_id,shared) VALUES (200,1,0),(201,2,0),(202,2,0);
+    """)
+    return c
+
+
+def test_member_share_visible_to_target_only():
+    c = _db_items()
+    c.execute("INSERT INTO item_shares(entity,item_id,owner_user_id,shared_with_user_id) VALUES ('tareas',201,2,1)")
+    se = visibility.shared_expr_item_member("t", "tareas", 1)
+    frag, p = visibility.where(asker_id=1, scope_uid=None, members=_members(c,1), alias="t", shared_expr=se)
+    assert _ids(c, "tareas", "t", frag, p) == [200, 201]  # propia + compartida conmigo; NO la 202 privada
+
+
+def test_member_share_not_visible_to_other_household_member():
+    c = _db_items()
+    c.execute("INSERT INTO users(id,household_id) VALUES (4,1)")
+    c.execute("INSERT INTO item_shares(entity,item_id,owner_user_id,shared_with_user_id) VALUES ('tareas',201,2,1)")
+    se = visibility.shared_expr_item_member("t", "tareas", 4)
+    frag, p = visibility.where(asker_id=4, scope_uid=None, members=_members(c,4), alias="t", shared_expr=se)
+    assert 201 not in _ids(c, "tareas", "t", frag, p)  # compartida con 1, no con 4
+
+
+def test_member_share_respects_household_boundary():
+    c = _db_items()
+    c.execute("INSERT INTO tareas(id,user_id,shared) VALUES (300,3,0)")
+    c.execute("INSERT INTO item_shares(entity,item_id,owner_user_id,shared_with_user_id) VALUES ('tareas',300,3,1)")
+    se = visibility.shared_expr_item_member("t", "tareas", 1)
+    frag, p = visibility.where(asker_id=1, scope_uid=None, members=_members(c,1), alias="t", shared_expr=se)
+    assert 300 not in _ids(c, "tareas", "t", frag, p)  # otro hogar: nunca, aunque haya fila de share
+
+
+def test_member_share_entity_scoped():
+    c = _db_items()
+    c.execute("INSERT INTO item_shares(entity,item_id,owner_user_id,shared_with_user_id) VALUES ('notas',201,2,1)")
+    se = visibility.shared_expr_item_member("t", "tareas", 1)
+    frag, p = visibility.where(asker_id=1, scope_uid=None, members=_members(c,1), alias="t", shared_expr=se)
+    assert 201 not in _ids(c, "tareas", "t", frag, p)  # la fila era de 'notas' → no aplica a tareas
+
+
 def test_bare_alias_no_prefix():
     # alias="" -> referencias sin prefijo (user_id, shared), como en `FROM eventos` sin alias
     c = _db()

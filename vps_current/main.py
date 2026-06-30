@@ -368,6 +368,15 @@ def init_db():
             owner_user_id INTEGER, shared INTEGER NOT NULL DEFAULT 1,
             target_date TEXT, recurrence TEXT, is_template INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT (datetime('now')));
+        CREATE TABLE IF NOT EXISTS item_shares (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            entity TEXT NOT NULL,                 -- 'tareas' | 'notas' | 'lists'
+            item_id INTEGER NOT NULL,
+            owner_user_id INTEGER,
+            shared_with_user_id INTEGER NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE(entity, item_id, shared_with_user_id));
+        CREATE INDEX IF NOT EXISTS idx_item_shares ON item_shares(entity, item_id, shared_with_user_id);
         CREATE TABLE IF NOT EXISTS event_attachments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             event_id INTEGER NOT NULL, file_id TEXT NOT NULL, kind TEXT,

@@ -33,3 +33,18 @@ def shared_expr_item(alias):
 def shared_expr_tx(alias):
     """`shared_expr` para transacciones: visibilidad por la cuenta (account.shared)."""
     return f"{alias}.account_id IN (SELECT id FROM accounts WHERE shared=1)"
+
+
+def shared_expr_item_member(alias, entity, asker_id):
+    """`shared_expr` para tareas/notas/lists con compartir POR INTEGRANTE:
+    la fila es visible si está compartida con todo el hogar (`shared=1`) O si está
+    compartida puntualmente conmigo (fila en item_shares). `visibility.where` ya
+    agrega el caso share_all del dueño y acota al hogar.
+
+    Sin params (se embeben valores): `entity` es un literal interno (se sanitiza igual)
+    y `asker_id` se castea a int → no hay inyección."""
+    a = f"{alias}." if alias else ""
+    ent = str(entity).replace("'", "")
+    aid = int(asker_id)
+    return (f"({a}shared=1 OR EXISTS (SELECT 1 FROM item_shares s "
+            f"WHERE s.entity='{ent}' AND s.item_id={a}id AND s.shared_with_user_id={aid}))")
