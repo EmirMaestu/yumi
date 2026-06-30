@@ -121,6 +121,84 @@ def test_member_share_entity_scoped():
     assert 201 not in _ids(c, "tareas", "t", frag, p)  # la fila era de 'notas' → no aplica a tareas
 
 
+def _db_perm():
+    c = sqlite3.connect(":memory:"); c.row_factory = sqlite3.Row
+    c.executescript("""
+      CREATE TABLE users(id INTEGER PRIMARY KEY, household_id INTEGER, share_all INTEGER DEFAULT 0);
+      CREATE TABLE tareas(id INTEGER PRIMARY KEY, user_id INTEGER, shared INTEGER DEFAULT 0);
+      CREATE TABLE notas(id INTEGER PRIMARY KEY, user_id INTEGER, shared INTEGER DEFAULT 0);
+      CREATE TABLE lists(id INTEGER PRIMARY KEY, owner_user_id INTEGER, shared INTEGER DEFAULT 0);
+      CREATE TABLE item_shares(id INTEGER PRIMARY KEY AUTOINCREMENT, entity TEXT, item_id INTEGER,
+                               owner_user_id INTEGER, shared_with_user_id INTEGER);
+      -- hogar 1 = {1,2,4}, hogar 3 = {3}
+      INSERT INTO users(id,household_id,share_all) VALUES (1,1,0),(2,1,0),(4,1,0),(3,3,0);
+      INSERT INTO tareas(id,user_id,shared) VALUES (500,1,0),(501,1,1);   -- 500 privada, 501 con todo el hogar
+      INSERT INTO notas(id,user_id,shared) VALUES (600,1,0);
+      INSERT INTO lists(id,owner_user_id,shared) VALUES (700,1,0),(701,1,1);
+    """)
+    return c
+
+
+def test_is_owner_only_owner():
+    c = _db_perm()
+    assert visibility.is_owner(c, "tareas", 500, 1) is True
+    assert visibility.is_owner(c, "tareas", 500, 2) is False   # mismo hogar pero no dueño
+    assert visibility.is_owner(c, "lists", 700, 1, owner_col="owner_user_id") is True
+    assert visibility.is_owner(c, "lists", 700, 2, owner_col="owner_user_id") is False
+
+
+def test_collab_owner_always():
+    c = _db_perm()
+    assert visibility.can_collaborate(c, "tareas", 500, 1) is True          # dueño
+    assert visibility.can_collaborate(c, "notas", 600, 1) is True
+
+
+def test_collab_private_blocks_household():
+    c = _db_perm()
+    # 500 privada del user 1 → otro del hogar NO puede colaborar
+    assert visibility.can_collaborate(c, "tareas", 500, 2) is False
+
+
+def test_collab_shared_all_household():
+    c = _db_perm()
+    # 501 shared=1 → cualquiera del hogar colabora; nadie de otro hogar
+    assert visibility.can_collaborate(c, "tareas", 501, 2) is True
+    assert visibility.can_collaborate(c, "tareas", 501, 4) is True
+    assert visibility.can_collaborate(c, "tareas", 501, 3) is False        # otro hogar
+
+
+def test_collab_per_member_grant():
+    c = _db_perm()
+    # comparto la 500 (privada) puntualmente con el user 2, NO con el 4
+    c.execute("INSERT INTO item_shares(entity,item_id,owner_user_id,shared_with_user_id) VALUES ('tareas',500,1,2)")
+    assert visibility.can_collaborate(c, "tareas", 500, 2) is True
+    assert visibility.can_collaborate(c, "tareas", 500, 4) is False        # no incluido
+    assert visibility.can_collaborate(c, "tareas", 500, 3) is False        # otro hogar
+
+
+def test_collab_per_member_lists():
+    c = _db_perm()
+    c.execute("INSERT INTO item_shares(entity,item_id,owner_user_id,shared_with_user_id) VALUES ('lists',700,1,2)")
+    assert visibility.can_collaborate(c, "lists", 700, 2, owner_col="owner_user_id") is True
+    assert visibility.can_collaborate(c, "lists", 700, 4, owner_col="owner_user_id") is False
+    # entity scoping: una fila de 'lists' no habilita 'tareas'
+    assert visibility.can_collaborate(c, "tareas", 700, 2) is False
+
+
+def test_collab_share_all_owner():
+    c = _db_perm()
+    c.execute("UPDATE users SET share_all=1 WHERE id=1")
+    # con share_all del dueño, todo el hogar colabora aún en lo privado
+    assert visibility.can_collaborate(c, "tareas", 500, 2) is True
+    assert visibility.can_collaborate(c, "tareas", 500, 3) is False        # otro hogar jamás
+
+
+def test_collab_missing_item():
+    c = _db_perm()
+    assert visibility.can_collaborate(c, "tareas", 99999, 1) is False
+    assert visibility.is_owner(c, "tareas", 99999, 1) is False
+
+
 def test_bare_alias_no_prefix():
     # alias="" -> referencias sin prefijo (user_id, shared), como en `FROM eventos` sin alias
     c = _db()

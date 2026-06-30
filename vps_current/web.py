@@ -1094,21 +1094,77 @@ def api_acc_delete(aid: int, user=Depends(require_user)):
 
 
 # ─── Privacidad: compartir ítems / interruptor maestro ─────────────────────
+_SHARE_ENTITIES = ("eventos", "tareas", "notas", "recordatorios", "accounts", "lists")
+_PER_MEMBER_ENTITIES = ("tareas", "notas", "lists")  # soportan compartir por integrante
+
+
+def _share_state(conn, entity, iid):
+    """Estado actual de compartido: {shared:0|1, members:[ids]}."""
+    sh = conn.execute(f"SELECT COALESCE(shared,0) FROM {entity} WHERE id=?", (iid,)).fetchone()
+    mem = [r[0] for r in conn.execute(
+        "SELECT shared_with_user_id FROM item_shares WHERE entity=? AND item_id=? ORDER BY shared_with_user_id",
+        (entity, iid)).fetchall()]
+    return {"shared": (sh[0] if sh else 0), "members": mem}
+
+
 @app.post("/api/share")
 def api_set_shared(body: dict = Body(...), user=Depends(require_user)):
-    """Marca un ítem como compartido (1) o privado (0). SOLO el dueño puede cambiarlo."""
+    """Configura el compartido de un ítem. SOLO el dueño.
+    body: {entity, id, shared?:0|1, members?:[user_id]}.
+    - `shared=1` → visible para TODO el hogar; `shared=0` → privado (salvo per-member).
+    - `members` (solo tareas/notas/lists) → REEMPLAZA con quiénes se comparte puntualmente
+      (validados: del mismo hogar y distintos del dueño)."""
     entity = (body.get("entity") or "").strip()
     iid = body.get("id")
-    shared = 1 if body.get("shared") else 0
-    if entity not in ("eventos", "tareas", "notas", "recordatorios", "accounts", "lists"):
+    if entity not in _SHARE_ENTITIES:
         raise HTTPException(400, "entity inválida")
     owner_col = "owner_user_id" if entity == "lists" else "user_id"
+    members_in = body.get("members")
     with db() as conn:
         row = conn.execute(f"SELECT {owner_col} AS o FROM {entity} WHERE id=?", (iid,)).fetchone()
         if not row: raise HTTPException(404, "No existe")
         if row["o"] != user["id"]: raise HTTPException(403, "No es tuyo")
-        conn.execute(f"UPDATE {entity} SET shared=? WHERE id=?", (shared, iid)); conn.commit()
-    return {"ok": True, "shared": shared}
+        if "shared" in body:
+            conn.execute(f"UPDATE {entity} SET shared=? WHERE id=?", (1 if body.get("shared") else 0, iid))
+        if members_in is not None and entity in _PER_MEMBER_ENTITIES:
+            hh = set(_household_member_ids(user["id"]))
+            valid = sorted({int(m) for m in members_in
+                            if str(m).lstrip("-").isdigit() and int(m) in hh and int(m) != user["id"]})
+            conn.execute("DELETE FROM item_shares WHERE entity=? AND item_id=?", (entity, iid))
+            for mi in valid:
+                conn.execute(
+                    "INSERT OR IGNORE INTO item_shares(entity,item_id,owner_user_id,shared_with_user_id) "
+                    "VALUES (?,?,?,?)", (entity, iid, user["id"], mi))
+        conn.commit()
+        state = _share_state(conn, entity, iid)
+    return {"ok": True, **state}
+
+
+@app.get("/api/share")
+def api_get_shared(entity: str, id: int, user=Depends(require_user)):
+    """Estado de compartido de un ítem (para prefilar la UI). SOLO el dueño."""
+    entity = (entity or "").strip()
+    if entity not in _SHARE_ENTITIES:
+        raise HTTPException(400, "entity inválida")
+    owner_col = "owner_user_id" if entity == "lists" else "user_id"
+    with db() as conn:
+        row = conn.execute(f"SELECT {owner_col} AS o FROM {entity} WHERE id=?", (id,)).fetchone()
+        if not row: raise HTTPException(404, "No existe")
+        if row["o"] != user["id"]: raise HTTPException(403, "No es tuyo")
+        return _share_state(conn, entity, id)
+
+
+@app.get("/api/household/members")
+def api_household_members(user=Depends(require_user)):
+    """Integrantes del hogar (para el selector de compartir). Incluye al propio (is_me)."""
+    members = _household_member_ids(user["id"])
+    if not members:
+        return []
+    ph = ",".join("?" for _ in members)
+    with db() as conn:
+        rows = conn.execute(
+            f"SELECT id, name, color FROM users WHERE id IN ({ph}) AND active=1 ORDER BY id", members).fetchall()
+    return [{"id": r["id"], "name": r["name"], "color": r["color"], "is_me": r["id"] == user["id"]} for r in rows]
 
 
 @app.post("/api/settings/share_all")
@@ -1425,23 +1481,23 @@ def del_ev(eid: int, user=Depends(require_user)):
 
 @app.get("/api/tareas")
 def api_tareas(status: str = "pendiente", user=Depends(require_user), scope: str = Cookie("mine")):
-    # incluye items compartidos (shared=1) ademas de los propios
+    # Visibilidad central (hogar): propias + compartidas (con el hogar, share_all del
+    # dueño, o per-member conmigo). Reemplaza el filtro inline previo, que en scope
+    # "ours" hacía 1=1 (fuga entre hogares) y en otros mostraba cualquier shared=1.
+    import visibility
     scope_uid = resolve_scope_uid(scope, user)
-    if scope_uid is not None:
-        wuser = "(user_id=? OR COALESCE(shared,0)=1)"
-        params_user = [scope_uid]
-    else:
-        wuser = "1=1"; params_user = []
+    members = _household_member_ids(user["id"])
+    se = visibility.shared_expr_item_member("", "tareas", user["id"])
+    frag, vp = visibility.where(user["id"], scope_uid, members, alias="", shared_expr=se)
     with db() as conn:
         if status == "all":
             rows = conn.execute(
-                f"SELECT * FROM tareas WHERE {wuser} ORDER BY created_at DESC LIMIT 200",
-                params_user).fetchall()
+                f"SELECT * FROM tareas WHERE {frag} ORDER BY created_at DESC LIMIT 200", vp).fetchall()
         else:
             rows = conn.execute(
-                f"SELECT * FROM tareas WHERE status=? AND {wuser} ORDER BY "
+                f"SELECT * FROM tareas WHERE status=? AND {frag} ORDER BY "
                 f"CASE priority WHEN 'alta' THEN 1 WHEN 'media' THEN 2 ELSE 3 END, "
-                f"COALESCE(due_at,'9999'), id", [status] + params_user).fetchall()
+                f"COALESCE(due_at,'9999'), id", [status] + vp).fetchall()
     return [dict(r) for r in rows]
 
 
@@ -1465,28 +1521,34 @@ def _can_touch_shared(conn, row, user):
 
 @app.post("/api/tareas/{tid}/done")
 def t_done(tid: int, user=Depends(require_user)):
+    import visibility
     with db() as conn:
-        row = conn.execute("SELECT user_id, COALESCE(shared,0) AS sh FROM tareas WHERE id=?", (tid,)).fetchone()
-        if not _can_touch_shared(conn, row, user): raise HTTPException(403, "No es tuya")
+        if not conn.execute("SELECT 1 FROM tareas WHERE id=?", (tid,)).fetchone(): raise HTTPException(404, "No existe")
+        # Marcar hecha = colaborar (dueño o con quien esté compartida).
+        if not visibility.can_collaborate(conn, "tareas", tid, user["id"]): raise HTTPException(403, "No es tuya")
         conn.execute("UPDATE tareas SET status='hecha', completed_at=datetime('now') WHERE id=?", (tid,)); conn.commit()
     return {"ok": True}
 
 
 @app.post("/api/tareas/{tid}/undone")
 def t_undone(tid: int, user=Depends(require_user)):
+    import visibility
     with db() as conn:
-        row = conn.execute("SELECT user_id, COALESCE(shared,0) AS sh FROM tareas WHERE id=?", (tid,)).fetchone()
-        if not _can_touch_shared(conn, row, user): raise HTTPException(403, "No es tuya")
+        if not conn.execute("SELECT 1 FROM tareas WHERE id=?", (tid,)).fetchone(): raise HTTPException(404, "No existe")
+        if not visibility.can_collaborate(conn, "tareas", tid, user["id"]): raise HTTPException(403, "No es tuya")
         conn.execute("UPDATE tareas SET status='pendiente', completed_at=NULL WHERE id=?", (tid,)); conn.commit()
     return {"ok": True}
 
 
 @app.delete("/api/tareas/{tid}")
 def del_tar(tid: int, user=Depends(require_user)):
+    import visibility
     with db() as conn:
-        row = conn.execute("SELECT user_id, COALESCE(shared,0) AS sh FROM tareas WHERE id=?", (tid,)).fetchone()
-        if not _can_touch_shared(conn, row, user): raise HTTPException(403, "No es tuya")
-        conn.execute("DELETE FROM tareas WHERE id=?", (tid,)); conn.commit()
+        if not conn.execute("SELECT 1 FROM tareas WHERE id=?", (tid,)).fetchone(): raise HTTPException(404, "No existe")
+        # Borrar = SOLO el dueño (aunque esté compartida).
+        if not visibility.is_owner(conn, "tareas", tid, user["id"]): raise HTTPException(403, "Solo el dueño puede borrar")
+        conn.execute("DELETE FROM tareas WHERE id=?", (tid,))
+        conn.execute("DELETE FROM item_shares WHERE entity='tareas' AND item_id=?", (tid,)); conn.commit()
     return {"ok": True}
 
 
@@ -1525,22 +1587,22 @@ def del_rec(rid: int, user=Depends(require_user)):
 
 @app.get("/api/notas")
 def api_notas(q: str = None, limit: int = 50, user=Depends(require_user), scope: str = Cookie("mine")):
+    # Visibilidad central (hogar): propias + compartidas (con el hogar o per-member).
+    # Antes, scope "ours" mostraba TODAS las notas del hogar (incl. privadas ajenas).
+    import visibility
     scope_uid = resolve_scope_uid(scope, user)
     members = _household_member_ids(user["id"])
-    mph = ",".join("?" for _ in members)
-    if scope_uid is None:  # "ambos" del hogar
-        wuser = f"user_id IN ({mph})"; params_user = list(members)
-    else:  # propias + compartidas DENTRO del hogar (aislamiento)
-        wuser = f"(user_id=? OR (COALESCE(shared,0)=1 AND user_id IN ({mph})))"; params_user = [scope_uid] + list(members)
+    se = visibility.shared_expr_item_member("", "notas", user["id"])
+    frag, vp = visibility.where(user["id"], scope_uid, members, alias="", shared_expr=se)
     with db() as conn:
         if q:
             rows = conn.execute(
-                f"SELECT * FROM notas WHERE text LIKE ? AND {wuser} ORDER BY created_at DESC LIMIT ?",
-                [f"%{q}%"] + params_user + [limit]).fetchall()
+                f"SELECT * FROM notas WHERE text LIKE ? AND {frag} ORDER BY created_at DESC LIMIT ?",
+                [f"%{q}%"] + vp + [limit]).fetchall()
         else:
             rows = conn.execute(
-                f"SELECT * FROM notas WHERE {wuser} ORDER BY created_at DESC LIMIT ?",
-                params_user + [limit]).fetchall()
+                f"SELECT * FROM notas WHERE {frag} ORDER BY created_at DESC LIMIT ?",
+                vp + [limit]).fetchall()
     return [dict(r) for r in rows]
 
 
@@ -1558,10 +1620,13 @@ def crear_nota(body: dict = Body(...), user=Depends(require_user)):
 
 @app.delete("/api/notas/{nid}")
 def del_nota(nid: int, user=Depends(require_user)):
+    import visibility
     with db() as conn:
-        row = conn.execute("SELECT user_id, COALESCE(shared,0) AS sh FROM notas WHERE id=?", (nid,)).fetchone()
-        if not _can_touch_shared(conn, row, user): raise HTTPException(403, "No es tuya")
-        conn.execute("DELETE FROM notas WHERE id=?", (nid,)); conn.commit()
+        if not conn.execute("SELECT 1 FROM notas WHERE id=?", (nid,)).fetchone(): raise HTTPException(404, "No existe")
+        # Borrar = SOLO el dueño (editar el texto sí puede el que colabora, vía PATCH).
+        if not visibility.is_owner(conn, "notas", nid, user["id"]): raise HTTPException(403, "Solo el dueño puede borrar")
+        conn.execute("DELETE FROM notas WHERE id=?", (nid,))
+        conn.execute("DELETE FROM item_shares WHERE entity='notas' AND item_id=?", (nid,)); conn.commit()
     return {"ok": True}
 
 
