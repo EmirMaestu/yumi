@@ -7,13 +7,12 @@ export const BOTTOM_NAV: NavItem[] = [
   { to: '/agenda', label: 'Agenda', icon: 'ti-calendar' },
 ]
 
-// Lo que vive en la hoja "Más" (lo secundario, alcanzable desde la barra).
+// Grilla de la hoja "Más" (Yo va aparte, en el encabezado de la hoja).
 export const MORE_LINKS: NavItem[] = [
   { to: '/tareas', label: 'Tareas', icon: 'ti-checkbox' },
   { to: '/listas', label: 'Listas', icon: 'ti-shopping-cart' },
   { to: '/habitos', label: 'Hábitos', icon: 'ti-flame' },
   { to: '/notas', label: 'Notas', icon: 'ti-note' },
-  { to: '/yo', label: 'Yo', icon: 'ti-user' },
 ]
 
 // Rieles de acceso (chips) que exponen las sub-secciones DENTRO de cada hub,

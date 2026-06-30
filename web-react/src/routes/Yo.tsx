@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useMe } from '../hooks/useMe'
 import { apiPost } from '../lib/api'
 import Card from '../components/ui/Card'
+import ThemeToggle from '../components/ThemeToggle'
 import NotifToggle from '../components/NotifToggle'
 import CalendarSubscribe from '../components/CalendarSubscribe'
 
@@ -47,6 +48,7 @@ export default function Yo() {
         </div>
       </Card>
 
+      <ThemeToggle />
       <NotifToggle />
       <CalendarSubscribe />
 

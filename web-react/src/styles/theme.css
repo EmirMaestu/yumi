@@ -61,3 +61,22 @@ body {
 
 @keyframes nf-shimmer { 0% { background-position: -200% 0 } 100% { background-position: 200% 0 } }
 .nf-skel { background: linear-gradient(90deg, var(--color-mist) 25%, #e9efe9 37%, var(--color-mist) 63%); background-size: 200% 100%; animation: nf-shimmer 1.4s ease-in-out infinite; border-radius: 8px; display: block; }
+
+/* ── Modo oscuro ──────────────────────────────────────────────────────
+   Se activa con html[data-theme="dark"] (lo setea lib/theme.ts).
+   Reinterpreta la paleta por uso: linen = superficie, obsidian = texto, etc.
+   El voltage (verde acento) se mantiene: funciona en ambos modos. */
+html[data-theme="dark"] {
+  --color-linen: #1a1f1b;        /* superficie / cards */
+  --color-obsidian-ink: #e9f1ea; /* texto principal */
+  --color-bark: #d6e0d8;         /* era fill oscuro → ahora claro */
+  --color-sage: #9aaf9e;         /* texto secundario */
+  --color-mist: #333b35;         /* bordes / base de skeleton */
+  --color-moss-glow: #6f8f76;
+  --color-pollen: #233026;       /* tinte verde oscuro */
+}
+html[data-theme="dark"] body { background: #0f1411; }
+html[data-theme="dark"] .nf-skel {
+  background: linear-gradient(90deg, var(--color-mist) 25%, #3c453e 37%, var(--color-mist) 63%);
+  background-size: 200% 100%;
+}

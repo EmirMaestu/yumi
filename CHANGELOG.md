@@ -6,6 +6,12 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.10.8] - 2026-06-30
+### Added
+- **Modo oscuro.** Toggle **Sistema / Claro / Oscuro** en "Yo" (perfil y ajustes); recuerda tu preferencia y, en "Sistema", sigue al tema del dispositivo.
+### Changed
+- **Hoja "Más" con encabezado de perfil:** arriba tu nombre + "Ver perfil y ajustes →" (lleva a Yo), abajo la grilla de secciones (Tareas, Listas, Hábitos, Notas).
+
 ## [0.10.7] - 2026-06-30
 ### Fixed
 - **Montos que se cortaban en la card "Plata" de Inicio** (ej. "Disponible $1.140.000") → ahora escalan y no desbordan el borde.
