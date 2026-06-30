@@ -30,6 +30,22 @@
    inputs fuera de pantalla). */
 *, *::before, *::after { box-sizing: border-box; }
 
+/* Inputs de fecha/hora en iOS: el control nativo no se achicaba y se iba para la
+   derecha (fuera de pantalla). Forzamos que respeten el ancho del contenedor. */
+input[type="date"], input[type="datetime-local"], input[type="time"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+  max-width: 100%;
+}
+input[type="date"]::-webkit-date-and-time-value,
+input[type="datetime-local"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+}
+input::-webkit-datetime-edit { padding: 0; }
+
 html, body, #root { height: 100%; }
 body {
   margin: 0;
