@@ -13,12 +13,14 @@ export function useRecordatorios(includeFired = false) {
 interface RecordatorioCreate {
   text: string
   remind_at: string
+  event_id?: number | null  // vincular a un evento (opcional)
 }
 
 interface RecordatorioUpdate {
   id: number
   text?: string
   remind_at?: string
+  event_id?: number | null  // null = desvincular
 }
 
 export type SnoozePreset = '1h' | 'manana' | 'semana'

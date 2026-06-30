@@ -212,7 +212,7 @@ export interface Nota {
 }
 
 // ---- Compartir por integrante ----
-export type ShareEntity = 'tareas' | 'notas' | 'lists'
+export type ShareEntity = 'tareas' | 'notas' | 'lists' | 'eventos' | 'recordatorios'
 
 export interface HouseholdMember {
   id: number
@@ -289,6 +289,8 @@ export interface Evento {
   kind?: string | null
   user_id: number
   reminders?: Recordatorio[]
+  shared?: number
+  share_count?: number
 }
 
 export interface Recordatorio {
@@ -299,4 +301,6 @@ export interface Recordatorio {
   source?: string | null
   event_id?: number | null
   user_id: number
+  shared?: number
+  share_count?: number
 }

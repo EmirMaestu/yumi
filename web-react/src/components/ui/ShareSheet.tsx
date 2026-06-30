@@ -5,7 +5,7 @@ import type { ShareEntity } from '../../lib/types'
 
 type Mode = 'private' | 'all' | 'people'
 
-const ENTITY_NOUN: Record<ShareEntity, string> = { tareas: 'tarea', notas: 'nota', lists: 'lista' }
+const ENTITY_NOUN: Record<ShareEntity, string> = { tareas: 'tarea', notas: 'nota', lists: 'lista', eventos: 'evento', recordatorios: 'recordatorio' }
 
 export default function ShareSheet({
   open,

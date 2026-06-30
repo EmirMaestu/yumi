@@ -3,7 +3,7 @@ import { apiGet, apiPost } from '../lib/api'
 import type { HouseholdMember, ShareEntity, ShareState } from '../lib/types'
 
 // Mapea la entidad de compartir a la queryKey de su listado, para invalidar tras compartir.
-const LIST_KEY: Record<ShareEntity, string> = { tareas: 'tareas', notas: 'notas', lists: 'listas' }
+const LIST_KEY: Record<ShareEntity, string> = { tareas: 'tareas', notas: 'notas', lists: 'listas', eventos: 'eventos', recordatorios: 'recordatorios' }
 
 export function useHouseholdMembers() {
   return useQuery({

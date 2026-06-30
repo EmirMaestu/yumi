@@ -4,13 +4,17 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useEventos, useEventosMutations } from '../hooks/useEventos'
 import { useRecordatorios, useRecordatoriosMutations, type SnoozePreset } from '../hooks/useRecordatorios'
+import { useMe } from '../hooks/useMe'
 import { type Evento, type Recordatorio } from '../lib/types'
 import { cleanReminderText } from '../lib/format'
 import Card from '../components/ui/Card'
 import CardActions from '../components/ui/CardActions'
 import Modal from '../components/ui/Modal'
+import Select from '../components/ui/Select'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import EmptyState from '../components/ui/EmptyState'
+import ShareSheet from '../components/ui/ShareSheet'
+import ShareBadge from '../components/ui/ShareBadge'
 import { MovimientosSkeleton } from '../components/ui/skeletons'
 
 // ── helpers ─────────────────────────────────────────────────────────────────
@@ -163,23 +167,35 @@ function RecordatorioModal({
   onClose,
   title,
   initial,
+  events,
   onSubmit,
 }: {
   open: boolean
   onClose: () => void
   title: string
-  initial?: Partial<RecForm>
-  onSubmit: (data: RecForm) => void
+  initial?: { text?: string; remind_at?: string; event_id?: number | null }
+  events: Evento[]
+  onSubmit: (data: RecForm & { event_id: number | null }) => void
 }) {
   const { register, handleSubmit, reset, formState: { errors } } = useForm<RecForm>({
     resolver: zodResolver(recSchema),
-    defaultValues: { text: '', remind_at: '', ...initial },
+    defaultValues: { text: initial?.text ?? '', remind_at: initial?.remind_at ?? '' },
   })
+  const [eventId, setEventId] = useState<string>(initial?.event_id ? String(initial.event_id) : 'none')
 
-  const submit = (data: RecForm) => { onSubmit(data); reset() }
+  const eventOpts = [
+    { value: 'none', label: 'Sin evento' },
+    ...events.map((e) => ({ value: String(e.id), label: `${e.title} · ${fmtDateLabel(e.starts_at)} ${fmtTime(e.starts_at)}` })),
+  ]
+
+  const close = () => { onClose(); reset(); setEventId('none') }
+  const submit = (data: RecForm) => {
+    onSubmit({ ...data, event_id: eventId === 'none' ? null : Number(eventId) })
+    reset(); setEventId('none')
+  }
 
   return (
-    <Modal open={open} onClose={() => { onClose(); reset() }} title={title}>
+    <Modal open={open} onClose={close} title={title}>
       <form onSubmit={handleSubmit(submit)} style={{ display: 'grid', gap: 12 }}>
         <div>
           <input {...register('text')} placeholder="¿De qué te recordamos?" autoFocus style={inputStyle} />
@@ -189,6 +205,10 @@ function RecordatorioModal({
           Recordar a las
           <input type="datetime-local" {...register('remind_at')} style={inputStyle} />
           {errors.remind_at && <span style={errorStyle}>{errors.remind_at.message}</span>}
+        </label>
+        <label style={labelStyle}>
+          Vincular a un evento (opcional)
+          <Select value={eventId} onValueChange={setEventId} options={eventOpts} ariaLabel="Evento" style={{ width: '100%' }} />
         </label>
         <button type="submit" style={ctaBtn}>Guardar</button>
       </form>
@@ -235,6 +255,7 @@ export default function Agenda() {
   const { data: recordatorios, isLoading: loadR } = useRecordatorios(false)
   const evMut = useEventosMutations()
   const recMut = useRecordatoriosMutations()
+  const { data: me } = useMe()
 
   const [addMode, setAddMode] = useState<AddMode>(null)
 
@@ -242,8 +263,9 @@ export default function Agenda() {
   const [editEvento, setEditEvento] = useState<Evento | null>(null)
   const [editRec, setEditRec] = useState<Recordatorio | null>(null)
 
-  // delete state
+  // delete + share state
   const [deleteItem, setDeleteItem] = useState<AgendaItem | null>(null)
+  const [shareItem, setShareItem] = useState<AgendaItem | null>(null)
 
   if (loadE || loadR) return <MovimientosSkeleton />
 
@@ -272,8 +294,8 @@ export default function Agenda() {
     })
     setAddMode(null)
   }
-  const handleCreateRec = (data: RecForm) => {
-    recMut.create.mutate({ text: data.text, remind_at: data.remind_at })
+  const handleCreateRec = (data: RecForm & { event_id: number | null }) => {
+    recMut.create.mutate({ text: data.text, remind_at: data.remind_at, event_id: data.event_id })
     setAddMode(null)
   }
   const handleEditEvento = (data: EventoForm) => {
@@ -281,9 +303,9 @@ export default function Agenda() {
     evMut.update.mutate({ id: editEvento.id, title: data.title, starts_at: data.starts_at, location: data.location || null, notes: data.notes || null })
     setEditEvento(null)
   }
-  const handleEditRec = (data: RecForm) => {
+  const handleEditRec = (data: RecForm & { event_id: number | null }) => {
     if (!editRec) return
-    recMut.update.mutate({ id: editRec.id, text: data.text, remind_at: data.remind_at })
+    recMut.update.mutate({ id: editRec.id, text: data.text, remind_at: data.remind_at, event_id: data.event_id })
     setEditRec(null)
   }
   const handleDelete = () => {
@@ -327,18 +349,22 @@ export default function Agenda() {
                 <EventoCard
                   key={`e-${item.data.id}`}
                   evento={item.data}
+                  isOwner={me?.id === item.data.user_id}
                   dimmed={isPast(item.data.starts_at)}
                   onEdit={() => setEditEvento(item.data)}
                   onDelete={() => setDeleteItem(item)}
+                  onShare={() => setShareItem(item)}
                   onRemoveReminder={(rid) => recMut.remove.mutate(rid)}
                 />
               ) : (
                 <RecordatorioCard
                   key={`r-${item.data.id}`}
                   rec={item.data}
+                  isOwner={me?.id === item.data.user_id}
                   dimmed={isPast(item.data.remind_at)}
                   onEdit={() => setEditRec(item.data)}
                   onDelete={() => setDeleteItem(item)}
+                  onShare={() => setShareItem(item)}
                   onSnooze={(preset) => recMut.snooze.mutate({ id: item.data.id, preset })}
                 />
               ),
@@ -359,6 +385,7 @@ export default function Agenda() {
         open={addMode === 'recordatorio'}
         onClose={() => setAddMode(null)}
         title="Nuevo recordatorio"
+        events={eventos ?? []}
         onSubmit={handleCreateRec}
       />
 
@@ -381,7 +408,8 @@ export default function Agenda() {
         open={editRec !== null}
         onClose={() => setEditRec(null)}
         title="Editar recordatorio"
-        initial={editRec ? { text: editRec.text, remind_at: editRec.remind_at } : undefined}
+        events={eventos ?? []}
+        initial={editRec ? { text: editRec.text, remind_at: editRec.remind_at, event_id: editRec.event_id } : undefined}
         onSubmit={handleEditRec}
       />
 
@@ -398,6 +426,14 @@ export default function Agenda() {
             : ''
         }
         onConfirm={handleDelete}
+      />
+
+      {/* Share sheet (evento o recordatorio según el ítem) */}
+      <ShareSheet
+        open={shareItem !== null}
+        onClose={() => setShareItem(null)}
+        entity={shareItem?.kind === 'evento' ? 'eventos' : 'recordatorios'}
+        id={shareItem?.data.id ?? null}
       />
     </div>
   )
@@ -419,15 +455,19 @@ function reminderOffsetLabel(remindAt: string, startsAt: string): string {
 
 function EventoCard({
   evento,
+  isOwner,
   dimmed,
   onEdit,
   onDelete,
+  onShare,
   onRemoveReminder,
 }: {
   evento: Evento
+  isOwner: boolean
   dimmed: boolean
   onEdit: () => void
   onDelete: () => void
+  onShare: () => void
   onRemoveReminder: (id: number) => void
 }) {
   const reminders = evento.reminders ?? []
@@ -436,9 +476,10 @@ function EventoCard({
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
         <div style={{ width: 4, borderRadius: 4, background: 'var(--color-voltage)', alignSelf: 'stretch', flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span style={timeLabel}>{fmtTime(evento.starts_at)}</span>
             <span style={chipStyle('#2bee4b22', 'var(--color-sage)')}>evento</span>
+            {isOwner && <ShareBadge shared={evento.shared} count={evento.share_count} />}
           </div>
           <div style={{ fontSize: 14, fontWeight: 500, marginTop: 2, color: 'var(--color-obsidian-ink)' }}>
             {evento.title}
@@ -452,7 +493,11 @@ function EventoCard({
             <div style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 2 }}>{evento.notes}</div>
           )}
         </div>
-        <CardActions onEdit={onEdit} onDelete={onDelete} />
+        <CardActions
+          onShare={isOwner ? onShare : undefined}
+          onEdit={onEdit}
+          onDelete={isOwner ? onDelete : undefined}
+        />
       </div>
       {reminders.length > 0 && (
         <div style={{ marginTop: 8, marginLeft: 14, display: 'grid', gap: 5 }}>
@@ -477,15 +522,19 @@ function EventoCard({
 
 function RecordatorioCard({
   rec,
+  isOwner,
   dimmed,
   onEdit,
   onDelete,
+  onShare,
   onSnooze,
 }: {
   rec: Recordatorio
+  isOwner: boolean
   dimmed: boolean
   onEdit: () => void
   onDelete: () => void
+  onShare: () => void
   onSnooze: (p: SnoozePreset) => void
 }) {
   const [showSnooze, setShowSnooze] = useState(false)
@@ -495,9 +544,10 @@ function RecordatorioCard({
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
         <div style={{ width: 4, borderRadius: 4, background: 'var(--color-mist)', alignSelf: 'stretch', flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span style={timeLabel}>{fmtTime(rec.remind_at)}</span>
             <span style={chipStyle('var(--color-mist)', 'var(--color-sage)')}>recordatorio</span>
+            {isOwner && <ShareBadge shared={rec.shared} count={rec.share_count} />}
           </div>
           <div style={{ fontSize: 14, fontWeight: 500, marginTop: 2, color: 'var(--color-obsidian-ink)' }}>
             {cleanReminderText(rec.text)}
@@ -519,7 +569,11 @@ function RecordatorioCard({
             />
           )}
         </div>
-        <CardActions onEdit={onEdit} onDelete={onDelete} />
+        <CardActions
+          onShare={isOwner ? onShare : undefined}
+          onEdit={onEdit}
+          onDelete={isOwner ? onDelete : undefined}
+        />
       </div>
     </Card>
   )

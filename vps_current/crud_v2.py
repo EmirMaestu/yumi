@@ -225,7 +225,8 @@ def create_evento(e: EventoIn, user=Depends(require_user_crud)):
 @router.patch("/eventos/{evento_id}")
 def patch_evento(evento_id: int, e: EventoPatch, user=Depends(require_user_crud)):
     with db() as conn:
-        assert_ownership(conn, "eventos", evento_id, user["id"])
+        # Editar = colaborar (dueño o con quien esté compartido); borrar = solo dueño (web.py).
+        assert_ownership(conn, "eventos", evento_id, user["id"], allow_shared=True)
         patch_table(conn, "eventos", evento_id, e.model_dump())
         audit(conn, "eventos", evento_id, "update", "", user["id"])
         conn.commit()
@@ -262,6 +263,7 @@ class RecordatorioIn(BaseModel):
 class RecordatorioPatch(BaseModel):
     text: Optional[str] = None
     remind_at: Optional[str] = None
+    event_id: Optional[int] = None  # vincular a un evento; null = desvincular
 
 
 @router.post("/recordatorios")
@@ -279,10 +281,15 @@ def create_recordatorio(r: RecordatorioIn, user=Depends(require_user_crud)):
 @router.patch("/recordatorios/{rec_id}")
 def patch_recordatorio(rec_id: int, r: RecordatorioPatch, user=Depends(require_user_crud)):
     with db() as conn:
-        assert_ownership(conn, "recordatorios", rec_id, user["id"])
-        fields = r.model_dump()
-        patch_table(conn, "recordatorios", rec_id, fields)
-        if fields.get("remind_at"):
+        # Editar/vincular = colaborar; borrar = solo dueño (web.py).
+        assert_ownership(conn, "recordatorios", rec_id, user["id"], allow_shared=True)
+        provided = r.model_dump(exclude_unset=True)  # distingue "no enviado" de null
+        # event_id puede venir como null para DESvincular → se aplica aparte (patch_table ignora None).
+        if "event_id" in provided:
+            conn.execute("UPDATE recordatorios SET event_id=? WHERE id=?", (provided.pop("event_id"), rec_id))
+        if provided:
+            patch_table(conn, "recordatorios", rec_id, provided)
+        if provided.get("remind_at"):
             conn.execute("UPDATE recordatorios SET fired=0 WHERE id=?", (rec_id,))
         audit(conn, "recordatorios", rec_id, "update", "", user["id"])
         conn.commit()
@@ -300,7 +307,7 @@ def snooze_recordatorio(rec_id: int, preset: str = "1h", user=Depends(require_us
         nuevo = datetime.now() + deltas[preset]
     nuevo_s = nuevo.strftime("%Y-%m-%d %H:%M:%S")
     with db() as conn:
-        assert_ownership(conn, "recordatorios", rec_id, user["id"])
+        assert_ownership(conn, "recordatorios", rec_id, user["id"], allow_shared=True)  # posponer = colaborar
         cur = conn.execute("UPDATE recordatorios SET remind_at=?, fired=0 WHERE id=?", (nuevo_s, rec_id))
         if cur.rowcount == 0:
             raise HTTPException(404, f"#{rec_id} no existe")
