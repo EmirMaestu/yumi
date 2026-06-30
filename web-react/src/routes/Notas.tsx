@@ -3,12 +3,15 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useNotas, useNotasMutations } from '../hooks/useNotas'
+import { useMe } from '../hooks/useMe'
 import { type Nota } from '../lib/types'
 import Card from '../components/ui/Card'
 import CardActions from '../components/ui/CardActions'
 import Modal from '../components/ui/Modal'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import EmptyState from '../components/ui/EmptyState'
+import ShareSheet from '../components/ui/ShareSheet'
+import ShareBadge from '../components/ui/ShareBadge'
 import { MovimientosSkeleton } from '../components/ui/skeletons'
 
 const schema = z.object({
@@ -102,10 +105,12 @@ export default function Notas() {
   const [searchQ, setSearchQ] = useState('')
   const { data, isLoading } = useNotas()
   const { create, update, remove } = useNotasMutations()
+  const { data: me } = useMe()
 
   const [newOpen, setNewOpen] = useState(false)
   const [editItem, setEditItem] = useState<Nota | null>(null)
   const [deleteItem, setDeleteItem] = useState<Nota | null>(null)
+  const [shareItem, setShareItem] = useState<Nota | null>(null)
 
   // Client-side filter
   const filtered = (data ?? []).filter((n) => {
@@ -179,11 +184,16 @@ export default function Notas() {
                   ))}
                 </div>
               )}
-              <div style={{ fontSize: 11, color: 'var(--color-sage)', marginTop: 6 }}>
-                {n.created_at.slice(0, 10)}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>{n.created_at.slice(0, 10)}</span>
+                {me?.id === n.user_id && <ShareBadge shared={n.shared} count={n.share_count} />}
               </div>
             </div>
-            <CardActions onEdit={() => setEditItem(n)} onDelete={() => setDeleteItem(n)} />
+            <CardActions
+              onShare={me?.id === n.user_id ? () => setShareItem(n) : undefined}
+              onEdit={() => setEditItem(n)}
+              onDelete={me?.id === n.user_id ? () => setDeleteItem(n) : undefined}
+            />
           </div>
         </Card>
       ))}
@@ -204,6 +214,14 @@ export default function Notas() {
         title="Editar nota"
         initial={editItem ? { text: editItem.text, tags: editItem.tags, description: editItem.description ?? undefined } : undefined}
         onSubmit={handleEdit}
+      />
+
+      {/* Share sheet */}
+      <ShareSheet
+        open={shareItem !== null}
+        onClose={() => setShareItem(null)}
+        entity="notas"
+        id={shareItem?.id ?? null}
       />
 
       {/* Delete confirm */}

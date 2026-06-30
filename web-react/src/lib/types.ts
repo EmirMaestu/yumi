@@ -197,6 +197,7 @@ export interface Tarea {
   status: 'pendiente' | 'hecha'
   completed_at?: string | null
   shared?: number
+  share_count?: number
 }
 
 export interface Nota {
@@ -207,6 +208,22 @@ export interface Nota {
   user_id: number
   created_at: string
   shared?: number
+  share_count?: number
+}
+
+// ---- Compartir por integrante ----
+export type ShareEntity = 'tareas' | 'notas' | 'lists'
+
+export interface HouseholdMember {
+  id: number
+  name: string
+  color?: string | null
+  is_me: boolean
+}
+
+export interface ShareState {
+  shared: number
+  members: number[]
 }
 
 export interface HabitoLog {
@@ -251,6 +268,9 @@ export interface Lista {
   items: ListaItem[]
   pend: number
   total: number
+  shared?: number
+  share_count?: number
+  is_owner?: number
 }
 
 export interface ListaTemplate {

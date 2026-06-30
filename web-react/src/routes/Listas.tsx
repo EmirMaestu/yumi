@@ -5,6 +5,8 @@ import Card from '../components/ui/Card'
 import Modal from '../components/ui/Modal'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import EmptyState from '../components/ui/EmptyState'
+import ShareSheet from '../components/ui/ShareSheet'
+import ShareBadge from '../components/ui/ShareBadge'
 import { MovimientosSkeleton } from '../components/ui/skeletons'
 
 function NuevaListaModal({
@@ -83,6 +85,7 @@ function ListaCard({
   onClearDone,
   onBuyAll,
   onDeleteLista,
+  onShare,
 }: {
   lista: Lista
   onAddItem: (listaId: number) => void
@@ -91,9 +94,11 @@ function ListaCard({
   onClearDone: (listaId: number) => void
   onBuyAll: (listaId: number) => void
   onDeleteLista: (lista: Lista) => void
+  onShare: (lista: Lista) => void
 }) {
   const [expanded, setExpanded] = useState(true)
   const doneCount = lista.items.filter((i) => i.done === 1).length
+  const isOwner = lista.is_owner !== 0  // backend manda 1/0; undefined → tratamos como propia
 
   return (
     <Card>
@@ -108,6 +113,9 @@ function ListaCard({
           <span style={{ fontSize: 12, color: 'var(--color-sage)', marginLeft: 8 }}>
             {lista.pend} pendiente{lista.pend === 1 ? '' : 's'} / {lista.total}
           </span>
+          {isOwner && (
+            <span style={{ marginLeft: 8 }}><ShareBadge shared={lista.shared} count={lista.share_count} /></span>
+          )}
         </button>
         <div style={{ display: 'flex', gap: 6 }}>
           <button
@@ -135,13 +143,24 @@ function ListaCard({
               <i className="ti ti-shopping-cart-check" aria-hidden />
             </button>
           )}
-          <button
-            onClick={() => onDeleteLista(lista)}
-            title="Eliminar lista"
-            style={{ ...iconBtn, color: '#c0392b' }}
-          >
-            <i className="ti ti-trash" aria-hidden />
-          </button>
+          {isOwner && (
+            <button
+              onClick={() => onShare(lista)}
+              title="Compartir lista"
+              style={iconBtn}
+            >
+              <i className="ti ti-users" aria-hidden />
+            </button>
+          )}
+          {isOwner && (
+            <button
+              onClick={() => onDeleteLista(lista)}
+              title="Eliminar lista"
+              style={{ ...iconBtn, color: '#c0392b' }}
+            >
+              <i className="ti ti-trash" aria-hidden />
+            </button>
+          )}
         </div>
       </div>
 
@@ -227,6 +246,7 @@ export default function Listas() {
   const [addItemForLista, setAddItemForLista] = useState<number | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<Lista | null>(null)
   const [templateOpen, setTemplateOpen] = useState(false)
+  const [shareLista, setShareLista] = useState<Lista | null>(null)
 
   if (isLoading) return <MovimientosSkeleton />
 
@@ -260,8 +280,17 @@ export default function Listas() {
           onClearDone={(id) => clearDone.mutate(id)}
           onBuyAll={(id) => buyAll.mutate(id)}
           onDeleteLista={(l) => setDeleteConfirm(l)}
+          onShare={(l) => setShareLista(l)}
         />
       ))}
+
+      {/* Share sheet */}
+      <ShareSheet
+        open={shareLista !== null}
+        onClose={() => setShareLista(null)}
+        entity="lists"
+        id={shareLista?.id ?? null}
+      />
 
       {/* Nueva lista modal */}
       <NuevaListaModal

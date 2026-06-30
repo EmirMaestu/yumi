@@ -3,6 +3,7 @@ import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useTareas, useTareasMutations } from '../hooks/useTareas'
+import { useMe } from '../hooks/useMe'
 import { type Tarea } from '../lib/types'
 import Card from '../components/ui/Card'
 import CardActions from '../components/ui/CardActions'
@@ -10,6 +11,8 @@ import Modal from '../components/ui/Modal'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import EmptyState from '../components/ui/EmptyState'
 import Select from '../components/ui/Select'
+import ShareSheet from '../components/ui/ShareSheet'
+import ShareBadge from '../components/ui/ShareBadge'
 import { MovimientosSkeleton } from '../components/ui/skeletons'
 
 const PRIORITY_OPTS = [
@@ -96,10 +99,12 @@ const PRIORITY_ORDER = { alta: 0, media: 1, baja: 2 }
 export default function Tareas() {
   const { data, isLoading } = useTareas('all')
   const { create, update, done, undone, remove } = useTareasMutations()
+  const { data: me } = useMe()
 
   const [newOpen, setNewOpen] = useState(false)
   const [editItem, setEditItem] = useState<Tarea | null>(null)
   const [deleteItem, setDeleteItem] = useState<Tarea | null>(null)
+  const [shareItem, setShareItem] = useState<Tarea | null>(null)
 
   const pendientes = (data ?? [])
     .filter((t) => t.status === 'pendiente')
@@ -150,9 +155,11 @@ export default function Tareas() {
             <TareaRow
               key={t.id}
               tarea={t}
+              isOwner={me?.id === t.user_id}
               onToggle={() => done.mutate(t.id)}
               onEdit={() => setEditItem(t)}
               onDelete={() => setDeleteItem(t)}
+              onShare={() => setShareItem(t)}
             />
           ))}
         </div>
@@ -169,9 +176,11 @@ export default function Tareas() {
               <TareaRow
                 key={t.id}
                 tarea={t}
+                isOwner={me?.id === t.user_id}
                 onToggle={() => undone.mutate(t.id)}
                 onEdit={() => setEditItem(t)}
                 onDelete={() => setDeleteItem(t)}
+                onShare={() => setShareItem(t)}
                 dimmed
               />
             ))}
@@ -201,6 +210,14 @@ export default function Tareas() {
         onSubmit={handleEdit}
       />
 
+      {/* Share sheet */}
+      <ShareSheet
+        open={shareItem !== null}
+        onClose={() => setShareItem(null)}
+        entity="tareas"
+        id={shareItem?.id ?? null}
+      />
+
       {/* Delete confirm */}
       <ConfirmDialog
         open={deleteItem !== null}
@@ -218,15 +235,19 @@ export default function Tareas() {
 
 function TareaRow({
   tarea,
+  isOwner,
   onToggle,
   onEdit,
   onDelete,
+  onShare,
   dimmed = false,
 }: {
   tarea: Tarea
+  isOwner: boolean
   onToggle: () => void
   onEdit: () => void
   onDelete: () => void
+  onShare: () => void
   dimmed?: boolean
 }) {
   const PRIORITY_COLOR_MAP: Record<string, string> = {
@@ -286,10 +307,15 @@ function TareaRow({
                 <i className="ti ti-calendar" aria-hidden /> {tarea.due_at.slice(0, 10)}
               </span>
             )}
+            {isOwner && <ShareBadge shared={tarea.shared} count={tarea.share_count} />}
           </div>
         </div>
 
-        <CardActions onEdit={onEdit} onDelete={onDelete} />
+        <CardActions
+          onShare={isOwner ? onShare : undefined}
+          onEdit={isOwner ? onEdit : undefined}
+          onDelete={isOwner ? onDelete : undefined}
+        />
       </div>
     </Card>
   )
