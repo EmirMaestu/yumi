@@ -592,14 +592,19 @@ def create_lista(l: ListaIn, user=Depends(require_user_crud)):
     if not name:
         raise HTTPException(400, "Nombre requerido")
     q = _norm_list_name(name)
+    import visibility
     with db() as conn:
         members = _hh_member_ids(conn, user["id"])
         ph = ",".join("?" for _ in members)
+        # Dedup SOLO contra listas que el usuario puede usar (propia o compartida con él).
+        # Si no, con listas privadas devolvería el id de una lista ajena que no puede ver.
         for row in conn.execute(f"SELECT id, name FROM lists WHERE COALESCE(is_template,0)=0 AND owner_user_id IN ({ph})", members).fetchall():
-            if _norm_list_name(row["name"]) == q:
+            if _norm_list_name(row["name"]) == q and visibility.can_collaborate(
+                    conn, "lists", row["id"], user["id"], owner_col="owner_user_id"):
                 return {"id": row["id"], "ok": True}
         cur = conn.execute(
-            "INSERT INTO lists (name, kind, icon, owner_user_id, shared) VALUES (?,?,?,?,1)",
+            # Nace PRIVADA (shared=0): el dueño decide después compartirla (por integrante o con todo el plan).
+            "INSERT INTO lists (name, kind, icon, owner_user_id, shared) VALUES (?,?,?,?,0)",
             (name.title(), "generica", _icon_for_list(name), user["id"]))
         lid = cur.lastrowid
         audit(conn, "lists", lid, "create", name, user["id"])

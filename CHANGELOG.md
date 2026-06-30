@@ -6,6 +6,12 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-06-30
+### Changed
+- **Todo nace privado.** Las **listas** ahora se crean **privadas** (antes nacían compartidas con todo el plan); después las compartís con el botón "Compartir". (Gastos/cuentas, notas, tareas, eventos y recordatorios ya nacían privados — sin cambios.)
+### Fixed
+- Al crear una lista por nombre ya existente, solo se reutiliza si es **tuya o está compartida con vos** (antes podía devolver una lista privada de otro integrante que no podías ver).
+
 ## [0.11.0] - 2026-06-30
 ### Added
 - **Compartir notas, listas y tareas por integrante.** En cada ítem (botón "Compartir", solo el dueño) elegís: **Privada**, **Todo el plan** o **Personas puntuales** del hogar. Indicador de "Todos / N personas" en cada ítem.

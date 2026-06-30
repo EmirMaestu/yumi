@@ -365,7 +365,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS lists (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL, kind TEXT, icon TEXT,
-            owner_user_id INTEGER, shared INTEGER NOT NULL DEFAULT 1,
+            owner_user_id INTEGER, shared INTEGER NOT NULL DEFAULT 0,
             target_date TEXT, recurrence TEXT, is_template INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT (datetime('now')));
         CREATE TABLE IF NOT EXISTS item_shares (
@@ -1109,9 +1109,9 @@ def _resolve_list(name, uid, create=True):
         if lid is None:
             if not create:
                 return None
-            with db() as c:  # crear la lista por defecto del hogar
+            with db() as c:  # crear la lista por defecto (privada; se comparte después)
                 c.execute("INSERT INTO lists (name, kind, icon, owner_user_id, shared) "
-                          "VALUES ('Súper','supermercado','🛒',?,1)", (uid,))
+                          "VALUES ('Súper','supermercado','🛒',?,0)", (uid,))
                 lid = c.execute("SELECT last_insert_rowid()").fetchone()[0]
         with db() as c:
             r = c.execute(f"SELECT {_LIST_COLS} FROM lists WHERE id=?", (lid,)).fetchone()
@@ -1126,7 +1126,7 @@ def _resolve_list(name, uid, create=True):
             return None
         icon, kind = _guess_list_meta(q)
         clean = name.strip().title()
-        c.execute("INSERT INTO lists (name, kind, icon, owner_user_id, shared) VALUES (?,?,?,?,1)",
+        c.execute("INSERT INTO lists (name, kind, icon, owner_user_id, shared) VALUES (?,?,?,?,0)",
                   (clean, kind, icon, uid))
         rid = c.execute("SELECT last_insert_rowid() AS id").fetchone()[0]
     return {"id": rid, "name": clean, "icon": icon, "kind": kind,
