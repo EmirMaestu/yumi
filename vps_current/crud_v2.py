@@ -564,8 +564,10 @@ def get_listas(user=Depends(require_user_crud)):
         se = visibility.shared_expr_item_member("", "lists", user["id"])
         vf, vp = visibility.where(user["id"], None, members, alias="", owner_col="owner_user_id", shared_expr=se)
         lists = conn.execute(
-            "SELECT id, name, icon, kind, target_date, recurrence FROM lists "
-            f"WHERE COALESCE(is_template,0)=0 AND {vf} ORDER BY id", vp
+            "SELECT id, name, icon, kind, target_date, recurrence, COALESCE(shared,0) AS shared, "
+            "(SELECT COUNT(*) FROM item_shares s WHERE s.entity='lists' AND s.item_id=lists.id) AS share_count, "
+            "(owner_user_id=?) AS is_owner "
+            f"FROM lists WHERE COALESCE(is_template,0)=0 AND {vf} ORDER BY id", [user["id"]] + vp
         ).fetchall()
         out = []
         for l in lists:

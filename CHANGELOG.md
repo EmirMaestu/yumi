@@ -6,6 +6,15 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-06-30
+### Added
+- **Compartir notas, listas y tareas por integrante.** En cada ítem (botón "Compartir", solo el dueño) elegís: **Privada**, **Todo el plan** o **Personas puntuales** del hogar. Indicador de "Todos / N personas" en cada ítem.
+- **Permisos "Colaborar":** quien recibe puede editar el texto de una nota, marcar tareas hechas/pendientes y agregar/tildar/quitar ítems de una lista. **Borrar o renombrar** queda **solo para el dueño**.
+### Fixed
+- **Privacidad reforzada (y fugas latentes corregidas):** la lista de tareas en vista "ambos" ya no cruza hogares y las notas en "ambos" ya no muestran notas privadas de otros integrantes. Visibilidad unificada (web, app y bot de Telegram) con la regla central del hogar.
+### Notes
+- El contenido compartido aparece en la vista **"ambos/compartido"** (igual que agenda y finanzas); las listas muestran lo compartido siempre. "Tiempo real" = al refrescar/cambiar de pantalla (sin push instantáneo).
+
 ## [0.10.9] - 2026-06-30
 ### Changed
 - **Rediseño del hub "Yo".** Sin emojis (iconos Tabler consistentes en toda la pantalla), header de perfil con avatar, mejor jerarquía y espaciado, y filas de cuenta (admin/exportar/cerrar sesión) prolijas con icono.

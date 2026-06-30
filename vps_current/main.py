@@ -1094,8 +1094,8 @@ def _list_vis_sql(uid, alias=""):
     u = int(uid)
     return (f"({a}owner_user_id={u} OR {a}shared=1 "
             f"OR {a}owner_user_id IN (SELECT id FROM users WHERE share_all=1) "
-            f"OR EXISTS (SELECT 1 FROM item_shares s WHERE s.entity='lists' "
-            f"AND s.item_id={a}id AND s.shared_with_user_id={u}))")
+            f"OR EXISTS (SELECT 1 FROM item_shares ish WHERE ish.entity='lists' "
+            f"AND ish.item_id={a}id AND ish.shared_with_user_id={u}))")
 
 
 def _resolve_list(name, uid, create=True):

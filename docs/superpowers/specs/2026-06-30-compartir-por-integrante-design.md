@@ -1,6 +1,9 @@
 # Compartir por integrante (notas / listas / tareas) — spec
 
-**Fecha:** 2026-06-30 · **Estado:** aprobado (modelo + permisos confirmados por el dueño)
+**Fecha:** 2026-06-30 · **Estado:** ✅ IMPLEMENTADO (fases 1-6) — PR #1, CI verde (pytest 25/25, tsc+build).
+
+> Implementación: backend en `vps_current/{visibility,web,crud_v2,main}.py` (commits de la rama `feat/compartir-por-integrante`), frontend en `web-react/src/{components/ui/ShareSheet,ShareBadge,CardActions},{hooks/useShare},{routes/Tareas,Notas,Listas}`. Permisos validados por pytest (`tests/test_visibility.py`, 25 casos). Versión 0.11.0.
+> **Nota de scope:** el contenido compartido aparece en la vista "ambos/compartido" (consistente con agenda/finanzas, que usan la misma `visibility.where`); las listas muestran lo compartido siempre (no dependen del scope). Las listas se crean `shared=1` (todo el hogar) por retrocompatibilidad; tareas/notas se crean privadas.
 
 Objetivo: compartir cada **nota / lista / tarea** con **integrantes puntuales** del hogar o con **todos**, respetando permisos, sin filtrar contenido privado, y consistente entre todas las cuentas del plan.
 

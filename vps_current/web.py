@@ -1489,13 +1489,14 @@ def api_tareas(status: str = "pendiente", user=Depends(require_user), scope: str
     members = _household_member_ids(user["id"])
     se = visibility.shared_expr_item_member("", "tareas", user["id"])
     frag, vp = visibility.where(user["id"], scope_uid, members, alias="", shared_expr=se)
+    sc = "(SELECT COUNT(*) FROM item_shares s WHERE s.entity='tareas' AND s.item_id=tareas.id) AS share_count"
     with db() as conn:
         if status == "all":
             rows = conn.execute(
-                f"SELECT * FROM tareas WHERE {frag} ORDER BY created_at DESC LIMIT 200", vp).fetchall()
+                f"SELECT *, {sc} FROM tareas WHERE {frag} ORDER BY created_at DESC LIMIT 200", vp).fetchall()
         else:
             rows = conn.execute(
-                f"SELECT * FROM tareas WHERE status=? AND {frag} ORDER BY "
+                f"SELECT *, {sc} FROM tareas WHERE status=? AND {frag} ORDER BY "
                 f"CASE priority WHEN 'alta' THEN 1 WHEN 'media' THEN 2 ELSE 3 END, "
                 f"COALESCE(due_at,'9999'), id", [status] + vp).fetchall()
     return [dict(r) for r in rows]
@@ -1594,14 +1595,15 @@ def api_notas(q: str = None, limit: int = 50, user=Depends(require_user), scope:
     members = _household_member_ids(user["id"])
     se = visibility.shared_expr_item_member("", "notas", user["id"])
     frag, vp = visibility.where(user["id"], scope_uid, members, alias="", shared_expr=se)
+    sc = "(SELECT COUNT(*) FROM item_shares s WHERE s.entity='notas' AND s.item_id=notas.id) AS share_count"
     with db() as conn:
         if q:
             rows = conn.execute(
-                f"SELECT * FROM notas WHERE text LIKE ? AND {frag} ORDER BY created_at DESC LIMIT ?",
+                f"SELECT *, {sc} FROM notas WHERE text LIKE ? AND {frag} ORDER BY created_at DESC LIMIT ?",
                 [f"%{q}%"] + vp + [limit]).fetchall()
         else:
             rows = conn.execute(
-                f"SELECT * FROM notas WHERE {frag} ORDER BY created_at DESC LIMIT ?",
+                f"SELECT *, {sc} FROM notas WHERE {frag} ORDER BY created_at DESC LIMIT ?",
                 vp + [limit]).fetchall()
     return [dict(r) for r in rows]
 
