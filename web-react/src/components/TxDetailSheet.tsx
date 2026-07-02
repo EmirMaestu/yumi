@@ -59,6 +59,13 @@ export default function TxDetailSheet({ tx, open, onClose, onEdit }: {
         <Row label="Fecha" value={tx.occurred_at.slice(0, 10)} />
         {tx.owner_name && <Row label="Cargado por" value={tx.owner_name} />}
 
+        {(tx.created_at || tx.owner_name) && (
+          <div style={{ fontSize: 11, color: 'var(--color-sage)' }}>
+            {tx.created_at ? `Creado el ${tx.created_at.slice(0, 10)}` : ''}{tx.owner_name ? ` por ${tx.owner_name}` : ''}
+            {tx.updated_at ? ` · editado el ${tx.updated_at.slice(0, 10)}` : ''}
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
           {!isSpecial && <button onClick={() => { onEdit(tx); onClose() }} style={ghostBtn}>Editar</button>}
           {!isSpecial && <button onClick={duplicate} style={ghostBtn}>Duplicar</button>}

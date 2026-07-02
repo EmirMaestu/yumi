@@ -207,7 +207,9 @@ export default function Movimientos() {
                 )}
                 <span style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => setDetailTx(t)}>
                   <span style={{ fontSize: 14, fontWeight: 500 }}>{t.description}</span><br />
-                  <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>
+                  <span style={{ fontSize: 11, color: 'var(--color-sage)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    {!isTransfer && t.cat_color && <span style={{ width: 7, height: 7, borderRadius: '50%', background: t.cat_color, display: 'inline-block' }} />}
+                    {!isTransfer && t.cat_icon ? `${t.cat_icon} ` : ''}
                     {isTransfer ? (t.kind === 'card_payment' ? 'Pago de tarjeta' : 'Transferencia') : (t.cat_name ?? 'sin categoría')} · {t.acc_name ?? ''}
                   </span>
                 </span>

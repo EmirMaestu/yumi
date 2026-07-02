@@ -54,8 +54,24 @@ export default function Inicio() {
           <div className="num-serif" style={{ fontSize: 'clamp(44px, 13vw, 56px)', marginTop: 8 }}><Money value={k.gasto_mes} /></div>
         </Link>
         <div style={{ fontSize: 13, color: 'var(--color-sage)', marginTop: 6 }}>{delta >= 0 ? '▲' : '▼'} <Money value={Math.abs(delta)} /> vs mes pasado a esta altura</div>
+        {(data.dia ?? 0) >= 5 && k.proyeccion_fin_mes != null && (
+          <div style={{ fontSize: 13, color: 'var(--color-sage)', marginTop: 4 }}>A este ritmo: ~<Money value={k.proyeccion_fin_mes} /> este mes</div>
+        )}
         <div style={{ marginTop: 16 }}><TickMark /></div>
       </section>
+      {(k.anomalias?.length ?? 0) > 0 && (
+        <div style={{ padding: '4px 18px 0' }}>
+          <Card>
+            <div className="cap" style={{ marginBottom: 8 }}>Gastos inusuales</div>
+            {k.anomalias!.map((a) => (
+              <Link key={a.tx_id} to="/movimientos" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0', textDecoration: 'none', color: 'inherit' }}>
+                <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.description}</span>
+                <span style={{ marginLeft: 8 }}><Money value={a.amount} /></span>
+              </Link>
+            ))}
+          </Card>
+        </div>
+      )}
       <section style={{ display: 'flex', gap: 6, padding: '16px 18px 6px' }}>
         <StatNumber label="Ingresos" to="/movimientos?type=ingreso"><Money value={k.ingreso_mes} /></StatNumber>
         <StatNumber label="Patrimonio (tuyo)" to="/cuentas"><Money value={data.patrimonio_ars} /></StatNumber>

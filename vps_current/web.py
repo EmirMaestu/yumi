@@ -28,6 +28,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Body, Request, Response, Cookie, Depends, BackgroundTasks
 from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse, JSONResponse, PlainTextResponse
 from crud_v2 import router as crud_v2_router, init_crud_v2
+import crud_v2
 # # >>> vencimientos patch
 import vencimientos
 import networth
@@ -1009,6 +1010,29 @@ def api_overview2(user=Depends(require_user), scope: str = Cookie("mine")):
         gasto_prev_alt = suma("gasto", prev_ini, prev_alt)
         ingreso_mes = suma("ingreso", mes_ini)
 
+        # Proyección de fin de mes (extrapolación lineal, kind='normal').
+        import calendar as _cal
+        dim = _cal.monthrange(now.year, now.month)[1]
+        proyeccion_fin_mes = finance.project_month_end(gasto_mes, now.day, dim)
+
+        # Anomalías del mes: gastos ARS normales atípicos vs histórico de su categoría (máx 3).
+        hist_start = (now.replace(day=1) - timedelta(days=185)).strftime("%Y-%m-01")
+        histmap = {}
+        for r in conn.execute(
+            f"SELECT t.category_id AS cid, t.amount AS amt FROM transactions t WHERE t.type='gasto' "
+            f"AND t.currency='ARS' AND t.kind='normal' AND t.occurred_at>=? AND t.occurred_at<? {uf_t}",
+            [hist_start, mes_ini] + uf_p).fetchall():
+            histmap.setdefault(r["cid"], []).append(r["amt"])
+        anomalias = []
+        for r in conn.execute(
+            f"SELECT t.id AS id, t.description AS description, t.amount AS amount, t.category_id AS cid "
+            f"FROM transactions t WHERE t.type='gasto' AND t.currency='ARS' AND t.kind='normal' "
+            f"AND t.occurred_at>=? {uf_t} ORDER BY t.amount DESC", [mes_ini] + uf_p).fetchall():
+            if len(anomalias) >= 3:
+                break
+            if finance.is_anomaly(r["amount"], histmap.get(r["cid"], [])):
+                anomalias.append({"tx_id": r["id"], "description": r["description"], "amount": r["amount"]})
+
         first = (now.replace(day=1) - timedelta(days=155)).strftime("%Y-%m-01")
         cf = {}
         for r in conn.execute(
@@ -1056,7 +1080,8 @@ def api_overview2(user=Depends(require_user), scope: str = Cookie("mine")):
         "unconverted": [{"currency": c, "amount": a} for c, a in unconverted.items() if a],
         "kpis": {"gasto_mes": gasto_mes, "gasto_prev_alt": gasto_prev_alt, "ingreso_mes": ingreso_mes,
                  "deuda_tarjetas": deuda, "cuotas_futuras": cuotas_futuras, "cuotas_n": cuotas_n,
-                 "disponible": disponible},
+                 "disponible": disponible,
+                 "proyeccion_fin_mes": proyeccion_fin_mes, "anomalias": anomalias},
         "cashflow": cashflow, "hoy": hoy_items, "por_categoria": por_cat,
         "mes_nombre": MESES[now.month-1], "year": now.year, "dia": now.day,
     }
@@ -1426,8 +1451,11 @@ def api_patch_tx(tid: int, body: dict = Body(...), user=Depends(require_user)):
             v = body["category_id"]; fields.append("category_id=?")
             params.append(int(v) if v else None)
         if not fields: raise HTTPException(400, "Sin cambios")
+        fields.append("updated_at=datetime('now')")  # auditoría visible del movimiento
         params.append(tid)
-        conn.execute(f"UPDATE transactions SET {', '.join(fields)} WHERE id=?", params); conn.commit()
+        conn.execute(f"UPDATE transactions SET {', '.join(fields)} WHERE id=?", params)
+        crud_v2.audit(conn, "transaction", tid, "update", "", user["id"])
+        conn.commit()
     return {"ok": True}
 
 
@@ -1463,6 +1491,7 @@ def del_tx(tid: int, user=Depends(require_user)):
         else:
             rows = [row]
         trash_ids = _trash_and_delete(conn, rows, user["id"])
+        crud_v2.audit(conn, "transaction", tid, "delete", "", user["id"])
         conn.commit()
     return {"ok": True, "trash_ids": trash_ids}
 
