@@ -69,7 +69,7 @@ const ctaStyle: React.CSSProperties = {
   background: 'var(--color-voltage)', color: 'var(--voltage-on-dark)', border: 'none',
   borderRadius: 10, padding: '14px', fontWeight: 500, boxShadow: 'var(--shadow-cta)', cursor: 'pointer',
 }
-const errStyle: React.CSSProperties = { color: '#a32d2d', fontSize: 12 }
+const errStyle: React.CSSProperties = { color: 'var(--color-error)', fontSize: 12 }
 
 // ---------- sub-forms ----------
 
