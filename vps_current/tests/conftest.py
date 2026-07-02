@@ -83,6 +83,16 @@ CREATE TABLE budgets (id INTEGER PRIMARY KEY AUTOINCREMENT, category_id INTEGER 
     amount REAL NOT NULL, user_id INTEGER, UNIQUE(category_id, user_id));
 CREATE TABLE notifications_sent (id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER, kind TEXT, ref TEXT, sent_at TEXT, UNIQUE(user_id, kind, ref));
+CREATE TABLE shared_expenses (id INTEGER PRIMARY KEY AUTOINCREMENT,
+    payer_user_id INTEGER NOT NULL, other_user_id INTEGER NOT NULL, amount REAL NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'ARS', other_share REAL NOT NULL, description TEXT,
+    occurred_at TEXT NOT NULL, transaction_id INTEGER, settled_at TEXT, raw_message_id INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')));
+CREATE TABLE savings_goals (id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL, name TEXT NOT NULL, target_amount REAL NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'USD', current_amount REAL NOT NULL DEFAULT 0,
+    deadline TEXT, active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')));
 """
 
 
