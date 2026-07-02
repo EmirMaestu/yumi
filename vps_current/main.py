@@ -417,7 +417,7 @@ def init_db():
                   ("link_code_exp", "TEXT"),
                   ("cal_token", "TEXT"),
                   ("share_all", "INTEGER DEFAULT 0")],
-        "accounts": [("preferred_fx_rate", "TEXT"), ("closing_day", "INTEGER"), ("due_day", "INTEGER"), ("shared", "INTEGER DEFAULT 0")],
+        "accounts": [("preferred_fx_rate", "TEXT"), ("closing_day", "INTEGER"), ("due_day", "INTEGER"), ("shared", "INTEGER DEFAULT 0"), ("credit_limit", "REAL")],
         "recordatorios": [("recurrence", "TEXT"), ("list_id", "INTEGER"), ("event_id", "INTEGER"), ("shared", "INTEGER DEFAULT 0")],
         "transactions": [("is_shared", "INTEGER DEFAULT 0"),
                           ("kind", "TEXT NOT NULL DEFAULT 'normal'"),

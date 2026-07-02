@@ -5,7 +5,7 @@ import Tarjetas from './Tarjetas'
 
 afterEach(() => vi.restoreAllMocks())
 
-test('muestra "a pagar" (ciclo cerrado) como número principal, no la deuda total', async () => {
+test('muestra el resumen a pagar (ciclo cerrado) como número principal, con el próximo resumen secundario (UX1)', async () => {
   vi.stubGlobal('fetch', vi.fn((url: string) => {
     const u = String(url)
     // useAccountsWithBalances fetches /api/overview → { accounts: [...] }
@@ -34,12 +34,13 @@ test('muestra "a pagar" (ciclo cerrado) como número principal, no la deuda tota
   }))
   renderWithProviders(<Tarjetas />)
   expect(await screen.findByText('Visa Galicia')).toBeInTheDocument()
-  // A pagar este mes = ciclo en curso = abierto 80000 + 1 cuota 10000 = 90000
-  expect(screen.getByText('$90.000,00')).toBeInTheDocument()
-  expect(screen.getByText('A pagar este mes')).toBeInTheDocument()
+  // Principal = resumen a pagar = ciclo cerrado 500000 (lo que vence)
+  expect(screen.getByText('Resumen a pagar')).toBeInTheDocument()
+  expect(screen.getByText('$500.000,00')).toBeInTheDocument()
+  // Secundario = próximo resumen = ciclo abierto 80000 + 1 cuota 10000 = 90000
+  expect(screen.getByText(/\$90\.000,00/)).toBeInTheDocument()
   expect(screen.getByText(/cierra 03\/07/)).toBeInTheDocument()
-  // ni el ciclo cerrado (500000) ni la deuda total (185000) como número principal
-  expect(screen.queryByText('$500.000,00')).not.toBeInTheDocument()
+  // la deuda total (185000) no aparece como número
   expect(screen.queryByText('$185.000,00')).not.toBeInTheDocument()
 })
 
@@ -61,7 +62,8 @@ test('muestra $0 a pagar cuando no hay resumen cerrado', async () => {
   }))
   renderWithProviders(<Tarjetas />)
   expect(await screen.findByText('Mastercard')).toBeInTheDocument()
-  // Sin vencimientos ni cuotas → a pagar este mes $0
-  expect(screen.getByText('$0,00')).toBeInTheDocument()
-  expect(screen.getByText('cargá cierre y vencimiento')).toBeInTheDocument()
+  // Sin resumen cerrado → mensaje amable como principal; próximo resumen $0
+  expect(screen.getByText('Sin resumen pendiente 🎉')).toBeInTheDocument()
+  expect(screen.getByText(/\$0,00/)).toBeInTheDocument()
+  expect(screen.getByText(/cargá cierre y vencimiento/)).toBeInTheDocument()
 })

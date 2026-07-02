@@ -105,6 +105,7 @@ export interface Account {
   active: number
   closing_day?: number | null
   due_day?: number | null
+  credit_limit?: number | null
   shared?: number
   balances?: Balance[]
 }

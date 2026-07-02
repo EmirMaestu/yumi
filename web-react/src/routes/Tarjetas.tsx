@@ -5,7 +5,7 @@ import { useAccountsWithBalances, useAccountMutations } from '../hooks/useAccoun
 import { useRecurring } from '../hooks/useRecurring'
 import { Money } from '../lib/privacy'
 import { type Account } from '../lib/types'
-import { cicloEnCurso } from '../lib/cards'
+import { cicloEnCurso, aPagarCard } from '../lib/cards'
 import Card from '../components/ui/Card'
 import BackButton from '../components/ui/BackButton'
 import AlertPill from '../components/ui/AlertPill'
@@ -37,7 +37,8 @@ export default function Tarjetas() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><BackButton /><div className="cap">Tarjetas y cuotas</div></div>
       {cards.map((card) => {
         const v = venc.data?.find((x) => x.account_id === card.id)
-        const aPagarMes = cicloEnCurso(card.id, v, recurring.data)
+        const aPagar = aPagarCard(v)                                // resumen a pagar (lo que vence)
+        const enCurso = cicloEnCurso(card.id, v, recurring.data)    // próximo resumen (proyección)
         const dias = v?.next_closing ? Math.ceil((new Date(v.next_closing).getTime() - Date.now()) / 86_400_000) : null
         const hasVenc = !!v
         return (
@@ -54,18 +55,19 @@ export default function Tarjetas() {
                 onDelete={() => setDeleteCard(card)}
               />
             </div>
-            {/* A pagar este mes — ciclo en curso (transacciones + cuotas del mes) */}
+            {/* Resumen a pagar (lo exigible) primero; próximo resumen como proyección */}
             <div style={{ marginTop: 10 }}>
-              <div className="cap">A pagar este mes</div>
-              <div className="num-serif" style={{ fontSize: 30, marginTop: 4 }}><Money value={aPagarMes} /></div>
-              <div style={{ marginTop: 4, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>
-                  {hasVenc && v!.next_closing ? `cierra ${fmtDay(v!.next_closing)}` : 'cargá cierre y vencimiento'}
-                </span>
-                {dias !== null && dias >= 0 && dias <= 5 && (
-                  <AlertPill>cierra en {dias} día{dias === 1 ? '' : 's'}</AlertPill>
-                )}
+              <div className="cap">Resumen a pagar</div>
+              {aPagar > 0
+                ? <div className="num-serif" style={{ fontSize: 30, marginTop: 4 }}><Money value={aPagar} /></div>
+                : <div style={{ fontSize: 15, marginTop: 4 }}>Sin resumen pendiente 🎉</div>}
+              <div style={{ marginTop: 4, fontSize: 11, color: 'var(--color-sage)' }}>
+                Próximo resumen{hasVenc && v!.next_closing ? ` (cierra ${fmtDay(v!.next_closing)})` : ''}: <Money value={enCurso} />
+                {!hasVenc && ' · cargá cierre y vencimiento'}
               </div>
+              {dias !== null && dias >= 0 && dias <= 5 && (
+                <div style={{ marginTop: 6 }}><AlertPill>cierra en {dias} día{dias === 1 ? '' : 's'}</AlertPill></div>
+              )}
             </div>
           </Card>
         )
