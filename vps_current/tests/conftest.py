@@ -47,8 +47,11 @@ CREATE TABLE transactions (id INTEGER PRIMARY KEY AUTOINCREMENT,
     account_id INTEGER NOT NULL, category_id INTEGER,
     description TEXT, occurred_at TEXT NOT NULL,
     recurring_id INTEGER, raw_message_id INTEGER, user_id INTEGER,
-    is_shared INTEGER DEFAULT 0,
+    is_shared INTEGER DEFAULT 0, updated_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')));
+CREATE TABLE audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, entity TEXT NOT NULL,
+    entity_id INTEGER, action TEXT NOT NULL, source TEXT DEFAULT 'web', detail TEXT,
+    user_id INTEGER, created_at TEXT DEFAULT (datetime('now','localtime')));
 CREATE TABLE recurring (id INTEGER PRIMARY KEY AUTOINCREMENT,
     type TEXT NOT NULL DEFAULT 'gasto', amount REAL NOT NULL, currency TEXT NOT NULL DEFAULT 'ARS',
     account_id INTEGER NOT NULL, category_id INTEGER, description TEXT NOT NULL,
