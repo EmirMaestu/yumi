@@ -15,5 +15,9 @@ test('lista transacciones', async () => {
   }))
   renderWithProviders(<Movimientos />)
   expect(await screen.findByText('Coca')).toBeInTheDocument()
-  expect(screen.getByText('−$5.000,00')).toBeInTheDocument()
+  // el monto aparece en la fila y en el subtotal del día (agrupación por día)
+  expect(screen.getAllByText('−$5.000,00').length).toBeGreaterThan(0)
+  // encabezado de día y contador de paginación visibles
+  expect(screen.getByText('20 de junio')).toBeInTheDocument()
+  expect(screen.getByText('Mostrando 1 de 1')).toBeInTheDocument()
 })
