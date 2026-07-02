@@ -122,6 +122,8 @@ export interface Overview2Kpis {
   cuotas_futuras: number
   cuotas_n: number
   disponible: number
+  proyeccion_fin_mes?: number
+  anomalias?: { tx_id: number; description: string; amount: number }[]
 }
 
 export interface Overview2 {
@@ -157,7 +159,11 @@ export interface Transaction {
   category_name?: string | null
   acc_name?: string | null
   cat_name?: string | null
+  cat_color?: string | null
+  cat_icon?: string | null
   owner_name?: string | null
+  created_at?: string | null
+  updated_at?: string | null
 }
 
 export interface Category {
