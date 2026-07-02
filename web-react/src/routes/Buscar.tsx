@@ -1,4 +1,4 @@
-import { useState, useDeferredValue } from 'react'
+import { useState, useEffect, useDeferredValue } from 'react'
 import { Link } from 'react-router-dom'
 import { useTareas } from '../hooks/useTareas'
 import { useNotas } from '../hooks/useNotas'
@@ -106,11 +106,19 @@ export default function Buscar() {
   const { data: eventos } = useEventos(false)
   const { data: eventosPast } = useEventos(true)
   const { data: recordatorios } = useRecordatorios(true)
-  const { data: transactions } = useQuery({
-    queryKey: ['transactions', 'buscar'],
-    // /api/transactions returns { items, total } — unwrap to an array
+
+  // Movimientos: búsqueda server-side sobre TODO el historial (BF11, D12).
+  // Debounce 300ms → GET /api/transactions?q=…&limit=50 (sin year/month).
+  const [debouncedQ, setDebouncedQ] = useState('')
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedQ(rawQ.trim()), 300)
+    return () => clearTimeout(id)
+  }, [rawQ])
+  const { data: txResults } = useQuery({
+    queryKey: ['transactions', 'buscar', debouncedQ],
+    enabled: debouncedQ.length > 0,
     queryFn: async () => {
-      const res = await apiGet<{ items: Transaction[] }>('/api/transactions?limit=500')
+      const res = await apiGet<{ items: Transaction[] }>(`/api/transactions?q=${encodeURIComponent(debouncedQ)}&limit=50`)
       return res.items ?? []
     },
   })
@@ -129,9 +137,8 @@ export default function Buscar() {
   const filteredRecs = q
     ? (recordatorios ?? []).filter((r) => matches(q, r.text))
     : []
-  const filteredTx = q
-    ? (transactions ?? []).filter((t) => matches(q, t.description, t.cat_name, t.acc_name))
-    : []
+  // Ya viene filtrado del server (busca en toda la historia, no solo 500 tx).
+  const filteredTx = debouncedQ ? (txResults ?? []) : []
 
   const total = filteredTareas.length + filteredNotas.length + filteredEventos.length + filteredRecs.length + filteredTx.length
 
