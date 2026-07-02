@@ -6,6 +6,23 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-07-02
+Reescritura profunda del **módulo de Finanzas** (plan `docs/finanzas/`, 16 work packages). También incluye lo que había quedado pendiente de release en 0.12.0.
+
+### Added
+- **Transferencias y pago de tarjeta de primera clase:** tipo "Transferencia" en Agregar (Desde/Hacia) y flujo "Registrar pago" en la tarjeta. Se modelan como par de movimientos vinculados (`kind` = `transfer`/`card_payment`) que **no** contaminan los KPIs.
+- **Historial completo:** navegador de mes ‹ ›, rango de fechas, presets, scroll infinito con "mostrando X de Y" (se acabó el truncado a 200) y agrupación por día con subtotal. Búsqueda de movimientos server-side sobre todo el historial.
+- **Deshacer** en borrados de movimientos (papelera recuperable 30 días).
+- **Presupuestos** por categoría con barras verde/ámbar/rojo, **Tendencias** (gráficos por mes y por categoría), **Resúmenes mensuales** (statements exportables), **Metas de ahorro** y **balance de pareja** ("te debe / le debés").
+- **Notificaciones** de cierre y vencimiento de tarjeta y de presupuesto excedido (Telegram + push web), sin repetir.
+- **Detalle de movimiento** (sheet con categoría editable, duplicar, auditoría "creado/editado"), **fecha editable** al crear/editar, **ojito** para ocultar montos, **límite de crédito** con disponible, **categorías con color y emoji**, y **sugerencia de categoría** al tipear.
+- Proyección de fin de mes y aviso de gastos inusuales en Inicio; KPIs y categorías clickeables.
+
+### Fixed
+- Editar un recurrente ya no resetea su día de cobro; el "Ajuste de saldo" y las transferencias ya no inflan los KPIs del mes.
+- Montos con coma decimal (formato es-AR), cotización de EUR con su propia tasa (nunca más EUR≈USD ni sumar monedas 1:1 sin cotización), cuenta solo-USD ya no se computa como pesos.
+- Feedback visible (toasts de éxito/error), confirmación al compartir una cuenta, y validaciones/estados de carga que faltaban.
+
 ## [0.12.0] - 2026-06-30
 ### Added
 - **Compartir eventos y recordatorios por integrante** (igual que notas/tareas/listas): botón Compartir → Privada / Todo el plan / Personas puntuales, con indicador. Editar = colabora quien lo recibe; borrar = solo el dueño.
