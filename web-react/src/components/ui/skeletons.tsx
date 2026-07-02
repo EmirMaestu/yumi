@@ -73,6 +73,22 @@ export function CuentasSkeleton() {
   )
 }
 
+export function CategoriasSkeleton() {
+  return (
+    <div style={{ padding: '14px 18px 24px' }}>
+      {/* Header */}
+      <Skel h={14} w="30%" style={{ marginBottom: 16 }} />
+      {/* Category rows */}
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--color-mist)' }}>
+          <Skel h={14} w="45%" />
+          <Skel h={15} w={56} style={{ borderRadius: 6 }} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function TarjetasSkeleton() {
   return (
     <div style={{ padding: '14px 18px 24px', display: 'grid', gap: 14 }}>

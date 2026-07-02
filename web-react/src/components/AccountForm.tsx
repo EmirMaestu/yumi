@@ -10,8 +10,8 @@ import Select from './ui/Select'
 const schema = z.object({
   name: z.string().min(1, 'Requerido'),
   type: z.enum(['efectivo', 'billetera', 'debito', 'credito', 'banco', 'dolares', 'cripto', 'inversion']),
-  closing_day: z.number().min(1).max(31).optional(),
-  due_day: z.number().min(1).max(31).optional(),
+  closing_day: z.number().min(1, 'Entre 1 y 31').max(31, 'Entre 1 y 31').optional(),
+  due_day: z.number().min(1, 'Entre 1 y 31').max(31, 'Entre 1 y 31').optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -80,13 +80,15 @@ export default function AccountForm({
       body.closing_day = values.closing_day
       body.due_day = values.due_day
     }
+    const opts = { onSuccess: () => onClose() }
     if (isEdit && account) {
-      update.mutate({ id: account.id, ...body })
+      update.mutate({ id: account.id, ...body }, opts)
     } else {
-      create.mutate(body)
+      create.mutate(body, opts)
     }
-    onClose()
   }
+
+  const isPending = create.isPending || update.isPending
 
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? 'Editar cuenta' : 'Nueva cuenta'}>
@@ -123,6 +125,7 @@ export default function AccountForm({
                 {...register('closing_day', { valueAsNumber: true })}
                 style={inputStyle}
               />
+              {errors.closing_day && <span style={errorStyle}>{errors.closing_day.message}</span>}
             </label>
             <label style={labelStyle}>
               Día de vencimiento
@@ -131,11 +134,12 @@ export default function AccountForm({
                 {...register('due_day', { valueAsNumber: true })}
                 style={inputStyle}
               />
+              {errors.due_day && <span style={errorStyle}>{errors.due_day.message}</span>}
             </label>
           </>
         )}
 
-        <button type="submit" style={ctaBtn}>Guardar</button>
+        <button type="submit" style={ctaBtn} disabled={isPending}>{isPending ? 'Guardando…' : 'Guardar'}</button>
       </form>
     </Modal>
   )
@@ -160,4 +164,4 @@ const ctaBtn: React.CSSProperties = {
   fontWeight: 500,
   cursor: 'pointer',
 }
-const errorStyle: React.CSSProperties = { fontSize: 12, color: '#c0392b', marginTop: 2 }
+const errorStyle: React.CSSProperties = { fontSize: 12, color: 'var(--color-error)', marginTop: 2 }

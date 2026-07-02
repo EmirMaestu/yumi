@@ -8,6 +8,7 @@ import EmptyState from '../components/ui/EmptyState'
 import Modal from '../components/ui/Modal'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import CardActions from '../components/ui/CardActions'
+import { CategoriasSkeleton } from '../components/ui/skeletons'
 
 interface CatForm { name: string }
 
@@ -18,18 +19,21 @@ function CategoryFormModal({ open, onClose, initial, onSubmit, title }: {
   onSubmit: (data: CatForm) => void
   title: string
 }) {
-  const { register, handleSubmit, reset } = useForm<CatForm>({
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<CatForm>({
     defaultValues: initial ?? { name: '' },
   })
   const submit = (data: CatForm) => { onSubmit(data); reset() }
   return (
     <Modal open={open} onClose={() => { onClose(); reset() }} title={title}>
       <form onSubmit={handleSubmit(submit)} style={{ display: 'grid', gap: 12 }}>
-        <input
-          {...register('name', { required: true })}
-          placeholder="Nombre de la categoría"
-          style={inputStyle}
-        />
+        <div>
+          <input
+            {...register('name', { required: 'Requerido' })}
+            placeholder="Nombre de la categoría"
+            style={inputStyle}
+          />
+          {errors.name && <span style={errorStyle}>{errors.name.message}</span>}
+        </div>
         <button type="submit" style={ctaBtn}>Guardar</button>
       </form>
     </Modal>
@@ -37,12 +41,14 @@ function CategoryFormModal({ open, onClose, initial, onSubmit, title }: {
 }
 
 export default function Categorias() {
-  const { data } = useCategories()
+  const { data, isLoading } = useCategories()
   const { create, update, remove } = useCategoryMutations()
 
   const [createOpen, setCreateOpen] = useState(false)
   const [editCat, setEditCat] = useState<Category | null>(null)
   const [deleteCat, setDeleteCat] = useState<Category | null>(null)
+
+  if (isLoading) return <CategoriasSkeleton />
 
   return (
     <div style={{ padding: '14px 18px 24px', display: 'grid', gap: 10 }}>
@@ -138,3 +144,4 @@ const inputStyle: React.CSSProperties = {
   width: '100%',
   boxSizing: 'border-box',
 }
+const errorStyle: React.CSSProperties = { fontSize: 12, color: 'var(--color-error)', marginTop: 2 }

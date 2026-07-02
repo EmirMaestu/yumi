@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiGet, apiPost, apiPatch, apiDelete } from '../lib/api'
+import { notifyOk, notifyErr } from '../lib/notify'
 import type { Transaction } from '../lib/types'
 
 export interface TxFilters { period?: string; account_id?: number; category_id?: number; currency?: string; q?: string }
@@ -35,10 +36,10 @@ export function useTxMutations() {
   const qc = useQueryClient()
   const inval = () => { qc.invalidateQueries({ queryKey: ['transactions'] }); qc.invalidateQueries({ queryKey: ['overview2'] }); qc.invalidateQueries({ queryKey: ['accounts-balances'] }) }
   return {
-    create: useMutation({ mutationFn: (b: Partial<Transaction>) => apiPost('/api/transactions', b), onSuccess: inval }),
-    update: useMutation({ mutationFn: ({ id, ...b }: { id: number } & Partial<Transaction>) => apiPatch(`/api/transactions/${id}`, b), onSuccess: inval }),
-    remove: useMutation({ mutationFn: (id: number) => apiDelete(`/api/transactions/${id}`), onSuccess: inval }),
-    bulkDelete: useMutation({ mutationFn: (ids: number[]) => apiPost('/api/transactions/bulk_delete', { ids }), onSuccess: inval }),
-    bulkMove: useMutation({ mutationFn: (b: { ids: number[]; account_id: number }) => apiPost('/api/transactions/bulk_move', b), onSuccess: inval }),
+    create: useMutation({ mutationFn: (b: Partial<Transaction>) => apiPost('/api/transactions', b), onSuccess: () => { inval(); notifyOk('Movimiento guardado') }, onError: notifyErr }),
+    update: useMutation({ mutationFn: ({ id, ...b }: { id: number } & Partial<Transaction>) => apiPatch(`/api/transactions/${id}`, b), onSuccess: () => { inval(); notifyOk('Movimiento actualizado') }, onError: notifyErr }),
+    remove: useMutation({ mutationFn: (id: number) => apiDelete(`/api/transactions/${id}`), onSuccess: () => { inval(); notifyOk('Movimiento eliminado') }, onError: notifyErr }),
+    bulkDelete: useMutation({ mutationFn: (ids: number[]) => apiPost('/api/transactions/bulk_delete', { ids }), onSuccess: (_d, ids) => { inval(); notifyOk(`${ids.length} movimiento${ids.length === 1 ? '' : 's'} eliminado${ids.length === 1 ? '' : 's'}`) }, onError: notifyErr }),
+    bulkMove: useMutation({ mutationFn: (b: { ids: number[]; account_id: number }) => apiPost('/api/transactions/bulk_move', b), onSuccess: (_d, b) => { inval(); notifyOk(`${b.ids.length} movimiento${b.ids.length === 1 ? '' : 's'} movido${b.ids.length === 1 ? '' : 's'}`) }, onError: notifyErr }),
   }
 }
