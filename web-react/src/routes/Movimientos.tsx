@@ -91,7 +91,6 @@ export default function Movimientos() {
   const [moveAccountId, setMoveAccountId] = useState<string | undefined>(undefined)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [editTx, setEditTx] = useState<Transaction | null>(null)
-  const [deleteTx, setDeleteTx] = useState<Transaction | null>(null)
 
   const accountOpts = [{ value: 'all', label: 'Toda cuenta' }, ...(accounts.data ?? []).map((a) => ({ value: String(a.id), label: a.name }))]
   const categoryOpts = [{ value: 'all', label: 'Toda categoría' }, ...(categories.data ?? []).map((c) => ({ value: String(c.id), label: c.name }))]
@@ -213,7 +212,7 @@ export default function Movimientos() {
                   {!isTransfer && (
                     <button aria-label={`Editar ${t.description}`} onClick={() => setEditTx(t)} style={iconBtn}><i className="ti ti-edit" aria-hidden /></button>
                   )}
-                  <button aria-label={`Borrar ${t.description}`} onClick={() => setDeleteTx(t)} style={iconBtn}><i className="ti ti-trash" aria-hidden /></button>
+                  <button aria-label={`Borrar ${t.description}`} onClick={() => remove.mutate(t.id)} style={iconBtn}><i className="ti ti-trash" aria-hidden /></button>
                 </span>
               </div>
             )
@@ -249,12 +248,6 @@ export default function Movimientos() {
 
       {/* Per-row edit modal */}
       <EditTxModal key={editTx ? `tx-${editTx.id}` : 'tx-edit'} tx={editTx} open={editTx !== null} onClose={() => setEditTx(null)} />
-
-      {/* Per-row delete confirm */}
-      <ConfirmDialog open={deleteTx !== null} onOpenChange={(o) => { if (!o) setDeleteTx(null) }}
-        title="¿Borrar este movimiento?"
-        description={deleteTx ? `Se eliminará "${deleteTx.description}".` : ''}
-        onConfirm={() => { if (deleteTx) remove.mutate(deleteTx.id); setDeleteTx(null) }} />
     </div>
   )
 }
