@@ -28,6 +28,20 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
+// Prefill de edición a partir del ítem real. BF1: antes se hardcodeaba
+// day_of_month=1, corrompiendo el día de cobro en cada edición.
+export function recurringToFormInitial(item: Recurring): Partial<FormValues> {
+  return {
+    description: item.description,
+    amount: item.amount,
+    account_id: String(item.account_id),
+    type: 'gasto', // el modelo Recurring no expone `type`; el PATCH no lo envía
+    day_of_month: item.day_of_month ?? 1,
+    total_installments: item.total_installments ?? null,
+    installments_fired: item.installments_fired ?? null,
+  }
+}
+
 const TYPE_OPTS = [
   { value: 'gasto', label: 'Gasto' },
   { value: 'ingreso', label: 'Ingreso' },
@@ -280,15 +294,7 @@ export default function Recurrentes() {
         open={editItem !== null}
         onClose={() => setEditItem(null)}
         title="Editar recurrente"
-        initial={editItem ? {
-          description: editItem.description,
-          amount: editItem.amount,
-          account_id: String(editItem.account_id),
-          type: 'gasto',
-          day_of_month: 1,
-          total_installments: editItem.total_installments ?? null,
-          installments_fired: editItem.installments_fired ?? null,
-        } : undefined}
+        initial={editItem ? recurringToFormInitial(editItem) : undefined}
         onSubmit={handleEdit}
         accountOpts={accountOpts}
       />
