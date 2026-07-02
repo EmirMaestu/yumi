@@ -79,6 +79,10 @@ CREATE TABLE category_learning (user_id INTEGER NOT NULL, keyword TEXT NOT NULL,
 CREATE TABLE monthly_statements (id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL, year INTEGER NOT NULL, month INTEGER NOT NULL,
     data_json TEXT NOT NULL, created_at TEXT NOT NULL, UNIQUE(user_id, year, month));
+CREATE TABLE budgets (id INTEGER PRIMARY KEY AUTOINCREMENT, category_id INTEGER NOT NULL,
+    amount REAL NOT NULL, user_id INTEGER, UNIQUE(category_id, user_id));
+CREATE TABLE notifications_sent (id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER, kind TEXT, ref TEXT, sent_at TEXT, UNIQUE(user_id, kind, ref));
 """
 
 
