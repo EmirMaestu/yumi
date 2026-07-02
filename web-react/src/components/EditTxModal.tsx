@@ -7,10 +7,11 @@ import { useAccounts } from '../hooks/useAccounts'
 import { useCategories } from '../hooks/useCategories'
 import { useTxMutations } from '../hooks/useTransactions'
 import { type Transaction } from '../lib/types'
+import { parseAmount } from '../lib/parseAmount'
 
 const schema = z.object({
   type: z.enum(['gasto', 'ingreso']),
-  amount: z.coerce.number().positive('Monto inválido'),
+  amount: z.preprocess((v) => parseAmount(String(v)), z.number().positive('Monto inválido')),
   description: z.string().min(1, 'Falta descripción'),
   account_id: z.coerce.number().int(),
   category_id: z.coerce.number().int().optional(),
