@@ -1514,6 +1514,25 @@ def bulk_move_tx(body: dict = Body(...), user=Depends(require_user)):
     return {"ok": True, "count": len(ids)}
 
 
+@app.post("/api/transactions/bulk_update")
+def bulk_update_tx(body: dict = Body(...), user=Depends(require_user)):
+    """Recategorización en lote (UX15). Misma validación de propiedad que bulk_move."""
+    ids = body.get("ids") or []
+    if not ids: raise HTTPException(400, "Sin ids")
+    if "category_id" not in body: raise HTTPException(400, "Sin cambios")
+    cat = body["category_id"]
+    placeholders = ",".join("?" * len(ids))
+    with db() as conn:
+        owned = conn.execute(
+            f"SELECT COUNT(*) FROM transactions WHERE id IN ({placeholders}) AND user_id=?",
+            ids + [user["id"]]).fetchone()[0]
+        if owned != len(ids): raise HTTPException(403, "Alguna no es tuya")
+        conn.execute(f"UPDATE transactions SET category_id=? WHERE id IN ({placeholders})",
+                     [int(cat) if cat else None] + ids)
+        conn.commit()
+    return {"ok": True, "count": len(ids)}
+
+
 @app.get("/api/export.csv")
 def export_csv(year: int = None, month: int = None, user=Depends(require_user), scope: str = Cookie("mine")):
     uf_t, uf_p = user_filter(scope, user, "t")
@@ -1568,6 +1587,10 @@ def api_patch_rec(rid: int, body: dict = Body(...), user=Depends(require_user)):
         fields=[]; params=[]
         for k in ("amount","description","day_of_month","next_occurrence","total_installments","installments_fired"):
             if k in body: fields.append(f"{k}=?"); params.append(body[k])
+        if "account_id" in body:  # permitir cambiar la cuenta al editar (con validación de propiedad)
+            acc = conn.execute("SELECT user_id FROM accounts WHERE id=?", (int(body["account_id"]),)).fetchone()
+            if not acc or acc["user_id"] != user["id"]: raise HTTPException(403, "Esa cuenta no es tuya")
+            fields.append("account_id=?"); params.append(int(body["account_id"]))
         if "active" in body: fields.append("active=?"); params.append(1 if body["active"] else 0)
         if not fields: raise HTTPException(400, "Sin cambios")
         params.append(rid)

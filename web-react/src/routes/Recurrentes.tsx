@@ -222,6 +222,7 @@ export default function Recurrentes() {
       id: editItem.id,
       description: data.description,
       amount: data.amount,
+      account_id: Number(data.account_id),
       day_of_month: data.day_of_month,
       total_installments: data.total_installments ?? null,
       installments_fired: data.installments_fired ?? null,

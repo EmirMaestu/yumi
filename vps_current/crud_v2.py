@@ -151,11 +151,20 @@ class RecurringIn(BaseModel):
 
 
 def _next_occurrence(day: int) -> str:
+    # BF10/D8: se preserva el día pedido (1-31); el único clamp es a fin de mes REAL
+    # (no a 28), así "día 31" cae el 30/31 según el mes, sin corromper el dato.
+    import calendar
     today = datetime.now()
-    day = max(1, min(28, day))
-    candidate = today.replace(day=day, hour=8, minute=0, second=0, microsecond=0)
+    day = max(1, min(31, day))
+
+    def _for_month(y, m):
+        last = calendar.monthrange(y, m)[1]
+        return datetime(y, m, min(day, last), 8, 0, 0)
+
+    candidate = _for_month(today.year, today.month)
     if candidate.date() <= today.date():
-        candidate = (candidate.replace(day=1) + timedelta(days=32)).replace(day=day)
+        ny, nm = (today.year + 1, 1) if today.month == 12 else (today.year, today.month + 1)
+        candidate = _for_month(ny, nm)
     return candidate.strftime("%Y-%m-%d %H:%M:%S")
 
 

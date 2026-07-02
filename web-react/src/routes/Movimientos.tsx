@@ -58,7 +58,7 @@ export default function Movimientos() {
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useTransactionsInfinite(filters)
   const accounts = useAccounts()
   const categories = useCategories()
-  const { remove, bulkDelete, bulkMove } = useTxMutations()
+  const { remove, bulkDelete, bulkMove, bulkUpdate } = useTxMutations()
 
   const items = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data])
   const total = data?.pages[0]?.total ?? 0
@@ -91,6 +91,8 @@ export default function Movimientos() {
   })
   const [moveOpen, setMoveOpen] = useState(false)
   const [moveAccountId, setMoveAccountId] = useState<string | undefined>(undefined)
+  const [catOpen, setCatOpen] = useState(false)
+  const [catId, setCatId] = useState<string | undefined>(undefined)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [editTx, setEditTx] = useState<Transaction | null>(null)
   const [detailTx, setDetailTx] = useState<Transaction | null>(null)
@@ -178,6 +180,7 @@ export default function Movimientos() {
         <div style={{ position: 'sticky', top: 0, zIndex: 20, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--color-mist)', background: 'var(--color-linen)', marginBottom: 8 }}>
           <span style={{ fontSize: 14, fontWeight: 500, flex: 1 }}>{sel.size} seleccionado{sel.size === 1 ? '' : 's'}</span>
           <button onClick={() => setMoveOpen(true)} style={ghostBtn}>Mover</button>
+          <button onClick={() => setCatOpen(true)} style={ghostBtn}>Categoría</button>
           <button onClick={() => setBulkDeleteOpen(true)} style={ghostBtn}>Borrar</button>
           <button onClick={() => setSel(new Set())} aria-label="Limpiar selección" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--color-sage)' }}>×</button>
         </div>
@@ -239,6 +242,16 @@ export default function Movimientos() {
           <Select value={moveAccountId} onValueChange={setMoveAccountId} options={moveAccountOpts} placeholder="Seleccionar cuenta…" ariaLabel="Cuenta destino" style={{ width: '100%' }} />
           <button onClick={() => { if (!moveAccountId) return; bulkMove.mutate({ ids: [...sel], account_id: Number(moveAccountId) }); setSel(new Set()); setMoveOpen(false) }} style={ctaBtn}>
             Mover {sel.size} movimiento{sel.size === 1 ? '' : 's'} →
+          </button>
+        </div>
+      </Modal>
+
+      {/* Bulk categorize modal */}
+      <Modal open={catOpen} onClose={() => setCatOpen(false)} title="Cambiar categoría">
+        <div style={{ display: 'grid', gap: 12 }}>
+          <Select value={catId} onValueChange={setCatId} options={(categories.data ?? []).map((c) => ({ value: String(c.id), label: c.name }))} placeholder="Seleccionar categoría…" ariaLabel="Categoría" style={{ width: '100%' }} />
+          <button onClick={() => { if (!catId) return; bulkUpdate.mutate({ ids: [...sel], category_id: Number(catId) }); setSel(new Set()); setCatOpen(false) }} style={ctaBtn}>
+            Cambiar {sel.size} movimiento{sel.size === 1 ? '' : 's'} →
           </button>
         </div>
       </Modal>

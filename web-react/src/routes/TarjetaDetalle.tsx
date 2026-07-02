@@ -24,6 +24,7 @@ interface CuotaForm {
   amount: number
   total_installments: number
   installments_fired: number
+  day_of_month: number
 }
 
 function CuotaModal({
@@ -40,7 +41,7 @@ function CuotaModal({
   onSubmit: (data: CuotaForm) => void
 }) {
   const { register, handleSubmit, reset, watch } = useForm<CuotaForm>({
-    defaultValues: { description: '', amount: 0, total_installments: 1, installments_fired: 0, ...initial },
+    defaultValues: { description: '', amount: 0, total_installments: 1, installments_fired: 0, day_of_month: 1, ...initial },
   })
   const totalWatched = watch('total_installments')
   const submit = (data: CuotaForm) => { onSubmit(data); reset() }
@@ -78,6 +79,16 @@ function CuotaModal({
           <span style={{ fontSize: 11, color: 'var(--color-sage)', marginTop: 2 }}>
             Cuántas de las {totalWatched ?? '?'} ya pagaste
           </span>
+        </label>
+        <label style={labelStyle}>
+          Día de cobro (1-31)
+          <input
+            type="number"
+            min={1}
+            max={31}
+            {...register('day_of_month', { valueAsNumber: true, min: 1, max: 31 })}
+            style={inputStyle}
+          />
         </label>
         <button type="submit" style={ctaBtn}>Guardar</button>
       </form>
@@ -370,7 +381,7 @@ export default function TarjetaDetalle() {
             description: data.description,
             amount: data.amount,
             account_id: accId,
-            day_of_month: 1,
+            day_of_month: data.day_of_month,
             total_installments: data.total_installments,
             installments_fired: data.installments_fired,
             currency: 'ARS',
@@ -392,6 +403,7 @@ export default function TarjetaDetalle() {
               amount: editCuota.amount,
               total_installments: editCuota.total_installments ?? 1,
               installments_fired: editCuota.installments_fired ?? 0,
+              day_of_month: editCuota.day_of_month ?? 1,
             }
             : undefined
         }
@@ -401,6 +413,7 @@ export default function TarjetaDetalle() {
               id: editCuota.id,
               description: data.description,
               amount: data.amount,
+              day_of_month: data.day_of_month,
               total_installments: data.total_installments,
               installments_fired: data.installments_fired,
             })
