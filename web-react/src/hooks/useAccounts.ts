@@ -19,6 +19,13 @@ export function useAccountMutations() {
     remove: useMutation({ mutationFn: (id: number) => apiDelete(`/api/accounts/${id}`), onSuccess: () => { inval(); notifyOk('Cuenta eliminada') }, onError: notifyErr }),
   }
 }
+export function useArchivedAccounts(enabled: boolean) {
+  return useQuery({
+    queryKey: ['accounts', 'archived'],
+    enabled,
+    queryFn: async () => (await apiGet<Account[]>('/api/accounts?include_inactive=true')).filter((a) => a.active === 0),
+  })
+}
 export function useAccountsWithBalances() {
   return useQuery({
     queryKey: ['accounts-balances'],

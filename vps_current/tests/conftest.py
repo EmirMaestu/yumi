@@ -73,6 +73,9 @@ CREATE TABLE app_meta (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE trash (id INTEGER PRIMARY KEY AUTOINCREMENT,
     entity TEXT NOT NULL, original_id INTEGER NOT NULL, payload TEXT NOT NULL,
     user_id INTEGER, deleted_at TEXT DEFAULT (datetime('now','localtime')));
+CREATE TABLE category_learning (user_id INTEGER NOT NULL, keyword TEXT NOT NULL,
+    category_id INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 1,
+    PRIMARY KEY (user_id, keyword, category_id));
 """
 
 

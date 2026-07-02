@@ -25,6 +25,7 @@ interface RecurringUpdate {
   id: number
   description?: string
   amount?: number
+  account_id?: number
   total_installments?: number | null
   installments_fired?: number | null
   active?: number
@@ -48,8 +49,22 @@ export function useRecurringMutations() {
     }),
     update: useMutation({
       mutationFn: ({ id, ...b }: RecurringUpdate) => apiPatch(`/api/recurring/${id}`, b),
+      // Optimista (UX8): el toggle pausar/reactivar se ve al instante; rollback si falla.
+      onMutate: async (vars) => {
+        await qc.cancelQueries({ queryKey: ['recurring'] })
+        const prev = qc.getQueriesData({ queryKey: ['recurring'] })
+        qc.setQueriesData({ queryKey: ['recurring'] }, (old) => {
+          const arr = old as Recurring[] | undefined
+          if (!Array.isArray(arr)) return old
+          return arr.map((r) => (r.id === vars.id ? { ...r, ...vars } : r))
+        })
+        return { prev }
+      },
+      onError: (e, _vars, ctx) => {
+        (ctx as { prev?: [readonly unknown[], unknown][] } | undefined)?.prev?.forEach(([k, v]) => qc.setQueryData(k as readonly unknown[], v))
+        notifyErr(e)
+      },
       onSuccess: (_d, vars) => {
-        inval()
         // El mismo update sirve para editar y para pausar/reactivar (toggle de active).
         if (vars.active !== undefined && Object.keys(vars).length === 2) {
           notifyOk(vars.active ? 'Recurrente reactivado' : 'Recurrente pausado')
@@ -57,7 +72,7 @@ export function useRecurringMutations() {
           notifyOk('Recurrente actualizado')
         }
       },
-      onError: notifyErr,
+      onSettled: () => inval(),
     }),
     remove: useMutation({
       mutationFn: (id: number) => apiDelete(`/api/recurring/${id}`),

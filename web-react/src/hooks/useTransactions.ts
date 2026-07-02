@@ -12,6 +12,7 @@ export interface TxFilters {
   account_id?: number
   category_id?: number
   currency?: string
+  type?: 'gasto' | 'ingreso'
   q?: string
 }
 
@@ -31,6 +32,7 @@ function buildQuery(filters: TxFilters, offset?: number, limit?: number): string
   if (filters.account_id) qs.set('account_id', String(filters.account_id))
   if (filters.category_id) qs.set('category_id', String(filters.category_id))
   if (filters.currency) qs.set('currency', filters.currency)
+  if (filters.type) qs.set('type', filters.type)
   if (filters.q) qs.set('q', filters.q)
   if (offset) qs.set('offset', String(offset))
   if (limit) qs.set('limit', String(limit))
@@ -101,13 +103,29 @@ export function useTxMutations() {
     update: useMutation({ mutationFn: ({ id, ...b }: { id: number } & Partial<Transaction>) => apiPatch(`/api/transactions/${id}`, b), onSuccess: () => { inval(); notifyOk('Movimiento actualizado') }, onError: notifyErr }),
     remove: useMutation({
       mutationFn: (id: number) => apiDelete<DeleteResult>(`/api/transactions/${id}`),
+      // Optimista (UX8): la fila desaparece ya; rollback si falla.
+      onMutate: async (id: number) => {
+        await qc.cancelQueries({ queryKey: ['transactions'] })
+        const prev = qc.getQueriesData({ queryKey: ['transactions'] })
+        qc.setQueriesData({ queryKey: ['transactions'] }, (old) => {
+          const o = old as { pages?: { items: Transaction[] }[]; items?: Transaction[] } | undefined
+          if (!o) return o
+          if (o.pages) return { ...o, pages: o.pages.map((p) => ({ ...p, items: p.items.filter((t) => t.id !== id) })) }
+          if (o.items) return { ...o, items: o.items.filter((t) => t.id !== id) }
+          return o
+        })
+        return { prev }
+      },
+      onError: (e, _id, ctx) => {
+        (ctx as { prev?: [readonly unknown[], unknown][] } | undefined)?.prev?.forEach(([k, v]) => qc.setQueryData(k as readonly unknown[], v))
+        notifyErr(e)
+      },
       onSuccess: (data) => {
-        inval()
         const tid = data?.trash_ids?.[0]
         if (tid) notifyUndo('Movimiento eliminado', () => restore.mutate(tid))
         else notifyOk('Movimiento eliminado')
       },
-      onError: notifyErr,
+      onSettled: () => inval(),
     }),
     bulkDelete: useMutation({
       mutationFn: (ids: number[]) => apiPost<DeleteResult>('/api/transactions/bulk_delete', { ids }),
@@ -120,5 +138,6 @@ export function useTxMutations() {
       onError: notifyErr,
     }),
     bulkMove: useMutation({ mutationFn: (b: { ids: number[]; account_id: number }) => apiPost('/api/transactions/bulk_move', b), onSuccess: (_d, b) => { inval(); notifyOk(`${plural(b.ids.length, 'movimiento')} movido${b.ids.length === 1 ? '' : 's'}`) }, onError: notifyErr }),
+    bulkUpdate: useMutation({ mutationFn: (b: { ids: number[]; category_id: number }) => apiPost('/api/transactions/bulk_update', b), onSuccess: (_d, b) => { inval(); notifyOk(`${plural(b.ids.length, 'movimiento')} recategorizado${b.ids.length === 1 ? '' : 's'}`) }, onError: notifyErr }),
   }
 }

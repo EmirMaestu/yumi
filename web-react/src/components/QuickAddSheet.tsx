@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { type SubmitHandler, useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -13,6 +13,7 @@ import { useEventosMutations } from '../hooks/useEventos'
 import { useRecordatoriosMutations } from '../hooks/useRecordatorios'
 import { parseAmount } from '../lib/parseAmount'
 import { todayISODate, dateToNoonISO } from '../lib/format'
+import { apiGet } from '../lib/api'
 
 // ---------- quick-type selector ----------
 type QuickType = 'gasto' | 'tarea' | 'nota' | 'evento' | 'recordatorio'
@@ -105,10 +106,25 @@ function NormalTxForm({ tipo, onClose }: { tipo: 'gasto' | 'ingreso'; onClose: (
   const accounts = useAccounts()
   const categories = useCategories()
   const { create } = useTxMutations()
-  const { register, handleSubmit, control, formState: { errors } } = useForm<TxInput, unknown, TxOutput>({
+  const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<TxInput, unknown, TxOutput>({
     resolver: zodResolver(txSchema),
     defaultValues: { type: tipo, occurred_at: todayISODate() },
   })
+  const [suggested, setSuggested] = useState(false)
+  const desc = watch('description')
+  const catVal = watch('category_id')
+  // Auto-categorización sugerida (debounce 500ms) si el Select está vacío.
+  useEffect(() => {
+    if (!desc || catVal) return
+    const id = setTimeout(async () => {
+      try {
+        const r = await apiGet<{ category_id: number | null }>(`/api/categories/suggest?description=${encodeURIComponent(desc)}`)
+        if (r.category_id) { setValue('category_id', r.category_id); setSuggested(true) }
+      } catch { /* silencioso: la sugerencia es best-effort */ }
+    }, 500)
+    return () => clearTimeout(id)
+  }, [desc, catVal, setValue])
+
   const onSubmit: SubmitHandler<TxOutput> = (v) =>
     create.mutate({ ...v, occurred_at: dateToNoonISO(v.occurred_at) }, { onSuccess: onClose })
   const accountOpts = (accounts.data ?? []).map((a) => ({ value: String(a.id), label: a.name }))
@@ -123,9 +139,12 @@ function NormalTxForm({ tipo, onClose }: { tipo: 'gasto' | 'ingreso'; onClose: (
       <Controller name="account_id" control={control} render={({ field }) => (
         <Select value={field.value ? String(field.value) : undefined} onValueChange={(v) => field.onChange(Number(v))} options={accountOpts} placeholder="Cuenta…" ariaLabel="Cuenta" style={{ width: '100%' }} />
       )} />
-      <Controller name="category_id" control={control} render={({ field }) => (
-        <Select value={field.value ? String(field.value) : undefined} onValueChange={(v) => field.onChange(Number(v))} options={categoryOpts} placeholder="Categoría (opcional)…" ariaLabel="Categoría" style={{ width: '100%' }} />
-      )} />
+      <div style={{ display: 'grid', gap: 4 }}>
+        <Controller name="category_id" control={control} render={({ field }) => (
+          <Select value={field.value ? String(field.value) : undefined} onValueChange={(v) => { field.onChange(Number(v)); setSuggested(false) }} options={categoryOpts} placeholder="Categoría (opcional)…" ariaLabel="Categoría" style={{ width: '100%' }} />
+        )} />
+        {suggested && Boolean(catVal) && <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>Sugerida — podés cambiarla</span>}
+      </div>
       <label style={{ display: 'grid', gap: 4, fontSize: 13, color: 'var(--color-sage)' }}>
         Fecha
         <input type="date" {...register('occurred_at')} style={fieldStyle} />

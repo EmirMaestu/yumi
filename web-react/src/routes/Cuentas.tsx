@@ -2,11 +2,12 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { apiPost } from '../lib/api'
 import { notifyOk, notifyErr } from '../lib/notify'
-import { useAccountsWithBalances, useAccountMutations } from '../hooks/useAccounts'
+import { useAccountsWithBalances, useAccountMutations, useArchivedAccounts } from '../hooks/useAccounts'
 import { useRecurring } from '../hooks/useRecurring'
 import { type Account } from '../lib/types'
-import { arsBalance, enCuotas, deudaTotal } from '../lib/cards'
+import { arsBalance, enCuotas, deudaTotal, foreignBalances } from '../lib/cards'
 import { Money } from '../lib/privacy'
+import { formatMoney } from '../lib/format'
 import Card from '../components/ui/Card'
 import BackButton from '../components/ui/BackButton'
 import { CuentasSkeleton } from '../components/ui/skeletons'
@@ -30,13 +31,18 @@ const TYPE_LABEL: Record<string, string> = {
 export default function Cuentas() {
   const { data, isLoading } = useAccountsWithBalances()
   const recurring = useRecurring()
-  const { remove } = useAccountMutations()
+  const { remove, update } = useAccountMutations()
+  const archived = useArchivedAccounts(true)
+  const [showArchived, setShowArchived] = useState(false)
   const qc = useQueryClient()
   const doToggleShared = async (a: Account) => {
     const nowShared = !a.shared
     try {
       await apiPost('/api/share', { entity: 'accounts', id: a.id, shared: nowShared ? 1 : 0 })
-      qc.invalidateQueries()
+      // E1: invalidar solo lo afectado, no toda la app.
+      for (const key of [['transactions'], ['accounts'], ['accounts-balances'], ['overview2'], ['recurring'], ['vencimientos']]) {
+        qc.invalidateQueries({ queryKey: key })
+      }
       notifyOk(nowShared ? 'Cuenta compartida' : 'Cuenta hecha privada')
     } catch (e) {
       notifyErr(e)
@@ -90,6 +96,11 @@ export default function Cuentas() {
               <div style={{ fontSize: 11, color: 'var(--color-sage)' }}>
                 Consumos <Money value={Math.abs(arsBalance(a))} /> · En cuotas <Money value={enCuotas(a.id, recurring.data)} />
               </div>
+              {foreignBalances(a).map((b) => (
+                <div key={b.currency} style={{ fontSize: 11, color: 'var(--color-sage)' }}>
+                  + {formatMoney(Math.abs(b.balance), b.currency)} en {b.currency}
+                </div>
+              ))}
             </div>
           ) : (
             /* Non-credit account: standard balance display */
@@ -114,6 +125,23 @@ export default function Cuentas() {
           </button>
         </Card>
       ))}
+
+      {/* Archivadas */}
+      {(archived.data?.length ?? 0) > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <button onClick={() => setShowArchived((s) => !s)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, color: 'var(--color-sage)', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
+            {showArchived ? 'Ocultar archivadas' : `Ver archivadas (${archived.data!.length})`}
+          </button>
+          {showArchived && archived.data!.map((a) => (
+            <Card key={a.id} style={{ opacity: 0.7, marginTop: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 14, flex: 1 }}>{a.name} <span className="cap" style={{ fontSize: 10 }}>archivada</span></span>
+                <button onClick={() => update.mutate({ id: a.id, active: 1 })} style={ghostBtn}>Restaurar</button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Create modal */}
       <AccountForm open={createOpen} onClose={() => setCreateOpen(false)} />

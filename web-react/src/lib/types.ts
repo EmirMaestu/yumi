@@ -128,6 +128,9 @@ export interface Overview2 {
   patrimonio_ars: number
   patrimonio_usd: number | null
   blue: number
+  blue_at?: number | null
+  eur?: number
+  unconverted?: { currency: string; amount: number }[]
   kpis: Overview2Kpis
   cashflow: { ym: string; ingresos: number; gastos: number }[]
   hoy: HoyItem[]
@@ -154,6 +157,7 @@ export interface Transaction {
   category_name?: string | null
   acc_name?: string | null
   cat_name?: string | null
+  owner_name?: string | null
 }
 
 export interface Category {

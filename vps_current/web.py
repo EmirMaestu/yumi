@@ -32,6 +32,7 @@ from crud_v2 import router as crud_v2_router, init_crud_v2
 import vencimientos
 import networth
 import trends
+import finance
 
 BASE_DIR = Path(__file__).parent
 load_dotenv(BASE_DIR / ".env")
@@ -833,13 +834,16 @@ async def wa_receive(request: Request, background: BackgroundTasks):
 
 
 # ─── Utils ────────────────────────────────────────────────────────────────
-_RATE_TYPES = ("blue", "oficial", "mep", "cripto")
+_RATE_TYPES = ("blue", "oficial", "mep", "cripto", "eur")
 
 def _fetch_rate_now(rate_type):
     """Fetch sincrónico — se usa SOLO desde el hilo de fondo, NUNCA en el request
     (la resolución DNS fría puede tardar ~9s y no está acotada por el timeout del socket)."""
+    # EUR tiene su propia cotización (D7); no se aproxima con el blue del dólar.
+    url = ("https://dolarapi.com/v1/cotizaciones/eur" if rate_type == "eur"
+           else f"https://dolarapi.com/v1/dolares/{rate_type}")
     try:
-        req = urllib.request.Request(f"https://dolarapi.com/v1/dolares/{rate_type}",
+        req = urllib.request.Request(url,
                                      headers={"User-Agent": "Mozilla/5.0 (asistente-web)"})
         with urllib.request.urlopen(req, timeout=8) as r:
             data = json.loads(r.read().decode())
@@ -853,6 +857,11 @@ def get_dolar_rate(rate_type="blue"):
     El fetch real lo hace `_rate_refresher` en un hilo de fondo, manteniendo la caché tibia."""
     e = _rate_cache.get(rate_type)
     return e[1] if e else None
+
+def get_rate_ts(rate_type="blue"):
+    """Epoch (segundos) de cuándo se cacheó la tasa, o None si no hay."""
+    e = _rate_cache.get(rate_type)
+    return e[0] if e else None
 
 def _rate_refresher():
     while True:
@@ -936,13 +945,22 @@ def api_overview2(user=Depends(require_user), scope: str = Cookie("mine")):
     mes_ini = now.strftime("%Y-%m-01")
     hoy = now.strftime("%Y-%m-%d")
     blue = get_dolar_rate("blue") or 0
+    eur = get_dolar_rate("eur") or 0
     uf_t, uf_p = user_filter(scope, user, "t")
     uf_x, uf_xp = vis_filter_item(scope, user)
     scope_uid = resolve_scope_uid(scope, user)
     acc_filter, acc_params = vis_filter_item(scope, user)  # cuentas: visibilidad por `shared` (accounts tiene la columna)
 
+    # Conversión a ARS (BF6/D7): USD→blue, EUR→tasa EUR propia. Sin tasa → None
+    # (el caller excluye y acumula en `unconverted`). JAMÁS multiplicar por 1.
+    unconverted = {}
+    def ars_or_none(amount, currency):
+        if currency == "ARS": return amount
+        rate = blue if currency == "USD" else (eur if currency == "EUR" else 0)
+        return amount * rate if rate else None
     def ars(amount, currency):
-        return amount * (blue if currency in ("USD","EUR") and blue else 1)
+        v = ars_or_none(amount, currency)
+        return v if v is not None else 0
 
     prev_last = now.replace(day=1) - timedelta(days=1)
     prev_ini = prev_last.strftime("%Y-%m-01")
@@ -960,7 +978,11 @@ def api_overview2(user=Depends(require_user), scope: str = Cookie("mine")):
         patrimonio = 0.0; deuda = 0.0; disponible = 0.0
         for a in accounts:
             for b in balmap.get(a["id"], []):
-                v = ars(b["bal"], b["currency"])
+                v = ars_or_none(b["bal"], b["currency"])
+                if v is None:
+                    # Sin cotización: no se suma 1:1, se marca aparte (BF6).
+                    unconverted[b["currency"]] = unconverted.get(b["currency"], 0) + b["bal"]
+                    continue
                 patrimonio += v
                 if a["type"] == "credito" and v < 0: deuda += -v
                 if a["type"] not in ("credito",) and v > 0: disponible += v
@@ -1029,6 +1051,8 @@ def api_overview2(user=Depends(require_user), scope: str = Cookie("mine")):
 
     return {
         "patrimonio_ars": patrimonio, "patrimonio_usd": (patrimonio / blue) if blue else None, "blue": blue,
+        "blue_at": get_rate_ts("blue"), "eur": eur,
+        "unconverted": [{"currency": c, "amount": a} for c, a in unconverted.items() if a],
         "kpis": {"gasto_mes": gasto_mes, "gasto_prev_alt": gasto_prev_alt, "ingreso_mes": ingreso_mes,
                  "deuda_tarjetas": deuda, "cuotas_futuras": cuotas_futuras, "cuotas_n": cuotas_n,
                  "disponible": disponible},
@@ -1318,6 +1342,22 @@ def api_tx_create(body: dict = Body(...), user=Depends(require_user)):
     return {"id": cur.lastrowid, "ok": True}
 
 
+@app.get("/api/categories/suggest")
+def api_suggest_category(description: str = "", user=Depends(require_user)):
+    """Categoría sugerida por aprendizaje (category_learning), o null. Wrappea la
+    misma lógica que el bot (finance.learn_keywords + pick_learned_category)."""
+    kws = finance.learn_keywords(description)
+    if not kws:
+        return {"category_id": None}
+    ph = ",".join("?" * len(kws))
+    with db() as conn:
+        rows = conn.execute(
+            f"SELECT category_id, SUM(count) AS count FROM category_learning "
+            f"WHERE user_id=? AND keyword IN ({ph}) GROUP BY category_id",
+            [user["id"]] + kws).fetchall()
+    return {"category_id": finance.pick_learned_category([dict(r) for r in rows])}
+
+
 @app.post("/api/transfers")
 def api_transfer(body: dict = Body(...), user=Depends(require_user)):
     """Transferencia entre cuentas propias = dos patas vinculadas (BF2, D1, D9, D15).
@@ -1491,6 +1531,25 @@ def bulk_move_tx(body: dict = Body(...), user=Depends(require_user)):
     return {"ok": True, "count": len(ids)}
 
 
+@app.post("/api/transactions/bulk_update")
+def bulk_update_tx(body: dict = Body(...), user=Depends(require_user)):
+    """Recategorización en lote (UX15). Misma validación de propiedad que bulk_move."""
+    ids = body.get("ids") or []
+    if not ids: raise HTTPException(400, "Sin ids")
+    if "category_id" not in body: raise HTTPException(400, "Sin cambios")
+    cat = body["category_id"]
+    placeholders = ",".join("?" * len(ids))
+    with db() as conn:
+        owned = conn.execute(
+            f"SELECT COUNT(*) FROM transactions WHERE id IN ({placeholders}) AND user_id=?",
+            ids + [user["id"]]).fetchone()[0]
+        if owned != len(ids): raise HTTPException(403, "Alguna no es tuya")
+        conn.execute(f"UPDATE transactions SET category_id=? WHERE id IN ({placeholders})",
+                     [int(cat) if cat else None] + ids)
+        conn.commit()
+    return {"ok": True, "count": len(ids)}
+
+
 @app.get("/api/export.csv")
 def export_csv(year: int = None, month: int = None, user=Depends(require_user), scope: str = Cookie("mine")):
     uf_t, uf_p = user_filter(scope, user, "t")
@@ -1545,6 +1604,10 @@ def api_patch_rec(rid: int, body: dict = Body(...), user=Depends(require_user)):
         fields=[]; params=[]
         for k in ("amount","description","day_of_month","next_occurrence","total_installments","installments_fired"):
             if k in body: fields.append(f"{k}=?"); params.append(body[k])
+        if "account_id" in body:  # permitir cambiar la cuenta al editar (con validación de propiedad)
+            acc = conn.execute("SELECT user_id FROM accounts WHERE id=?", (int(body["account_id"]),)).fetchone()
+            if not acc or acc["user_id"] != user["id"]: raise HTTPException(403, "Esa cuenta no es tuya")
+            fields.append("account_id=?"); params.append(int(body["account_id"]))
         if "active" in body: fields.append("active=?"); params.append(1 if body["active"] else 0)
         if not fields: raise HTTPException(400, "Sin cambios")
         params.append(rid)
