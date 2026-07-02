@@ -80,13 +80,15 @@ export default function AccountForm({
       body.closing_day = values.closing_day
       body.due_day = values.due_day
     }
+    const opts = { onSuccess: () => onClose() }
     if (isEdit && account) {
-      update.mutate({ id: account.id, ...body })
+      update.mutate({ id: account.id, ...body }, opts)
     } else {
-      create.mutate(body)
+      create.mutate(body, opts)
     }
-    onClose()
   }
+
+  const isPending = create.isPending || update.isPending
 
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? 'Editar cuenta' : 'Nueva cuenta'}>
@@ -137,7 +139,7 @@ export default function AccountForm({
           </>
         )}
 
-        <button type="submit" style={ctaBtn}>Guardar</button>
+        <button type="submit" style={ctaBtn} disabled={isPending}>{isPending ? 'Guardando…' : 'Guardar'}</button>
       </form>
     </Modal>
   )
