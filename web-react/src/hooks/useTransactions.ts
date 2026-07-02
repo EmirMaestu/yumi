@@ -35,6 +35,30 @@ export function useTransactions(filters: TxFilters = {}) {
   })
 }
 
+export interface TransferBody {
+  from_account_id: number
+  to_account_id: number
+  amount: number
+  currency?: string
+  occurred_at?: string
+  description?: string
+}
+
+export function useTransferMutation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (b: TransferBody) => apiPost('/api/transfers', b),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['transactions'] })
+      qc.invalidateQueries({ queryKey: ['overview2'] })
+      qc.invalidateQueries({ queryKey: ['accounts-balances'] })
+      qc.invalidateQueries({ queryKey: ['vencimientos'] })
+      notifyOk('Transferencia registrada')
+    },
+    onError: notifyErr,
+  })
+}
+
 export function useTxMutations() {
   const qc = useQueryClient()
   const inval = () => { qc.invalidateQueries({ queryKey: ['transactions'] }); qc.invalidateQueries({ queryKey: ['overview2'] }); qc.invalidateQueries({ queryKey: ['accounts-balances'] }) }

@@ -147,7 +147,9 @@ export default function Movimientos() {
 
       {isLoading && <MovimientosSkeleton />}
       {data && data.length === 0 && <EmptyState>Sin movimientos para este filtro.</EmptyState>}
-      {data?.map((t) => (
+      {data?.map((t) => {
+        const isTransfer = t.kind === 'transfer' || t.kind === 'card_payment'
+        return (
         <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 0', borderBottom: '1px solid var(--color-mist)' }}>
           {/* Checkbox — only in selectMode */}
           {selectMode && (
@@ -166,23 +168,28 @@ export default function Movimientos() {
           {/* Content */}
           <span style={{ flex: 1, minWidth: 0 }}>
             <span style={{ fontSize: 14, fontWeight: 500 }}>{t.description}</span><br />
-            <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>{t.cat_name ?? 'sin categoría'} · {t.acc_name ?? ''} · {t.occurred_at.slice(0, 10)}</span>
+            <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>
+              {isTransfer ? (t.kind === 'card_payment' ? 'Pago de tarjeta' : 'Transferencia') : (t.cat_name ?? 'sin categoría')} · {t.acc_name ?? ''} · {t.occurred_at.slice(0, 10)}
+            </span>
           </span>
 
           {/* Amount + actions */}
           <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            <span style={{ fontSize: 15, fontWeight: 500, color: t.type === 'ingreso' ? '#3b6d11' : 'var(--color-obsidian-ink)' }}>
-              {t.type === 'ingreso' ? '+' : '−'}<Money value={t.amount} currency={t.currency} />
+            <span style={{ fontSize: 15, fontWeight: 500, color: isTransfer ? 'var(--color-sage)' : (t.type === 'ingreso' ? '#3b6d11' : 'var(--color-obsidian-ink)') }}>
+              {isTransfer ? <i className="ti ti-arrows-left-right" aria-hidden style={{ marginRight: 3 }} /> : (t.type === 'ingreso' ? '+' : '−')}<Money value={t.amount} currency={t.currency} />
             </span>
-            <button aria-label={`Editar ${t.description}`} onClick={() => setEditTx(t)} style={iconBtn}>
-              <i className="ti ti-edit" aria-hidden />
-            </button>
+            {!isTransfer && (
+              <button aria-label={`Editar ${t.description}`} onClick={() => setEditTx(t)} style={iconBtn}>
+                <i className="ti ti-edit" aria-hidden />
+              </button>
+            )}
             <button aria-label={`Borrar ${t.description}`} onClick={() => setDeleteTx(t)} style={iconBtn}>
               <i className="ti ti-trash" aria-hidden />
             </button>
           </span>
         </div>
-      ))}
+        )
+      })}
 
       {/* Bulk move modal */}
       <Modal open={moveOpen} onClose={() => setMoveOpen(false)} title="Mover a cuenta">

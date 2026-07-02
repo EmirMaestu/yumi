@@ -6,7 +6,7 @@ import Sheet from './ui/Sheet'
 import Select from './ui/Select'
 import { useAccounts } from '../hooks/useAccounts'
 import { useCategories } from '../hooks/useCategories'
-import { useTxMutations } from '../hooks/useTransactions'
+import { useTxMutations, useTransferMutation } from '../hooks/useTransactions'
 import { useTareasMutations } from '../hooks/useTareas'
 import { useNotasMutations } from '../hooks/useNotas'
 import { useEventosMutations } from '../hooks/useEventos'
@@ -36,6 +36,15 @@ const txSchema = z.object({
 })
 type TxInput = z.input<typeof txSchema>
 type TxOutput = z.output<typeof txSchema>
+
+const transferSchema = z.object({
+  from_account_id: z.string().min(1, 'Elegí la cuenta de origen'),
+  to_account_id: z.string().min(1, 'Elegí la cuenta de destino'),
+  amount: z.preprocess((v) => parseAmount(String(v)), z.number().positive('Monto inválido')),
+  occurred_at: z.string(),
+}).refine((d) => d.from_account_id !== d.to_account_id, { message: 'Elegí dos cuentas distintas', path: ['to_account_id'] })
+type TransferInput = z.input<typeof transferSchema>
+type TransferOutput = z.output<typeof transferSchema>
 
 const tareaSchema = z.object({
   text: z.string().min(1, 'Falta texto'),
@@ -76,24 +85,37 @@ const errStyle: React.CSSProperties = { color: 'var(--color-error)', fontSize: 1
 // ---------- sub-forms ----------
 
 function GastoForm({ onClose }: { onClose: () => void }) {
+  const [tipo, setTipo] = useState<'gasto' | 'ingreso' | 'transferencia'>('gasto')
+  const tipoOpts = [
+    { value: 'gasto', label: 'Gasto' },
+    { value: 'ingreso', label: 'Ingreso' },
+    { value: 'transferencia', label: 'Transferencia' },
+  ]
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      <Select value={tipo} onValueChange={(v) => setTipo(v as typeof tipo)} options={tipoOpts} placeholder="Tipo…" ariaLabel="Tipo" style={{ width: '100%' }} />
+      {tipo === 'transferencia'
+        ? <TransferForm onClose={onClose} />
+        : <NormalTxForm key={tipo} tipo={tipo} onClose={onClose} />}
+    </div>
+  )
+}
+
+function NormalTxForm({ tipo, onClose }: { tipo: 'gasto' | 'ingreso'; onClose: () => void }) {
   const accounts = useAccounts()
   const categories = useCategories()
   const { create } = useTxMutations()
   const { register, handleSubmit, control, formState: { errors } } = useForm<TxInput, unknown, TxOutput>({
     resolver: zodResolver(txSchema),
-    defaultValues: { type: 'gasto', occurred_at: todayISODate() },
+    defaultValues: { type: tipo, occurred_at: todayISODate() },
   })
   const onSubmit: SubmitHandler<TxOutput> = (v) =>
     create.mutate({ ...v, occurred_at: dateToNoonISO(v.occurred_at) }, { onSuccess: onClose })
   const accountOpts = (accounts.data ?? []).map((a) => ({ value: String(a.id), label: a.name }))
   const categoryOpts = (categories.data ?? []).map((c) => ({ value: String(c.id), label: c.name }))
-  const tipoOpts = [{ value: 'gasto', label: 'Gasto' }, { value: 'ingreso', label: 'Ingreso' }]
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'grid', gap: 12 }}>
-      <Controller name="type" control={control} render={({ field }) => (
-        <Select value={field.value} onValueChange={(v) => field.onChange(v)} options={tipoOpts} placeholder="Tipo…" ariaLabel="Tipo" style={{ width: '100%' }} />
-      )} />
       <input {...register('amount')} inputMode="decimal" placeholder="Monto" style={fieldStyle} />
       {errors.amount && <small style={errStyle}>{errors.amount.message}</small>}
       <input {...register('description')} placeholder="Descripción" style={fieldStyle} />
@@ -109,6 +131,45 @@ function GastoForm({ onClose }: { onClose: () => void }) {
         <input type="date" {...register('occurred_at')} style={fieldStyle} />
       </label>
       <button type="submit" disabled={create.isPending} style={ctaStyle}>{create.isPending ? 'Guardando…' : 'Guardar →'}</button>
+    </form>
+  )
+}
+
+function TransferForm({ onClose }: { onClose: () => void }) {
+  const accounts = useAccounts()
+  const transfer = useTransferMutation()
+  const { register, handleSubmit, control, watch, formState: { errors } } = useForm<TransferInput, unknown, TransferOutput>({
+    resolver: zodResolver(transferSchema),
+    defaultValues: { occurred_at: todayISODate() },
+  })
+  const from = watch('from_account_id')
+  const to = watch('to_account_id')
+  const opts = (accounts.data ?? []).map((a) => ({ value: String(a.id), label: a.name }))
+  const onSubmit: SubmitHandler<TransferOutput> = (v) =>
+    transfer.mutate({
+      from_account_id: Number(v.from_account_id),
+      to_account_id: Number(v.to_account_id),
+      amount: v.amount,
+      occurred_at: dateToNoonISO(v.occurred_at),
+    }, { onSuccess: onClose })
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'grid', gap: 12 }}>
+      <Controller name="from_account_id" control={control} render={({ field }) => (
+        <Select value={field.value} onValueChange={field.onChange} options={opts.filter((o) => o.value !== to)} placeholder="Desde…" ariaLabel="Cuenta de origen" style={{ width: '100%' }} />
+      )} />
+      {errors.from_account_id && <small style={errStyle}>{errors.from_account_id.message}</small>}
+      <Controller name="to_account_id" control={control} render={({ field }) => (
+        <Select value={field.value} onValueChange={field.onChange} options={opts.filter((o) => o.value !== from)} placeholder="Hacia…" ariaLabel="Cuenta de destino" style={{ width: '100%' }} />
+      )} />
+      {errors.to_account_id && <small style={errStyle}>{errors.to_account_id.message}</small>}
+      <input {...register('amount')} inputMode="decimal" placeholder="Monto" style={fieldStyle} />
+      {errors.amount && <small style={errStyle}>{errors.amount.message}</small>}
+      <label style={{ display: 'grid', gap: 4, fontSize: 13, color: 'var(--color-sage)' }}>
+        Fecha
+        <input type="date" {...register('occurred_at')} style={fieldStyle} />
+      </label>
+      <button type="submit" disabled={transfer.isPending} style={ctaStyle}>{transfer.isPending ? 'Guardando…' : 'Transferir →'}</button>
     </form>
   )
 }
