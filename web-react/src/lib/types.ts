@@ -166,6 +166,7 @@ export interface Recurring {
   account_id: number
   next_occurrence: string
   active: number
+  day_of_month?: number | null
   total_installments?: number | null
   installments_fired?: number | null
 }

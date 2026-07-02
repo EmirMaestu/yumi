@@ -11,6 +11,7 @@ import { useTareasMutations } from '../hooks/useTareas'
 import { useNotasMutations } from '../hooks/useNotas'
 import { useEventosMutations } from '../hooks/useEventos'
 import { useRecordatoriosMutations } from '../hooks/useRecordatorios'
+import { parseAmount } from '../lib/parseAmount'
 
 // ---------- quick-type selector ----------
 type QuickType = 'gasto' | 'tarea' | 'nota' | 'evento' | 'recordatorio'
@@ -26,7 +27,7 @@ const QUICK_TYPES: { value: QuickType; label: string }[] = [
 // ---------- schemas ----------
 const txSchema = z.object({
   type: z.enum(['gasto', 'ingreso']),
-  amount: z.coerce.number().positive('Monto inválido'),
+  amount: z.preprocess((v) => parseAmount(String(v)), z.number().positive('Monto inválido')),
   description: z.string().min(1, 'Falta descripción'),
   account_id: z.coerce.number().int(),
   category_id: z.coerce.number().int().optional(),

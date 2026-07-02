@@ -181,7 +181,7 @@ export default function Movimientos() {
       <ConfirmDialog
         open={bulkDeleteOpen}
         onOpenChange={setBulkDeleteOpen}
-        title={`¿Borrar ${sel.size} gasto${sel.size === 1 ? '' : 's'}?`}
+        title={`¿Borrar ${sel.size} movimiento${sel.size === 1 ? '' : 's'}?`}
         description="Esta acción no se puede deshacer."
         onConfirm={() => {
           bulkDelete.mutate([...sel])
@@ -202,7 +202,7 @@ export default function Movimientos() {
       <ConfirmDialog
         open={deleteTx !== null}
         onOpenChange={(o) => { if (!o) setDeleteTx(null) }}
-        title="¿Borrar este gasto?"
+        title="¿Borrar este movimiento?"
         description={deleteTx ? `Se eliminará "${deleteTx.description}".` : ''}
         onConfirm={() => {
           if (deleteTx) remove.mutate(deleteTx.id)

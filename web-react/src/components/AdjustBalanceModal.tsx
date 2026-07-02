@@ -3,6 +3,7 @@ import Modal from './ui/Modal'
 import Select from './ui/Select'
 import { useTxMutations } from '../hooks/useTransactions'
 import { formatMoney } from '../lib/format'
+import { parseAmount } from '../lib/parseAmount'
 import { type Balance, type Currency } from '../lib/types'
 
 interface Props {
@@ -17,6 +18,7 @@ export default function AdjustBalanceModal({ account, open, onClose }: Props) {
 
   const [currency, setCurrency] = useState<Currency>(defaultCurrency)
   const [newBalance, setNewBalance] = useState('')
+  const [error, setError] = useState('')
 
   const { create } = useTxMutations()
 
@@ -29,12 +31,13 @@ export default function AdjustBalanceModal({ account, open, onClose }: Props) {
   function handleClose() {
     setNewBalance('')
     setCurrency(defaultCurrency)
+    setError('')
     onClose()
   }
 
   function handleSave() {
-    const nuevo = parseFloat(newBalance)
-    if (isNaN(nuevo)) return
+    const nuevo = parseAmount(newBalance)
+    if (isNaN(nuevo)) { setError('Ingresá un número válido'); return }
     const diff = nuevo - currentBalance
     if (diff === 0) { handleClose(); return }
     create.mutate(
@@ -76,12 +79,13 @@ export default function AdjustBalanceModal({ account, open, onClose }: Props) {
         <label style={labelStyle}>
           Nuevo saldo
           <input
-            type="number"
+            inputMode="decimal"
             value={newBalance}
-            onChange={(e) => setNewBalance(e.target.value)}
+            onChange={(e) => { setNewBalance(e.target.value); if (error) setError('') }}
             placeholder={String(currentBalance)}
             style={inputStyle}
           />
+          {error && <span style={errorStyle}>{error}</span>}
         </label>
 
         <div style={{ display: 'flex', gap: 8 }}>
@@ -96,6 +100,7 @@ export default function AdjustBalanceModal({ account, open, onClose }: Props) {
 }
 
 const labelStyle: React.CSSProperties = { display: 'grid', gap: 4, fontSize: 13, color: 'var(--color-sage)' }
+const errorStyle: React.CSSProperties = { fontSize: 12, color: 'var(--color-error)', marginTop: 2 }
 const inputStyle: React.CSSProperties = {
   border: '1px solid var(--color-mist)',
   borderRadius: 10,
