@@ -283,6 +283,7 @@ def init_db():
             description TEXT, occurred_at TEXT NOT NULL,
             recurring_id INTEGER, raw_message_id INTEGER,
             user_id INTEGER,
+            kind TEXT NOT NULL DEFAULT 'normal', transfer_group_id TEXT,
             created_at TEXT NOT NULL DEFAULT (datetime('now')));
         CREATE TABLE IF NOT EXISTS recurring (id INTEGER PRIMARY KEY AUTOINCREMENT,
             type TEXT NOT NULL DEFAULT 'gasto', amount REAL NOT NULL,
@@ -418,7 +419,9 @@ def init_db():
                   ("share_all", "INTEGER DEFAULT 0")],
         "accounts": [("preferred_fx_rate", "TEXT"), ("closing_day", "INTEGER"), ("due_day", "INTEGER"), ("shared", "INTEGER DEFAULT 0")],
         "recordatorios": [("recurrence", "TEXT"), ("list_id", "INTEGER"), ("event_id", "INTEGER"), ("shared", "INTEGER DEFAULT 0")],
-        "transactions": [("is_shared", "INTEGER DEFAULT 0")],
+        "transactions": [("is_shared", "INTEGER DEFAULT 0"),
+                          ("kind", "TEXT NOT NULL DEFAULT 'normal'"),
+                          ("transfer_group_id", "TEXT")],
         "eventos": [("kind", "TEXT"), ("shared", "INTEGER DEFAULT 0")],
         "notas": [("description", "TEXT")],
         "shopping_items": [("list_id", "INTEGER"), ("qty", "REAL"), ("unit", "TEXT"),
@@ -432,6 +435,13 @@ def init_db():
         for _col, _decl in _newcols:
             if _col not in _existing:
                 conn.execute(f"ALTER TABLE {_tbl} ADD COLUMN {_col} {_decl}")
+    # transactions.kind (D1): índice + backfill de datos históricos, una sola vez.
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_tx_kind ON transactions(kind)")
+    if not conn.execute("SELECT 1 FROM app_meta WHERE key='kind_backfill_done'").fetchone():
+        import migrate_kind
+        migrate_kind.backfill(conn)
+        conn.execute("INSERT INTO app_meta(key,value) VALUES('kind_backfill_done','1')")
+        log.info("kind backfill aplicado (transfer/adjustment)")
     # Privacidad: empezar de cero (todo privado) UNA sola vez. NO repetir en cada reinicio
     # (si no, borraria lo que los usuarios vayan compartiendo).
     if not conn.execute("SELECT 1 FROM app_meta WHERE key='privacy_reset_done'").fetchone():
