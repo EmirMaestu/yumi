@@ -976,7 +976,7 @@ def api_overview2(user=Depends(require_user), scope: str = Cookie("mine")):
         def suma(tipo, desde, hasta=None):
             q = (f"SELECT t.currency, SUM(t.amount) AS s FROM transactions t "
                  f"LEFT JOIN categories c ON c.id=t.category_id "
-                 f"WHERE t.type=? AND COALESCE(c.name,'')!='Transferencia' AND t.occurred_at>=? {uf_t}")
+                 f"WHERE t.type=? AND t.kind='normal' AND t.occurred_at>=? {uf_t}")
             params = [tipo, desde] + uf_p
             if hasta: q += " AND t.occurred_at<=?"; params.append(hasta)
             q += " GROUP BY t.currency"
@@ -991,7 +991,7 @@ def api_overview2(user=Depends(require_user), scope: str = Cookie("mine")):
         for r in conn.execute(
             f"SELECT substr(t.occurred_at,1,7) AS ym, t.type, t.currency, SUM(t.amount) AS s "
             f"FROM transactions t LEFT JOIN categories c ON c.id=t.category_id "
-            f"WHERE t.occurred_at>=? AND COALESCE(c.name,'')!='Transferencia' {uf_t} "
+            f"WHERE t.occurred_at>=? AND t.kind='normal' {uf_t} "
             f"GROUP BY ym, t.type, t.currency", [first] + uf_p).fetchall():
             d = cf.setdefault(r["ym"], {"ingresos": 0, "gastos": 0})
             d["ingresos" if r["type"] == "ingreso" else "gastos"] += ars(r["s"], r["currency"])
@@ -1024,7 +1024,7 @@ def api_overview2(user=Depends(require_user), scope: str = Cookie("mine")):
         por_cat = [dict(r) for r in conn.execute(
             f"SELECT COALESCE(c.name,'(sin categoría)') AS cat, c.color AS color, SUM(t.amount) AS total "
             f"FROM transactions t LEFT JOIN categories c ON c.id=t.category_id "
-            f"WHERE t.occurred_at>=? AND t.type='gasto' AND t.currency='ARS' AND COALESCE(c.name,'')!='Transferencia' {uf_t} "
+            f"WHERE t.occurred_at>=? AND t.type='gasto' AND t.currency='ARS' AND t.kind='normal' {uf_t} "
             f"GROUP BY cat ORDER BY total DESC LIMIT 8", [mes_ini] + uf_p).fetchall()]
 
     return {
@@ -1293,17 +1293,21 @@ def api_tx_create(body: dict = Body(...), user=Depends(require_user)):
     required = ("amount", "account_id", "occurred_at", "type")
     for k in required:
         if k not in body or body[k] is None: raise HTTPException(400, f"Falta {k}")
+    # kind: solo 'normal' (default) y 'adjustment' por acá; transfer/card_payment van por /api/transfers.
+    kind = body.get("kind", "normal")
+    if kind not in ("normal", "adjustment"):
+        raise HTTPException(400, "Usá /api/transfers")
     with db() as conn:
         # validar que la cuenta sea del usuario
         acc = conn.execute("SELECT user_id FROM accounts WHERE id=?", (int(body["account_id"]),)).fetchone()
         if not acc: raise HTTPException(400, "Cuenta inexistente")
         if acc["user_id"] != user["id"]: raise HTTPException(403, "Esa cuenta no es tuya")
         cur = conn.execute(
-            "INSERT INTO transactions (type,amount,currency,account_id,category_id,description,occurred_at,user_id) "
-            "VALUES (?,?,?,?,?,?,?,?)",
+            "INSERT INTO transactions (type,amount,currency,account_id,category_id,description,occurred_at,user_id,kind) "
+            "VALUES (?,?,?,?,?,?,?,?,?)",
             (body["type"], float(body["amount"]), body.get("currency","ARS"),
              int(body["account_id"]), int(body["category_id"]) if body.get("category_id") else None,
-             body.get("description"), body["occurred_at"], user["id"]))
+             body.get("description"), body["occurred_at"], user["id"], kind))
         conn.commit()
     return {"id": cur.lastrowid, "ok": True}
 
@@ -1747,13 +1751,13 @@ def api_trends(months: int = 6, by: str = "total", currency: str = "ARS",
                 f"COALESCE(c.name,'(sin categoría)') AS cat, t.currency, SUM(t.amount) AS total "
                 f"FROM transactions t LEFT JOIN categories c ON c.id=t.category_id "
                 f"WHERE t.occurred_at>=? AND t.type='gasto' "
-                f"AND COALESCE(c.name,'')!='Transferencia' {uf_t} "
+                f"AND t.kind='normal' {uf_t} "
                 f"GROUP BY ym, cat, t.currency", [first] + uf_p).fetchall()]
             return trends.bucket_by_category(rows, months=months, today=today, currency=currency)
         rows = [dict(r) for r in conn.execute(
             f"SELECT substr(t.occurred_at,1,7) AS ym, t.type, t.currency, SUM(t.amount) AS total "
             f"FROM transactions t LEFT JOIN categories c ON c.id=t.category_id "
-            f"WHERE t.occurred_at>=? AND COALESCE(c.name,'')!='Transferencia' {uf_t} "
+            f"WHERE t.occurred_at>=? AND t.kind='normal' {uf_t} "
             f"GROUP BY ym, t.type, t.currency", [first] + uf_p).fetchall()]
         return trends.monthly_trend(rows, months=months, today=today)
 

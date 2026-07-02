@@ -7,10 +7,11 @@ import { useAccounts } from '../hooks/useAccounts'
 import { useCategories } from '../hooks/useCategories'
 import { useTxMutations } from '../hooks/useTransactions'
 import { type Transaction } from '../lib/types'
+import { parseAmount } from '../lib/parseAmount'
 
 const schema = z.object({
   type: z.enum(['gasto', 'ingreso']),
-  amount: z.coerce.number().positive('Monto inválido'),
+  amount: z.preprocess((v) => parseAmount(String(v)), z.number().positive('Monto inválido')),
   description: z.string().min(1, 'Falta descripción'),
   account_id: z.coerce.number().int(),
   category_id: z.coerce.number().int().optional(),
@@ -104,4 +105,4 @@ export default function EditTxModal({ tx, open, onClose }: { tx: Transaction | n
 
 const fieldStyle: React.CSSProperties = { border: '1px solid var(--color-mist)', borderRadius: 10, padding: '12px 14px', fontSize: 16, background: 'transparent', width: '100%', boxSizing: 'border-box' }
 const ctaStyle: React.CSSProperties = { background: 'var(--color-voltage)', color: 'var(--voltage-on-dark)', border: 'none', borderRadius: 10, padding: '14px', fontWeight: 500, boxShadow: 'var(--shadow-cta)', cursor: 'pointer' }
-const errStyle: React.CSSProperties = { color: '#a32d2d', fontSize: 12 }
+const errStyle: React.CSSProperties = { color: 'var(--color-error)', fontSize: 12 }

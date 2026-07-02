@@ -35,7 +35,7 @@ export default function Login() {
           onChange={(e) => setUsername(e.target.value)} style={inputStyle} />
         <input aria-label="Contraseña" type="password" placeholder="Contraseña" value={password}
           onChange={(e) => setPassword(e.target.value)} style={inputStyle} />
-        {error && <div style={{ color: '#a32d2d', fontSize: 13 }}>{error}</div>}
+        {error && <div style={{ color: 'var(--color-error)', fontSize: 13 }}>{error}</div>}
         <button type="submit" style={ctaStyle}>Entrar →</button>
       </form>
 

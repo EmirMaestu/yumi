@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { Toaster } from 'sonner'
 import AppLayout from './components/nav/AppLayout'
 import Login from './routes/Login'
 import Hoy from './routes/Hoy'
@@ -20,6 +21,8 @@ import Admin from './routes/Admin'
 
 export default function App() {
   return (
+    <>
+    <Toaster position="top-center" richColors />
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route element={<AppLayout />}>
@@ -43,5 +46,6 @@ export default function App() {
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   )
 }

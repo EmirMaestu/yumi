@@ -136,6 +136,8 @@ export interface Overview2 {
   dia?: number
 }
 
+export type TxKind = 'normal' | 'transfer' | 'card_payment' | 'adjustment'
+
 export interface Transaction {
   id: number
   type: 'gasto' | 'ingreso'
@@ -143,6 +145,8 @@ export interface Transaction {
   currency: Currency
   description: string
   occurred_at: string
+  kind?: TxKind
+  transfer_group_id?: string | null
   account_id: number
   account_name?: string
   category_id?: number | null
@@ -166,6 +170,7 @@ export interface Recurring {
   account_id: number
   next_occurrence: string
   active: number
+  day_of_month?: number | null
   total_installments?: number | null
   installments_fired?: number | null
 }
