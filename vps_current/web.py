@@ -1284,7 +1284,7 @@ def api_transactions(year: int = None, month: int = None, account_id: int = None
             f"LEFT JOIN users u ON u.id=t.user_id "
             f"WHERE {wc} ORDER BY t.occurred_at DESC, t.id DESC LIMIT ? OFFSET ?",
             final_params + [limit, offset]).fetchall()
-        sums = conn.execute(f"SELECT t.type, t.currency, SUM(t.amount) AS total FROM transactions t WHERE {wc} GROUP BY t.type, t.currency", final_params).fetchall()
+        sums = conn.execute(f"SELECT t.type, t.currency, t.kind, SUM(t.amount) AS total FROM transactions t WHERE {wc} GROUP BY t.type, t.currency, t.kind", final_params).fetchall()
     return {"items": [dict(r) for r in rows], "total": total, "sums": [dict(r) for r in sums]}
 
 

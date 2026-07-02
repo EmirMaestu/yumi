@@ -31,7 +31,8 @@ export default function Movimientos() {
     const a = sp.get('account_id'); if (a) f.account_id = Number(a)
     return f
   })
-  const { data, isLoading } = useTransactions(filters)
+  const { data: page, isLoading } = useTransactions(filters)
+  const data = page?.items
   const accounts = useAccounts()
   const categories = useCategories()
   const { remove, bulkDelete, bulkMove } = useTxMutations()
@@ -64,11 +65,33 @@ export default function Movimientos() {
   ]
   const moveAccountOpts = (accounts.data ?? []).map((a) => ({ value: String(a.id), label: a.name }))
 
+  // Totales del filtro (UX5): solo kind='normal' en ARS (transferencias/ajustes no cuentan).
+  const sums = page?.sums ?? []
+  const sumBy = (type: 'gasto' | 'ingreso') =>
+    sums.filter((s) => s.kind === 'normal' && s.type === type && s.currency === 'ARS')
+      .reduce((acc, s) => acc + s.total, 0)
+  const totalGastos = sumBy('gasto')
+  const totalIngresos = sumBy('ingreso')
+
+  // Export CSV (el endpoint filtra por year+month juntos; año/todo → exporta todo).
+  const now = new Date()
+  const exportHref = (() => {
+    if (filters.period === 'mes') return `/api/export.csv?year=${now.getFullYear()}&month=${now.getMonth() + 1}`
+    if (filters.period === 'mes pasado') {
+      const d = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      return `/api/export.csv?year=${d.getFullYear()}&month=${d.getMonth() + 1}`
+    }
+    return '/api/export.csv'
+  })()
+
   return (
     <div style={{ padding: '14px 18px 24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
         <BackButton />
         <div className="cap" style={{ flex: 1 }}>Movimientos</div>
+        <a href={exportHref} download style={{ ...selectModeBtn, textDecoration: 'none', marginRight: 6, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <i className="ti ti-download" aria-hidden /> Exportar
+        </a>
         {!selectMode
           ? <button onClick={() => setSelectMode(true)} style={selectModeBtn}>Seleccionar</button>
           : <button onClick={() => { setSelectMode(false); setSel(new Set()) }} style={selectModeBtn}>Cancelar</button>
@@ -102,6 +125,15 @@ export default function Movimientos() {
           style={{ border: '1px solid var(--color-mist)', borderRadius: 10, padding: '9px 12px', fontSize: 14, background: 'var(--color-linen)', flex: 1, minWidth: 120 }}
         />
       </div>
+
+      {/* Totales del filtro (UX5) */}
+      {!isLoading && data && data.length > 0 && (
+        <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--color-linen)', padding: '4px 0 10px', fontSize: 12.5, color: 'var(--color-sage)', borderBottom: '1px solid var(--color-mist)', marginBottom: 8 }}>
+          Gastos <b style={{ color: 'var(--color-obsidian-ink)' }}>{formatMoney(totalGastos)}</b>
+          {' · '}Ingresos <b style={{ color: 'var(--color-obsidian-ink)' }}>{formatMoney(totalIngresos)}</b>
+          {' · '}{page?.total ?? data.length} movimiento{(page?.total ?? data.length) === 1 ? '' : 's'}
+        </div>
+      )}
 
       {/* Selection toolbar */}
       {sel.size > 0 && (

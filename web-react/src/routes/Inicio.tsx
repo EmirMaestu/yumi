@@ -45,12 +45,12 @@ export default function Inicio() {
       <section style={{ padding: '8px 18px 6px' }}>
         <div className="cap">Gastado este mes</div>
         <div className="num-serif" style={{ fontSize: 'clamp(44px, 13vw, 56px)', marginTop: 8 }}>{formatMoney(k.gasto_mes)}</div>
-        <div style={{ fontSize: 13, color: 'var(--color-sage)', marginTop: 6 }}>{delta >= 0 ? '▲' : '▼'} {formatMoney(Math.abs(delta))} vs mes pasado</div>
+        <div style={{ fontSize: 13, color: 'var(--color-sage)', marginTop: 6 }}>{delta >= 0 ? '▲' : '▼'} {formatMoney(Math.abs(delta))} vs mes pasado a esta altura</div>
         <div style={{ marginTop: 16 }}><TickMark /></div>
       </section>
       <section style={{ display: 'flex', gap: 6, padding: '16px 18px 6px' }}>
         <StatNumber label="Ingresos" to="/movimientos">{formatMoney(k.ingreso_mes)}</StatNumber>
-        <StatNumber label="Patrimonio" to="/cuentas">{formatMoney(data.patrimonio_ars)}</StatNumber>
+        <StatNumber label="Patrimonio (tuyo)" to="/cuentas">{formatMoney(data.patrimonio_ars)}</StatNumber>
         <StatNumber label="En cuotas" to="/recurrentes">{formatMoney(totalEnCuotas)}</StatNumber>
       </section>
       <div style={{ padding: '12px 18px 0' }}>

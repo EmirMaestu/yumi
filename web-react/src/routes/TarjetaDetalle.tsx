@@ -84,7 +84,8 @@ function CuotaModal({
 }
 
 function MovimientosTarjeta({ accId }: { accId: number }) {
-  const { data, isLoading } = useTransactions({ account_id: accId })
+  const { data: page, isLoading } = useTransactions({ account_id: accId })
+  const data = page?.items
   return (
     <div>
       <div className="cap" style={{ marginBottom: 10 }}>Movimientos de la tarjeta</div>

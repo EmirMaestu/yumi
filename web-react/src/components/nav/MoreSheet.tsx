@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import Sheet from '../ui/Sheet'
-import { MORE_LINKS } from './navItems'
+import { MORE_LINKS, MORE_FINANZAS } from './navItems'
 import { useMe } from '../../hooks/useMe'
 
 // Hoja "Más": encabezado con tu perfil (→ Yo) + grilla de secciones.
@@ -22,6 +22,16 @@ export default function MoreSheet({ open, onClose }: { open: boolean; onClose: (
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {MORE_LINKS.map((i) => (
+          <button key={i.to} onClick={() => go(i.to)} style={tile}>
+            <i className={`ti ${i.icon}`} style={{ fontSize: 22, color: 'var(--color-sage)' }} aria-hidden />
+            <span style={{ fontSize: 14, fontWeight: 500 }}>{i.label}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="cap" style={{ margin: '18px 2px 10px' }}>Finanzas</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        {MORE_FINANZAS.map((i) => (
           <button key={i.to} onClick={() => go(i.to)} style={tile}>
             <i className={`ti ${i.icon}`} style={{ fontSize: 22, color: 'var(--color-sage)' }} aria-hidden />
             <span style={{ fontSize: 14, fontWeight: 500 }}>{i.label}</span>
