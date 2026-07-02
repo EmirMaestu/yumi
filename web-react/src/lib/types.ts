@@ -154,6 +154,7 @@ export interface Transaction {
   category_name?: string | null
   acc_name?: string | null
   cat_name?: string | null
+  owner_name?: string | null
 }
 
 export interface Category {

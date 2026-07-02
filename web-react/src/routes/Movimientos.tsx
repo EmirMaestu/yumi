@@ -14,6 +14,7 @@ import Select from '../components/ui/Select'
 import Modal from '../components/ui/Modal'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import EditTxModal from '../components/EditTxModal'
+import TxDetailSheet from '../components/TxDetailSheet'
 
 type Period =
   | { mode: 'month'; year: number; month: number }
@@ -44,14 +45,15 @@ export default function Movimientos() {
     const c = sp.get('category_id'); return c ? Number(c) : undefined
   })
   const [q, setQ] = useState('')
+  const type = sp.get('type') === 'ingreso' ? 'ingreso' : sp.get('type') === 'gasto' ? 'gasto' : undefined
 
   const filters: TxFilters = useMemo(() => {
-    const base: TxFilters = { account_id, category_id, q: q || undefined }
+    const base: TxFilters = { account_id, category_id, type, q: q || undefined }
     if (period.mode === 'month') return { ...base, year: period.year, month: period.month }
     if (period.mode === 'year') return { ...base, year: period.year }
     if (period.mode === 'range') return { ...base, date_from: period.from, date_to: period.to }
     return base
-  }, [period, account_id, category_id, q])
+  }, [period, account_id, category_id, type, q])
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useTransactionsInfinite(filters)
   const accounts = useAccounts()
@@ -91,6 +93,7 @@ export default function Movimientos() {
   const [moveAccountId, setMoveAccountId] = useState<string | undefined>(undefined)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [editTx, setEditTx] = useState<Transaction | null>(null)
+  const [detailTx, setDetailTx] = useState<Transaction | null>(null)
 
   const accountOpts = [{ value: 'all', label: 'Toda cuenta' }, ...(accounts.data ?? []).map((a) => ({ value: String(a.id), label: a.name }))]
   const categoryOpts = [{ value: 'all', label: 'Toda categoría' }, ...(categories.data ?? []).map((c) => ({ value: String(c.id), label: c.name }))]
@@ -199,7 +202,7 @@ export default function Movimientos() {
                     <Checkbox.Indicator><i className="ti ti-check" style={{ fontSize: 13, color: 'var(--voltage-on-dark)' }} aria-hidden /></Checkbox.Indicator>
                   </Checkbox.Root>
                 )}
-                <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => setDetailTx(t)}>
                   <span style={{ fontSize: 14, fontWeight: 500 }}>{t.description}</span><br />
                   <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>
                     {isTransfer ? (t.kind === 'card_payment' ? 'Pago de tarjeta' : 'Transferencia') : (t.cat_name ?? 'sin categoría')} · {t.acc_name ?? ''}
@@ -248,6 +251,9 @@ export default function Movimientos() {
 
       {/* Per-row edit modal */}
       <EditTxModal key={editTx ? `tx-${editTx.id}` : 'tx-edit'} tx={editTx} open={editTx !== null} onClose={() => setEditTx(null)} />
+
+      {/* Detalle del movimiento (tap en la fila) */}
+      <TxDetailSheet tx={detailTx} open={detailTx !== null} onClose={() => setDetailTx(null)} onEdit={setEditTx} />
     </div>
   )
 }

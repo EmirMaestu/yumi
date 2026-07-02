@@ -12,6 +12,7 @@ export interface TxFilters {
   account_id?: number
   category_id?: number
   currency?: string
+  type?: 'gasto' | 'ingreso'
   q?: string
 }
 
@@ -31,6 +32,7 @@ function buildQuery(filters: TxFilters, offset?: number, limit?: number): string
   if (filters.account_id) qs.set('account_id', String(filters.account_id))
   if (filters.category_id) qs.set('category_id', String(filters.category_id))
   if (filters.currency) qs.set('currency', filters.currency)
+  if (filters.type) qs.set('type', filters.type)
   if (filters.q) qs.set('q', filters.q)
   if (offset) qs.set('offset', String(offset))
   if (limit) qs.set('limit', String(limit))

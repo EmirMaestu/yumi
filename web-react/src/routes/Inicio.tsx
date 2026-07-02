@@ -47,13 +47,15 @@ export default function Inicio() {
   return (
     <div style={{ padding: '8px 4px 24px' }}>
       <section style={{ padding: '8px 18px 6px' }}>
-        <div className="cap">Gastado este mes</div>
-        <div className="num-serif" style={{ fontSize: 'clamp(44px, 13vw, 56px)', marginTop: 8 }}><Money value={k.gasto_mes} /></div>
+        <Link to="/movimientos?type=gasto" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+          <div className="cap">Gastado este mes</div>
+          <div className="num-serif" style={{ fontSize: 'clamp(44px, 13vw, 56px)', marginTop: 8 }}><Money value={k.gasto_mes} /></div>
+        </Link>
         <div style={{ fontSize: 13, color: 'var(--color-sage)', marginTop: 6 }}>{delta >= 0 ? '▲' : '▼'} <Money value={Math.abs(delta)} /> vs mes pasado a esta altura</div>
         <div style={{ marginTop: 16 }}><TickMark /></div>
       </section>
       <section style={{ display: 'flex', gap: 6, padding: '16px 18px 6px' }}>
-        <StatNumber label="Ingresos" to="/movimientos"><Money value={k.ingreso_mes} /></StatNumber>
+        <StatNumber label="Ingresos" to="/movimientos?type=ingreso"><Money value={k.ingreso_mes} /></StatNumber>
         <StatNumber label="Patrimonio (tuyo)" to="/cuentas"><Money value={data.patrimonio_ars} /></StatNumber>
         <StatNumber label="En cuotas" to="/recurrentes"><Money value={totalEnCuotas} /></StatNumber>
       </section>
