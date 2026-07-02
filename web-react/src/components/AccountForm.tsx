@@ -12,6 +12,7 @@ const schema = z.object({
   type: z.enum(['efectivo', 'billetera', 'debito', 'credito', 'banco', 'dolares', 'cripto', 'inversion']),
   closing_day: z.number().min(1, 'Entre 1 y 31').max(31, 'Entre 1 y 31').optional(),
   due_day: z.number().min(1, 'Entre 1 y 31').max(31, 'Entre 1 y 31').optional(),
+  credit_limit: z.number().nonnegative('Debe ser ≥ 0').optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -60,6 +61,7 @@ export default function AccountForm({
               type: account.type,
               closing_day: account.closing_day ?? 1,
               due_day: account.due_day ?? 1,
+              credit_limit: account.credit_limit ?? undefined,
             }
           : {
               name: '',
@@ -79,6 +81,7 @@ export default function AccountForm({
     if (isCredit) {
       body.closing_day = values.closing_day
       body.due_day = values.due_day
+      body.credit_limit = values.credit_limit ?? null
     }
     const opts = { onSuccess: () => onClose() }
     if (isEdit && account) {
@@ -135,6 +138,17 @@ export default function AccountForm({
                 style={inputStyle}
               />
               {errors.due_day && <span style={errorStyle}>{errors.due_day.message}</span>}
+            </label>
+            <label style={labelStyle}>
+              Límite de crédito (opcional)
+              <input
+                type="number"
+                step="0.01"
+                placeholder="Ej. 2000000"
+                {...register('credit_limit', { setValueAs: (v) => (v === '' || v == null ? undefined : Number(v)) })}
+                style={inputStyle}
+              />
+              {errors.credit_limit && <span style={errorStyle}>{errors.credit_limit.message}</span>}
             </label>
           </>
         )}

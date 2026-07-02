@@ -25,7 +25,7 @@ test('muestra el gasto del mes como hero', async () => {
   expect(screen.getByText('Comida')).toBeInTheDocument()
 })
 
-test('a pagar este mes = ciclo en curso (compras del ciclo + cuotas del mes)', async () => {
+test('muestra resumen a pagar como principal y el próximo resumen (ciclo en curso) como secundario', async () => {
   vi.stubGlobal('fetch', vi.fn((url: string) => {
     const u = String(url)
     if (u.includes('/api/overview2')) return Promise.resolve(new Response(JSON.stringify({
@@ -55,9 +55,10 @@ test('a pagar este mes = ciclo en curso (compras del ciclo + cuotas del mes)', a
     return Promise.resolve(new Response('[]', { status: 200 }))
   }))
   renderWithProviders(<Inicio />)
-  // a pagar este mes = ciclo en curso: Visa (70000 + cuota 10000) + Master (30000) = 110000
-  expect(await screen.findByText('$110.000,00')).toBeInTheDocument()
-  expect(screen.getByText('A pagar este mes')).toBeInTheDocument()
+  // próximo resumen = ciclo en curso: Visa (70000 + cuota 10000) + Master (30000) = 110000
+  expect(await screen.findByText(/\$110\.000,00/)).toBeInTheDocument()
+  expect(screen.getByText('Resumen a pagar')).toBeInTheDocument()
+  expect(screen.getByText(/Próximo resumen:/)).toBeInTheDocument()
   // subline muestra las cuotas como deuda futura
   expect(screen.getByText(/En cuotas \(deuda futura\)/)).toBeInTheDocument()
 })

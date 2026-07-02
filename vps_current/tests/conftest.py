@@ -35,6 +35,7 @@ CREATE TABLE accounts (id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL, type TEXT NOT NULL DEFAULT 'efectivo',
     color TEXT, icon TEXT, active INTEGER NOT NULL DEFAULT 1,
     user_id INTEGER, closing_day INTEGER, due_day INTEGER, shared INTEGER DEFAULT 0,
+    credit_limit REAL,
     created_at TEXT NOT NULL DEFAULT (datetime('now')));
 CREATE TABLE categories (id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL, type TEXT NOT NULL DEFAULT 'gasto',

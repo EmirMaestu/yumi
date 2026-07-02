@@ -53,7 +53,7 @@ test('muestra movimientos de la tarjeta para el mes actual', async () => {
   expect(screen.getByText('−$1.200,00')).toBeInTheDocument()
 })
 
-test('hero deuda total incluye consumos + cuotas pendientes', async () => {
+test('resumen a pagar primero (sin resumen → mensaje amable); deuda total en su línea', async () => {
   vi.stubGlobal('fetch', vi.fn((url: string) => {
     const u = String(url)
     if (u.includes('/api/overview') && !u.includes('/api/overview2')) {
@@ -90,13 +90,14 @@ test('hero deuda total incluye consumos + cuotas pendientes', async () => {
     '/tarjetas/1',
   )
 
-  // deudaTotal = abs(-100000) + (6-3)*20000 = 100000 + 60000 = 160000
-  expect(await screen.findByText('$160.000,00')).toBeInTheDocument()
-  expect(screen.getByText('Deuda total')).toBeInTheDocument()
-  // A pagar este mes = ciclo en curso (abierto 0 + 1 cuota 20000)
-  expect(screen.getByText(/A pagar este mes \(cierra/)).toBeInTheDocument()
-  expect(screen.getByText('$20.000,00')).toBeInTheDocument()
-  // Cuota actual = pagadas + 1 → 3 pagadas, vas por la 4 de 6 (sin "pagadas 3/6")
+  // ciclo_cerrado vacío → resumen a pagar = 0 → mensaje amable como principal
+  expect(await screen.findByText('No tenés resumen pendiente 🎉')).toBeInTheDocument()
+  // deudaTotal = abs(-100000) + (6-3)*20000 = 160000, en la línea "Deuda total: …"
+  expect(screen.getByText(/Deuda total.*\$160\.000,00/)).toBeInTheDocument()
+  // Próximo resumen = ciclo abierto 0 + 1 cuota 20000
+  expect(screen.getByText(/Próximo resumen \(cierra/)).toBeInTheDocument()
+  expect(screen.getAllByText(/\$20\.000,00/).length).toBeGreaterThan(0)
+  // Cuota actual = pagadas + 1 → 3 pagadas, vas por la 4 de 6
   expect(screen.getByText(/Cuota 4 de 6/)).toBeInTheDocument()
   expect(screen.getByText(/Te falta:/)).toBeInTheDocument()
   expect(screen.getByText(/3 cuotas/)).toBeInTheDocument()

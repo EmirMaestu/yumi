@@ -6,8 +6,8 @@ import { useVencimientos } from '../hooks/useVencimientos'
 import { useRecurring, useRecurringMutations } from '../hooks/useRecurring'
 import { useTransactions } from '../hooks/useTransactions'
 import { type Recurring } from '../lib/types'
-import { consumos as calcConsumos, enCuotas as calcEnCuotas, deudaTotal, cuotaActual, aPagarCard, cicloEnCurso } from '../lib/cards'
-import { formatMoney } from '../lib/format'
+import { enCuotas as calcEnCuotas, deudaTotal, cuotaActual, aPagarCard, cicloEnCurso, cicloArs, recurrenteMensual } from '../lib/cards'
+import { formatMoney, todayISODate } from '../lib/format'
 import { Money } from '../lib/privacy'
 import Card from '../components/ui/Card'
 import Modal from '../components/ui/Modal'
@@ -160,14 +160,20 @@ export default function TarjetaDetalle() {
   }
 
   // Money calculations (single source of truth in lib/cards.ts)
-  const consumos = calcConsumos(account)
   const enCuotasVal = calcEnCuotas(accId, recurring.data)
   const deuda = deudaTotal(accId, account, recurring.data)
-  const aPagarAhora = aPagarCard(venc)                          // ciclo cerrado (transacciones que vencen)
-  const enCursoMes = cicloEnCurso(accId, venc, recurring.data)  // este ciclo: compras + una cuota de cada plan
+  const aPagarAhora = aPagarCard(venc)                          // ciclo cerrado = resumen a pagar (lo que vence)
+  const enCursoMes = cicloEnCurso(accId, venc, recurring.data)  // próximo resumen: compras del ciclo + una cuota de cada plan
+  const consumosCiclo = cicloArs(venc?.ciclo_abierto)          // compras del ciclo abierto
+  const cuotasMes = recurrenteMensual(accId, recurring.data)   // una cuota de cada plan activo
+  const limite = account.credit_limit ?? 0
+  const usoPct = limite > 0 ? Math.min(100, Math.round((deuda / limite) * 100)) : 0
 
   const fmtDay = (dateStr?: string) =>
     dateStr ? `${dateStr.slice(8, 10)}/${dateStr.slice(5, 7)}` : '—'
+  const dueLabel = venc?.next_due
+    ? `${venc.next_due.slice(0, 10) < todayISODate() ? 'venció' : 'vence'} ${fmtDay(venc.next_due)}`
+    : ''
 
   return (
     <div style={{ padding: '14px 18px 24px', display: 'grid', gap: 16 }}>
@@ -183,41 +189,52 @@ export default function TarjetaDetalle() {
         </div>
       </div>
 
-      {/* Money summary */}
+      {/* Money summary — jerarquía: lo exigible primero, lo proyectado después (UX1) */}
       <Card>
-        {/* HERO: Deuda total */}
-        <div style={{ marginBottom: 16 }}>
-          <div className="cap" style={{ marginBottom: 4 }}>Deuda total</div>
-          <div className="num-serif" style={{ fontSize: 34 }}><Money value={deuda} /></div>
+        {/* 1. RESUMEN A PAGAR (lo que vence ya) */}
+        <div className="cap" style={{ marginBottom: 4 }}>Resumen a pagar</div>
+        {aPagarAhora > 0 ? (
+          <>
+            <div className="num-serif" style={{ fontSize: 34 }}><Money value={aPagarAhora} /></div>
+            {dueLabel && <div style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 2 }}>{dueLabel}</div>}
+            <button onClick={() => setPayOpen(true)} style={payBtnPrimary}>Registrar pago</button>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: 16, marginTop: 2 }}>No tenés resumen pendiente 🎉</div>
+            <button onClick={() => setPayOpen(true)} style={payBtnSecondary}>Registrar pago…</button>
+          </>
+        )}
+
+        <div style={{ height: 1, background: 'var(--color-mist)', margin: '14px 0' }} />
+
+        {/* 2. Próximo resumen (proyección) con desglose SIEMPRE visible */}
+        <div className="cap" style={{ fontSize: 10 }}>
+          Próximo resumen{venc?.next_closing ? ` (cierra ${fmtDay(venc.next_closing)})` : ''}
         </div>
-        <div style={{ height: 1, background: 'var(--color-mist)', marginBottom: 14 }} />
-        {/* A pagar este mes = ciclo en curso (compras del ciclo + una cuota de cada plan) */}
-        <div>
-          <div className="cap" style={{ fontSize: 10 }}>
-            A pagar este mes{venc?.next_closing ? ` (cierra ${fmtDay(venc.next_closing)})` : ''}
-          </div>
-          <div className="num-serif" style={{ fontSize: 24, marginTop: 4 }}><Money value={enCursoMes} /></div>
+        <div className="num-serif" style={{ fontSize: 24, marginTop: 4 }}><Money value={enCursoMes} /></div>
+        <div style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 4 }}>
+          Consumos <Money value={consumosCiclo} /> · Cuotas del mes <Money value={cuotasMes} />
         </div>
+
         <div style={{ height: 1, background: 'var(--color-mist)', margin: '12px 0' }} />
-        {/* Breakdown */}
+
+        {/* 3. Deuda total */}
         <div style={{ fontSize: 12, color: 'var(--color-sage)' }}>
-          Consumos <Money value={consumos} /> · En cuotas <Money value={enCuotasVal} />
+          Deuda total: <Money value={deuda} /> · En cuotas: <Money value={enCuotasVal} />
         </div>
-        {aPagarAhora > 0 && (
-          <div style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 4 }}>
-            Resumen cerrado{venc?.next_due ? ` (vence ${fmtDay(venc.next_due)})` : ''}: <Money value={aPagarAhora} />
+
+        {/* 4. Límite de crédito (si está cargado) */}
+        {limite > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ height: 8, borderRadius: 6, background: 'var(--color-mist)', overflow: 'hidden' }}>
+              <div style={{ width: `${usoPct}%`, height: '100%', background: usoPct >= 80 ? 'var(--color-error)' : 'var(--color-voltage)' }} />
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--color-sage)', marginTop: 4 }}>
+              Usado <Money value={deuda} /> de <Money value={limite} /> ({usoPct}%)
+            </div>
           </div>
         )}
-        {/* Explainer */}
-        <div style={{ marginTop: 10, fontSize: 11, color: 'var(--color-sage)', fontStyle: 'italic' }}>
-          A pagar este mes = compras del ciclo + una cuota de cada plan. Deuda total = todo lo que queda por pagar.
-        </div>
-        <button
-          onClick={() => setPayOpen(true)}
-          style={aPagarAhora > 0 ? payBtnPrimary : payBtnSecondary}
-        >
-          {aPagarAhora > 0 ? 'Registrar pago' : 'Registrar pago…'}
-        </button>
       </Card>
 
       {/* Recurrentes y cuotas section */}
@@ -267,6 +284,7 @@ export default function TarjetaDetalle() {
                     <span className="num-serif" style={{ fontSize: 16, color: 'var(--color-obsidian-ink)' }}><Money value={restante} currency={r.currency} /></span>
                     {' '}({Math.max(0, total - fired)} cuota{Math.max(0, total - fired) === 1 ? '' : 's'})
                   </div>
+                  {isPaused && <div style={pausedNote}>Pausada — no se cobra este mes; sigue en tu deuda total.</div>}
                 </Card>
               )
             } else {
@@ -302,6 +320,7 @@ export default function TarjetaDetalle() {
                       />
                     </div>
                   </div>
+                  {isPaused && <div style={pausedNote}>Pausada — no se cobra este mes; sigue en tu deuda total.</div>}
                 </Card>
               )
             }
@@ -425,6 +444,9 @@ const payBtnPrimary: React.CSSProperties = {
 const payBtnSecondary: React.CSSProperties = {
   marginTop: 14, width: '100%', background: 'transparent', color: 'var(--color-obsidian-ink)',
   border: '1px solid var(--color-mist)', borderRadius: 10, padding: '11px', fontSize: 14, cursor: 'pointer',
+}
+const pausedNote: React.CSSProperties = {
+  marginTop: 8, fontSize: 11, color: 'var(--color-sage)', fontStyle: 'italic',
 }
 const ctaBtn: React.CSSProperties = {
   background: 'var(--color-voltage)',

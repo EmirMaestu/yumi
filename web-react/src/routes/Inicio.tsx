@@ -6,7 +6,7 @@ import { useRecurring } from '../hooks/useRecurring'
 import { useCategories } from '../hooks/useCategories'
 import { formatMoney, formatUsdApprox } from '../lib/format'
 import { Money } from '../lib/privacy'
-import { enCuotas as calcEnCuotas, cicloEnCurso, cicloEnCursoTotal } from '../lib/cards'
+import { enCuotas as calcEnCuotas, cicloEnCursoTotal, aPagarCard, aPagarTotal } from '../lib/cards'
 import Card from '../components/ui/Card'
 import TickMark from '../components/ui/TickMark'
 import StatNumber from '../components/ui/StatNumber'
@@ -36,6 +36,7 @@ export default function Inicio() {
 
   // Aggregate deuda total and enCuotas across all credit cards
   const totalEnCurso = cicloEnCursoTotal(venc.data, recurring.data)
+  const totalAPagar = aPagarTotal(venc.data)
   const totalEnCuotas = creditCards.reduce((s, card) => s + calcEnCuotas(card.id, recurring.data), 0)
   const nCuentas = accounts.data?.length ?? 0
   const nCats = cats.data?.length ?? 0
@@ -60,11 +61,12 @@ export default function Inicio() {
             <span style={{ fontSize: 15, fontWeight: 500 }}><i className="ti ti-credit-card" style={{ marginRight: 7 }} aria-hidden />Cuotas y tarjetas</span>
             <i className="ti ti-chevron-right" style={{ fontSize: 16, color: 'var(--color-sage)' }} aria-hidden />
           </Link>
-          {/* PRIMARY: A pagar este mes — ciclo en curso (transacciones + cuotas del mes) */}
+          {/* PRIMARY: resumen a pagar (lo exigible); próximo resumen como proyección rotulada */}
           <div style={{ marginTop: 14 }}>
-            <div className="cap">A pagar este mes</div>
-            <div className="num-serif" style={{ fontSize: 32, marginTop: 4 }}><Money value={totalEnCurso} /></div>
-            <Link to="/recurrentes" style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 4, display: 'inline-block', textDecoration: 'none' }}>En cuotas (deuda futura): <Money value={totalEnCuotas} /> →</Link>
+            <div className="cap">Resumen a pagar</div>
+            <div className="num-serif" style={{ fontSize: 32, marginTop: 4 }}><Money value={totalAPagar} /></div>
+            <div style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 4 }}>Próximo resumen: <Money value={totalEnCurso} /></div>
+            <Link to="/recurrentes" style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 2, display: 'inline-block', textDecoration: 'none' }}>En cuotas (deuda futura): <Money value={totalEnCuotas} /> →</Link>
           </div>
           <div style={{ height: 1, background: 'var(--color-mist)', margin: '16px 0' }} />
           {/* Per-card rows */}
@@ -72,7 +74,7 @@ export default function Inicio() {
           {creditCards.length === 0 && !accounts.isLoading && <EmptyState>Sin tarjetas de crédito.</EmptyState>}
           {creditCards.map((card) => {
             const v = venc.data?.find((x) => x.account_id === card.id)
-            const aPagarMes = cicloEnCurso(card.id, v, recurring.data)
+            const aPagar = aPagarCard(v)
             const dias = daysUntil(v?.next_closing)
             return (
               <Link
@@ -89,7 +91,7 @@ export default function Inicio() {
                       : null}
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span className="num-serif" style={{ fontSize: 15, fontWeight: 500 }}><Money value={aPagarMes} /></span>
+                  <span className="num-serif" style={{ fontSize: 15, fontWeight: 500 }}><Money value={aPagar} /></span>
                   <i className="ti ti-chevron-right" style={{ fontSize: 16, color: 'var(--color-sage)' }} aria-hidden />
                 </span>
               </Link>
