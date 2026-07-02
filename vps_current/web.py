@@ -1312,12 +1312,62 @@ def api_tx_create(body: dict = Body(...), user=Depends(require_user)):
     return {"id": cur.lastrowid, "ok": True}
 
 
+@app.post("/api/transfers")
+def api_transfer(body: dict = Body(...), user=Depends(require_user)):
+    """Transferencia entre cuentas propias = dos patas vinculadas (BF2, D1, D9, D15).
+    Pata gasto en origen + pata ingreso en destino, ambas kind='transfer' (o
+    'card_payment' si el destino es crédito), mismo transfer_group_id. Excluidas
+    de KPIs por el filtro kind='normal'. Misma moneda en ambas patas (v1, D15)."""
+    try:
+        from_id = int(body["from_account_id"]); to_id = int(body["to_account_id"])
+        amount = float(body["amount"])
+    except (KeyError, TypeError, ValueError):
+        raise HTTPException(400, "Faltan datos de la transferencia")
+    if from_id == to_id:
+        raise HTTPException(400, "Elegí dos cuentas distintas")
+    if amount <= 0:
+        raise HTTPException(400, "El monto tiene que ser mayor a 0")
+    currency = body.get("currency", "ARS")
+    occurred_at = body.get("occurred_at") or now_local().strftime("%Y-%m-%dT%H:%M")
+    with db() as conn:
+        accs = {r["id"]: r for r in conn.execute(
+            "SELECT id, user_id, type, name FROM accounts WHERE id IN (?,?)", (from_id, to_id)).fetchall()}
+        src = accs.get(from_id); dst = accs.get(to_id)
+        if not src or not dst:
+            raise HTTPException(400, "Cuenta inexistente")
+        if src["user_id"] != user["id"] or dst["user_id"] != user["id"]:
+            raise HTTPException(403, "Esa cuenta no es tuya")
+        kind = "card_payment" if dst["type"] == "credito" else "transfer"
+        gid = f"tg_{secrets.token_hex(8)}"
+        custom = body.get("description")
+        if kind == "card_payment":
+            desc_out = custom or f"Pago de {dst['name']}"
+            desc_in = custom or f"Pago recibido de {src['name']}"
+        else:
+            desc_out = custom or f"Transferencia a {dst['name']}"
+            desc_in = custom or f"Transferencia desde {src['name']}"
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO transactions (type,amount,currency,account_id,description,occurred_at,user_id,kind,transfer_group_id) "
+            "VALUES ('gasto',?,?,?,?,?,?,?,?)",
+            (amount, currency, from_id, desc_out, occurred_at, user["id"], kind, gid))
+        out_id = cur.lastrowid
+        cur.execute(
+            "INSERT INTO transactions (type,amount,currency,account_id,description,occurred_at,user_id,kind,transfer_group_id) "
+            "VALUES ('ingreso',?,?,?,?,?,?,?,?)",
+            (amount, currency, to_id, desc_in, occurred_at, user["id"], kind, gid))
+        in_id = cur.lastrowid
+        conn.commit()
+    return {"ok": True, "transfer_group_id": gid, "tx_ids": [out_id, in_id]}
+
+
 @app.patch("/api/transactions/{tid}")
 def api_patch_tx(tid: int, body: dict = Body(...), user=Depends(require_user)):
     with db() as conn:
-        row = conn.execute("SELECT user_id FROM transactions WHERE id=?", (tid,)).fetchone()
+        row = conn.execute("SELECT user_id, transfer_group_id FROM transactions WHERE id=?", (tid,)).fetchone()
         if not row: raise HTTPException(404, "No existe")
         if row["user_id"] != user["id"]: raise HTTPException(403, "No es tuya")
+        if row["transfer_group_id"]: raise HTTPException(400, "Editá la transferencia completa")
         fields=[]; params=[]
         for k in ("amount","currency","description","occurred_at","type"):
             if k in body: fields.append(f"{k}=?"); params.append(body[k])
@@ -1337,10 +1387,15 @@ def api_patch_tx(tid: int, body: dict = Body(...), user=Depends(require_user)):
 @app.delete("/api/transactions/{tid}")
 def del_tx(tid: int, user=Depends(require_user)):
     with db() as conn:
-        row = conn.execute("SELECT user_id FROM transactions WHERE id=?", (tid,)).fetchone()
+        row = conn.execute("SELECT user_id, transfer_group_id FROM transactions WHERE id=?", (tid,)).fetchone()
         if not row: raise HTTPException(404, "No existe")
         if row["user_id"] != user["id"]: raise HTTPException(403, "No es tuya")
-        conn.execute("DELETE FROM transactions WHERE id=?", (tid,)); conn.commit()
+        if row["transfer_group_id"]:
+            # Borrar una pata borra la transferencia completa (ambas patas).
+            conn.execute("DELETE FROM transactions WHERE transfer_group_id=?", (row["transfer_group_id"],))
+        else:
+            conn.execute("DELETE FROM transactions WHERE id=?", (tid,))
+        conn.commit()
     return {"ok": True}
 
 
