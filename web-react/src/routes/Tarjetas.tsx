@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useVencimientos } from '../hooks/useVencimientos'
 import { useAccountsWithBalances, useAccountMutations } from '../hooks/useAccounts'
 import { useRecurring } from '../hooks/useRecurring'
-import { formatMoney } from '../lib/format'
+import { Money } from '../lib/privacy'
 import { type Account } from '../lib/types'
 import { cicloEnCurso } from '../lib/cards'
 import Card from '../components/ui/Card'
@@ -57,7 +57,7 @@ export default function Tarjetas() {
             {/* A pagar este mes — ciclo en curso (transacciones + cuotas del mes) */}
             <div style={{ marginTop: 10 }}>
               <div className="cap">A pagar este mes</div>
-              <div className="num-serif" style={{ fontSize: 30, marginTop: 4 }}>{formatMoney(aPagarMes)}</div>
+              <div className="num-serif" style={{ fontSize: 30, marginTop: 4 }}><Money value={aPagarMes} /></div>
               <div style={{ marginTop: 4, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>
                   {hasVenc && v!.next_closing ? `cierra ${fmtDay(v!.next_closing)}` : 'cargá cierre y vencimiento'}

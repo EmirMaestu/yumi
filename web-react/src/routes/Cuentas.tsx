@@ -6,7 +6,7 @@ import { useAccountsWithBalances, useAccountMutations } from '../hooks/useAccoun
 import { useRecurring } from '../hooks/useRecurring'
 import { type Account } from '../lib/types'
 import { arsBalance, enCuotas, deudaTotal } from '../lib/cards'
-import { formatMoney } from '../lib/format'
+import { Money } from '../lib/privacy'
 import Card from '../components/ui/Card'
 import BackButton from '../components/ui/BackButton'
 import { CuentasSkeleton } from '../components/ui/skeletons'
@@ -85,10 +85,10 @@ export default function Cuentas() {
             <div style={{ marginTop: 10, display: 'grid', gap: 4 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <span style={{ fontSize: 12, color: 'var(--color-sage)' }}>Deuda</span>
-                <span className="num-serif" style={{ fontSize: 20 }}>{formatMoney(deudaTotal(a.id, a, recurring.data))}</span>
+                <span className="num-serif" style={{ fontSize: 20 }}><Money value={deudaTotal(a.id, a, recurring.data)} /></span>
               </div>
               <div style={{ fontSize: 11, color: 'var(--color-sage)' }}>
-                Consumos {formatMoney(Math.abs(arsBalance(a)))} · En cuotas {formatMoney(enCuotas(a.id, recurring.data))}
+                Consumos <Money value={Math.abs(arsBalance(a))} /> · En cuotas <Money value={enCuotas(a.id, recurring.data)} />
               </div>
             </div>
           ) : (
@@ -100,7 +100,7 @@ export default function Cuentas() {
               {a.balances?.map((b) => (
                 <div key={b.currency} style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: 12, color: 'var(--color-sage)' }}>{b.currency}</span>
-                  <span className="num-serif" style={{ fontSize: 20 }}>{formatMoney(b.balance, b.currency)}</span>
+                  <span className="num-serif" style={{ fontSize: 20 }}><Money value={b.balance} currency={b.currency} /></span>
                 </div>
               ))}
             </div>

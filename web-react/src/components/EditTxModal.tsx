@@ -8,6 +8,7 @@ import { useCategories } from '../hooks/useCategories'
 import { useTxMutations } from '../hooks/useTransactions'
 import { type Transaction } from '../lib/types'
 import { parseAmount } from '../lib/parseAmount'
+import { dateToNoonISO } from '../lib/format'
 
 const schema = z.object({
   type: z.enum(['gasto', 'ingreso']),
@@ -15,6 +16,7 @@ const schema = z.object({
   description: z.string().min(1, 'Falta descripción'),
   account_id: z.coerce.number().int(),
   category_id: z.coerce.number().int().optional(),
+  occurred_at: z.string().min(1, 'Falta fecha'),
 })
 type FormInput = z.input<typeof schema>
 type FormOutput = z.output<typeof schema>
@@ -37,6 +39,7 @@ export default function EditTxModal({ tx, open, onClose }: { tx: Transaction | n
       description: tx.description,
       account_id: String(tx.account_id),
       category_id: tx.category_id ? String(tx.category_id) : undefined,
+      occurred_at: tx.occurred_at.slice(0, 10),
     } : undefined,
   })
 
@@ -45,7 +48,7 @@ export default function EditTxModal({ tx, open, onClose }: { tx: Transaction | n
 
   const onSubmit: SubmitHandler<FormOutput> = (v) => {
     if (!tx) return
-    update.mutate({ id: tx.id, ...v }, { onSuccess: onClose })
+    update.mutate({ id: tx.id, ...v, occurred_at: dateToNoonISO(v.occurred_at) }, { onSuccess: onClose })
   }
 
   return (
@@ -97,6 +100,11 @@ export default function EditTxModal({ tx, open, onClose }: { tx: Transaction | n
             />
           )}
         />
+        <label style={{ display: 'grid', gap: 4, fontSize: 13, color: 'var(--color-sage)' }}>
+          Fecha
+          <input type="date" {...register('occurred_at')} style={fieldStyle} />
+        </label>
+        {errors.occurred_at && <small style={errStyle}>{errors.occurred_at.message}</small>}
         <button type="submit" disabled={update.isPending} style={ctaStyle}>{update.isPending ? 'Guardando…' : 'Guardar cambios →'}</button>
       </form>
     </Modal>

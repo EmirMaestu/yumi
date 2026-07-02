@@ -3,7 +3,7 @@ export interface NavItem { to: string; label: string; icon: string }
 // Barra inferior (mobile): 3 tabs + el FAB "+" (al medio) + el botón "Más" (abre hoja).
 export const BOTTOM_NAV: NavItem[] = [
   { to: '/', label: 'Inicio', icon: 'ti-sparkles' },
-  { to: '/finanzas', label: 'Finanzas', icon: 'ti-coin' },
+  { to: '/finanzas', label: 'Resumen', icon: 'ti-coin' },
   { to: '/agenda', label: 'Agenda', icon: 'ti-calendar' },
 ]
 
@@ -31,6 +31,12 @@ export const FINANZAS_RAIL: NavItem[] = [
   { to: '/cuentas', label: 'Cuentas', icon: 'ti-wallet' },
   { to: '/categorias', label: 'Categorías', icon: 'ti-tags' },
   { to: '/recurrentes', label: 'Recurrentes', icon: 'ti-repeat' },
+]
+
+// Sección Finanzas de la hoja "Más" (UX14): Resumen primero + las sub-secciones.
+export const MORE_FINANZAS: NavItem[] = [
+  { to: '/finanzas', label: 'Resumen', icon: 'ti-coin' },
+  ...FINANZAS_RAIL,
 ]
 
 export interface NavGroup { title?: string; items: NavItem[] }

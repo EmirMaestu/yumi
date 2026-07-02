@@ -58,3 +58,17 @@ def test_post_tx_rejects_transfer_kind(api):
         "type": "gasto", "amount": 100, "account_id": acc,
         "occurred_at": _this_month_day15(), "kind": "transfer"})
     assert r.status_code == 400
+
+
+# ── Task 15: /api/transactions expone sums desglosado por kind (UX5) ─────────
+def test_transactions_sums_include_kind(api):
+    acc = api.add_account()
+    when = _this_month_day15()
+    api.add_tx(acc, 100, type="gasto", kind="normal", occurred_at=when)
+    api.add_tx(acc, 500, type="gasto", kind="adjustment", occurred_at=when)
+
+    sums = api.client.get("/api/transactions").json()["sums"]
+    assert all("kind" in s for s in sums)
+    normal_gasto = sum(s["total"] for s in sums
+                       if s["kind"] == "normal" and s["type"] == "gasto" and s["currency"] == "ARS")
+    assert normal_gasto == 100

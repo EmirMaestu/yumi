@@ -1,9 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiGet, apiPost, apiPatch, apiDelete } from '../lib/api'
 import { notifyOk, notifyErr } from '../lib/notify'
-import type { Transaction } from '../lib/types'
+import type { Transaction, Currency, TxKind } from '../lib/types'
 
 export interface TxFilters { period?: string; account_id?: number; category_id?: number; currency?: string; q?: string }
+
+export interface TxSum { type: 'gasto' | 'ingreso'; currency: Currency; kind: TxKind; total: number }
+export interface TxPage { items: Transaction[]; total: number; sums: TxSum[] }
 
 function buildQuery(filters: TxFilters): string {
   const qs = new URLSearchParams()
@@ -28,7 +31,7 @@ export function useTransactions(filters: TxFilters = {}) {
   const query = buildQuery(filters)
   return useQuery({
     queryKey: ['transactions', filters],
-    queryFn: () => apiGet<{ items: Transaction[]; total: number }>(`/api/transactions${query ? `?${query}` : ''}`).then((r) => r.items),
+    queryFn: () => apiGet<TxPage>(`/api/transactions${query ? `?${query}` : ''}`),
   })
 }
 

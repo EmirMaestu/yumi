@@ -1,8 +1,10 @@
 import { useNavigate } from 'react-router-dom'
 import ScopeToggle from './ScopeToggle'
+import { usePrivacy } from '../../lib/privacy'
 
 export default function TopBar() {
   const navigate = useNavigate()
+  const { hidden, toggle } = usePrivacy()
   return (
     <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 22px' }}>
       <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -13,6 +15,9 @@ export default function TopBar() {
       </span>
       <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <ScopeToggle />
+        <button onClick={toggle} aria-label={hidden ? 'Mostrar montos' : 'Ocultar montos'} aria-pressed={hidden} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+          <i className={`ti ${hidden ? 'ti-eye-off' : 'ti-eye'}`} style={{ fontSize: 20, color: 'var(--color-obsidian-ink)' }} aria-hidden />
+        </button>
         <button onClick={() => navigate('/buscar')} aria-label="Buscar" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
           <i className="ti ti-search" style={{ fontSize: 20, color: 'var(--color-obsidian-ink)' }} aria-hidden />
         </button>

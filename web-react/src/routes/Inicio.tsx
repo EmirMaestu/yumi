@@ -5,6 +5,7 @@ import { useAccountsWithBalances } from '../hooks/useAccounts'
 import { useRecurring } from '../hooks/useRecurring'
 import { useCategories } from '../hooks/useCategories'
 import { formatMoney, formatUsdApprox } from '../lib/format'
+import { Money } from '../lib/privacy'
 import { enCuotas as calcEnCuotas, cicloEnCurso, cicloEnCursoTotal } from '../lib/cards'
 import Card from '../components/ui/Card'
 import TickMark from '../components/ui/TickMark'
@@ -44,14 +45,14 @@ export default function Inicio() {
     <div style={{ padding: '8px 4px 24px' }}>
       <section style={{ padding: '8px 18px 6px' }}>
         <div className="cap">Gastado este mes</div>
-        <div className="num-serif" style={{ fontSize: 'clamp(44px, 13vw, 56px)', marginTop: 8 }}>{formatMoney(k.gasto_mes)}</div>
-        <div style={{ fontSize: 13, color: 'var(--color-sage)', marginTop: 6 }}>{delta >= 0 ? '▲' : '▼'} {formatMoney(Math.abs(delta))} vs mes pasado</div>
+        <div className="num-serif" style={{ fontSize: 'clamp(44px, 13vw, 56px)', marginTop: 8 }}><Money value={k.gasto_mes} /></div>
+        <div style={{ fontSize: 13, color: 'var(--color-sage)', marginTop: 6 }}>{delta >= 0 ? '▲' : '▼'} <Money value={Math.abs(delta)} /> vs mes pasado a esta altura</div>
         <div style={{ marginTop: 16 }}><TickMark /></div>
       </section>
       <section style={{ display: 'flex', gap: 6, padding: '16px 18px 6px' }}>
-        <StatNumber label="Ingresos" to="/movimientos">{formatMoney(k.ingreso_mes)}</StatNumber>
-        <StatNumber label="Patrimonio" to="/cuentas">{formatMoney(data.patrimonio_ars)}</StatNumber>
-        <StatNumber label="En cuotas" to="/recurrentes">{formatMoney(totalEnCuotas)}</StatNumber>
+        <StatNumber label="Ingresos" to="/movimientos"><Money value={k.ingreso_mes} /></StatNumber>
+        <StatNumber label="Patrimonio (tuyo)" to="/cuentas"><Money value={data.patrimonio_ars} /></StatNumber>
+        <StatNumber label="En cuotas" to="/recurrentes"><Money value={totalEnCuotas} /></StatNumber>
       </section>
       <div style={{ padding: '12px 18px 0' }}>
         <Card>
@@ -62,8 +63,8 @@ export default function Inicio() {
           {/* PRIMARY: A pagar este mes — ciclo en curso (transacciones + cuotas del mes) */}
           <div style={{ marginTop: 14 }}>
             <div className="cap">A pagar este mes</div>
-            <div className="num-serif" style={{ fontSize: 32, marginTop: 4 }}>{formatMoney(totalEnCurso)}</div>
-            <Link to="/recurrentes" style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 4, display: 'inline-block', textDecoration: 'none' }}>En cuotas (deuda futura): {formatMoney(totalEnCuotas)} →</Link>
+            <div className="num-serif" style={{ fontSize: 32, marginTop: 4 }}><Money value={totalEnCurso} /></div>
+            <Link to="/recurrentes" style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 4, display: 'inline-block', textDecoration: 'none' }}>En cuotas (deuda futura): <Money value={totalEnCuotas} /> →</Link>
           </div>
           <div style={{ height: 1, background: 'var(--color-mist)', margin: '16px 0' }} />
           {/* Per-card rows */}
@@ -88,7 +89,7 @@ export default function Inicio() {
                       : null}
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span className="num-serif" style={{ fontSize: 15, fontWeight: 500 }}>{formatMoney(aPagarMes)}</span>
+                  <span className="num-serif" style={{ fontSize: 15, fontWeight: 500 }}><Money value={aPagarMes} /></span>
                   <i className="ti ti-chevron-right" style={{ fontSize: 16, color: 'var(--color-sage)' }} aria-hidden />
                 </span>
               </Link>
