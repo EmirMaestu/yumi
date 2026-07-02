@@ -1254,11 +1254,17 @@ def api_cat_delete(cid: int, user=Depends(require_user)):
 @app.get("/api/transactions")
 def api_transactions(year: int = None, month: int = None, account_id: int = None,
                       category_id: int = None, currency: str = None, type: str = None,
-                      q: str = None, limit: int = 200, offset: int = 0,
+                      q: str = None, date_from: str = None, date_to: str = None,
+                      limit: int = 200, offset: int = 0,
                       user=Depends(require_user), scope: str = Cookie("mine")):
+    limit = max(1, min(int(limit), 500))  # clamp: nunca más de 500 por página (BF7)
     uf_t, uf_p = user_filter(scope, user, "t")
     where = ["1=1"]; params = []
-    if year and month:
+    if date_from or date_to:
+        # Rango por parte-fecha, inclusivo en ambos extremos (UX13). ISO ordena lexicográfico.
+        if date_from: where.append("substr(t.occurred_at,1,10) >= ?"); params.append(date_from[:10])
+        if date_to: where.append("substr(t.occurred_at,1,10) <= ?"); params.append(date_to[:10])
+    elif year and month:
         start = f"{year}-{month:02d}-01"
         em, ey = (month+1, year) if month < 12 else (1, year+1)
         end = f"{ey}-{em:02d}-01"

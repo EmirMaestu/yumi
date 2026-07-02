@@ -1,29 +1,39 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { apiGet, apiPost, apiPatch, apiDelete } from '../lib/api'
 import { notifyOk, notifyErr } from '../lib/notify'
 import type { Transaction, Currency, TxKind } from '../lib/types'
 
-export interface TxFilters { period?: string; account_id?: number; category_id?: number; currency?: string; q?: string }
+// Filtros explícitos: year/month (mes navegable), date_from/date_to (rango), o nada (todo).
+export interface TxFilters {
+  year?: number
+  month?: number
+  date_from?: string
+  date_to?: string
+  account_id?: number
+  category_id?: number
+  currency?: string
+  q?: string
+}
 
 export interface TxSum { type: 'gasto' | 'ingreso'; currency: Currency; kind: TxKind; total: number }
 export interface TxPage { items: Transaction[]; total: number; sums: TxSum[] }
 
-function buildQuery(filters: TxFilters): string {
+function buildQuery(filters: TxFilters, offset?: number, limit?: number): string {
   const qs = new URLSearchParams()
-  const now = new Date()
-  const period = filters.period ?? 'mes'
-  if (period === 'mes') {
-    qs.set('year', String(now.getFullYear())); qs.set('month', String(now.getMonth() + 1))
-  } else if (period === 'mes pasado') {
-    const d = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-    qs.set('year', String(d.getFullYear())); qs.set('month', String(d.getMonth() + 1))
-  } else if (period === 'año') {
-    qs.set('year', String(now.getFullYear()))
+  if (filters.date_from || filters.date_to) {
+    if (filters.date_from) qs.set('date_from', filters.date_from)
+    if (filters.date_to) qs.set('date_to', filters.date_to)
+  } else if (filters.year && filters.month) {
+    qs.set('year', String(filters.year)); qs.set('month', String(filters.month))
+  } else if (filters.year) {
+    qs.set('year', String(filters.year))
   }
   if (filters.account_id) qs.set('account_id', String(filters.account_id))
   if (filters.category_id) qs.set('category_id', String(filters.category_id))
   if (filters.currency) qs.set('currency', filters.currency)
   if (filters.q) qs.set('q', filters.q)
+  if (offset) qs.set('offset', String(offset))
+  if (limit) qs.set('limit', String(limit))
   return qs.toString()
 }
 
@@ -32,6 +42,20 @@ export function useTransactions(filters: TxFilters = {}) {
   return useQuery({
     queryKey: ['transactions', filters],
     queryFn: () => apiGet<TxPage>(`/api/transactions${query ? `?${query}` : ''}`),
+  })
+}
+
+// Paginación con offset para el historial navegable (BF7/UX13). La invalidación
+// de ['transactions'] por las mutaciones también refresca esta query.
+export function useTransactionsInfinite(filters: TxFilters = {}, pageSize = 50) {
+  return useInfiniteQuery({
+    queryKey: ['transactions', 'infinite', filters],
+    queryFn: ({ pageParam }) => apiGet<TxPage>(`/api/transactions?${buildQuery(filters, pageParam, pageSize)}`),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      const loaded = allPages.reduce((n, p) => n + p.items.length, 0)
+      return loaded < lastPage.total ? loaded : undefined
+    },
   })
 }
 
