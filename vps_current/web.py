@@ -2038,6 +2038,53 @@ def api_statement(year: int, month: int, user=Depends(require_user)):
     return {"year": year, "month": month, **data}
 
 
+# ─── Tarjetas: resumen server-side (fuente única, D2) ──────────────────────
+@app.get("/api/cards/summary")
+def api_cards_summary(user=Depends(require_user), scope: str = Cookie("mine")):
+    """Matemática de tarjetas calculada en el server (antes en cards.ts). Por tarjeta:
+    consumos, en_cuotas, deuda_total, resumen_cerrado (ciclo cerrado), proximo_resumen
+    (ciclo abierto + cuota mensual), cuotas_mes, next_closing/due, credit_limit, disponible."""
+    acc_filter, acc_params = vis_filter_item(scope, user)
+    uf_r, uf_rp = vis_filter_recurring(scope, user)
+    today = now_local().date()
+    out = []
+    with db() as conn:
+        cards = conn.execute(
+            f"SELECT * FROM accounts WHERE active=1 AND type='credito' {acc_filter} ORDER BY name",
+            acc_params).fetchall()
+        recs = conn.execute(
+            f"SELECT account_id, amount, currency, total_installments, installments_fired, active "
+            f"FROM recurring WHERE 1=1 {uf_r}", uf_rp).fetchall()
+        for c in cards:
+            bal = conn.execute(
+                "SELECT COALESCE(SUM(CASE WHEN type='ingreso' THEN amount ELSE -amount END),0) "
+                "FROM transactions WHERE account_id=? AND currency='ARS'", (c["id"],)).fetchone()[0]
+            consumos = abs(bal)
+            cr = [r for r in recs if r["account_id"] == c["id"]]
+            en_cuotas = sum(r["amount"] * max(0, (r["total_installments"] or 0) - (r["installments_fired"] or 0))
+                            for r in cr if r["total_installments"])
+            cuotas_mes = sum(r["amount"] for r in cr if r["active"] != 0
+                             and (not r["total_installments"]
+                                  or ((r["total_installments"] or 0) - (r["installments_fired"] or 0)) > 0))
+            deuda_total = consumos + en_cuotas
+            venc = vencimientos.calcular_vencimiento(str(DB_PATH), dict(c), today)
+
+            def _ars(arr):
+                return sum(x["total"] for x in (arr or []) if x.get("currency") == "ARS")
+            resumen_cerrado = _ars(venc.get("ciclo_cerrado"))
+            proximo_resumen = _ars(venc.get("ciclo_abierto")) + cuotas_mes
+            limit = c["credit_limit"] if "credit_limit" in c.keys() else None
+            out.append({
+                "account_id": c["id"], "name": c["name"], "consumos": consumos,
+                "en_cuotas": en_cuotas, "deuda_total": deuda_total,
+                "resumen_cerrado": resumen_cerrado, "proximo_resumen": proximo_resumen,
+                "cuotas_mes": cuotas_mes, "next_closing": venc.get("next_closing"),
+                "next_due": venc.get("next_due"), "credit_limit": limit,
+                "disponible": (limit - deuda_total) if limit else None,
+            })
+    return out
+
+
 # ─── Splits de pareja (quién debe a quién) ─────────────────────────────────
 @app.get("/api/splits/summary")
 def api_splits_summary(user=Depends(require_user)):
