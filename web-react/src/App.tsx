@@ -9,6 +9,7 @@ import Tarjetas from './routes/Tarjetas'
 import TarjetaDetalle from './routes/TarjetaDetalle'
 import Cuentas from './routes/Cuentas'
 import Categorias from './routes/Categorias'
+import Presupuestos from './routes/Presupuestos'
 import Yo from './routes/Yo'
 import Recurrentes from './routes/Recurrentes'
 import Tareas from './routes/Tareas'
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="/tarjetas/:id" element={<TarjetaDetalle />} />
         <Route path="/cuentas" element={<Cuentas />} />
         <Route path="/categorias" element={<Categorias />} />
+        <Route path="/presupuestos" element={<Presupuestos />} />
         <Route path="/yo" element={<Yo />} />
         <Route path="/perfil" element={<Navigate to="/yo" replace />} />
         <Route path="/recurrentes" element={<Recurrentes />} />
