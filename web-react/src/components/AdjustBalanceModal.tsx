@@ -47,6 +47,7 @@ export default function AdjustBalanceModal({ account, open, onClose }: Props) {
         currency,
         account_id: account.id,
         description: 'Ajuste de saldo',
+        kind: 'adjustment',
         occurred_at: new Date().toISOString().slice(0, 16),
       },
       { onSuccess: handleClose },
@@ -86,6 +87,9 @@ export default function AdjustBalanceModal({ account, open, onClose }: Props) {
             style={inputStyle}
           />
           {error && <span style={errorStyle}>{error}</span>}
+          <span style={{ fontSize: 12, color: 'var(--color-sage)' }}>
+            El ajuste no cuenta como gasto ni ingreso del mes.
+          </span>
         </label>
 
         <div style={{ display: 'flex', gap: 8 }}>
