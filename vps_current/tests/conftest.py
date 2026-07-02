@@ -70,6 +70,9 @@ CREATE TABLE tareas (id INTEGER PRIMARY KEY AUTOINCREMENT,
     raw_message_id INTEGER, user_id INTEGER, shared INTEGER DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now')));
 CREATE TABLE app_meta (key TEXT PRIMARY KEY, value TEXT);
+CREATE TABLE trash (id INTEGER PRIMARY KEY AUTOINCREMENT,
+    entity TEXT NOT NULL, original_id INTEGER NOT NULL, payload TEXT NOT NULL,
+    user_id INTEGER, deleted_at TEXT DEFAULT (datetime('now','localtime')));
 """
 
 

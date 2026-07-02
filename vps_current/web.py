@@ -1390,19 +1390,68 @@ def api_patch_tx(tid: int, body: dict = Body(...), user=Depends(require_user)):
     return {"ok": True}
 
 
+def purge_transaction_trash(conn, days=30):
+    """Borra de la papelera las transacciones con más de `days` días. Retención 30d (D5)."""
+    conn.execute(
+        "DELETE FROM trash WHERE entity='transaction' AND deleted_at < datetime('now','localtime',?)",
+        (f"-{int(days)} days",))
+
+
+def _trash_and_delete(conn, rows, uid):
+    """Mueve filas de transactions a la papelera (recuperable) y las borra. BF12."""
+    trash_ids = []
+    for r in rows:
+        payload = json.dumps(dict(r), ensure_ascii=False)
+        cur = conn.execute(
+            "INSERT INTO trash(entity, original_id, payload, user_id) VALUES ('transaction',?,?,?)",
+            (r["id"], payload, uid))
+        trash_ids.append(cur.lastrowid)
+        conn.execute("DELETE FROM transactions WHERE id=?", (r["id"],))
+    return trash_ids
+
+
 @app.delete("/api/transactions/{tid}")
 def del_tx(tid: int, user=Depends(require_user)):
     with db() as conn:
-        row = conn.execute("SELECT user_id, transfer_group_id FROM transactions WHERE id=?", (tid,)).fetchone()
+        row = conn.execute("SELECT * FROM transactions WHERE id=?", (tid,)).fetchone()
         if not row: raise HTTPException(404, "No existe")
         if row["user_id"] != user["id"]: raise HTTPException(403, "No es tuya")
+        # Una pata de transferencia arrastra a la otra (ambas a la papelera).
         if row["transfer_group_id"]:
-            # Borrar una pata borra la transferencia completa (ambas patas).
-            conn.execute("DELETE FROM transactions WHERE transfer_group_id=?", (row["transfer_group_id"],))
+            rows = conn.execute("SELECT * FROM transactions WHERE transfer_group_id=?", (row["transfer_group_id"],)).fetchall()
         else:
-            conn.execute("DELETE FROM transactions WHERE id=?", (tid,))
+            rows = [row]
+        trash_ids = _trash_and_delete(conn, rows, user["id"])
         conn.commit()
-    return {"ok": True}
+    return {"ok": True, "trash_ids": trash_ids}
+
+
+@app.post("/api/transactions/restore/{trash_id}")
+def restore_tx(trash_id: int, user=Depends(require_user)):
+    """Restaura una tx borrada desde la papelera (con su id original). Si es una
+    pata de transferencia, restaura ambas patas (BF12/UX7)."""
+    with db() as conn:
+        row = conn.execute("SELECT * FROM trash WHERE id=? AND entity='transaction'", (trash_id,)).fetchone()
+        if not row: raise HTTPException(404, "No existe en la papelera")
+        if row["user_id"] != user["id"]: raise HTTPException(403, "No es tuya")
+        payload = json.loads(row["payload"])
+        to_restore = [(trash_id, payload)]
+        gid = payload.get("transfer_group_id")
+        if gid:
+            for tr in conn.execute(
+                "SELECT * FROM trash WHERE entity='transaction' AND id!=? AND user_id=?",
+                (trash_id, user["id"])).fetchall():
+                p = json.loads(tr["payload"])
+                if p.get("transfer_group_id") == gid:
+                    to_restore.append((tr["id"], p))
+        restored = []
+        for tr_id, p in to_restore:
+            cols = list(p.keys()); ph = ",".join("?" * len(cols))
+            conn.execute(f"INSERT INTO transactions ({','.join(cols)}) VALUES ({ph})", [p[c] for c in cols])
+            conn.execute("DELETE FROM trash WHERE id=?", (tr_id,))
+            restored.append(p["id"])
+        conn.commit()
+    return {"ok": True, "restored_ids": restored}
 
 
 @app.post("/api/transactions/bulk_delete")
@@ -1411,12 +1460,12 @@ def bulk_delete_tx(body: dict = Body(...), user=Depends(require_user)):
     if not ids: raise HTTPException(400, "Sin ids")
     placeholders = ",".join("?" * len(ids))
     with db() as conn:
-        owned = conn.execute(
-            f"SELECT COUNT(*) FROM transactions WHERE id IN ({placeholders}) AND user_id=?",
-            ids + [user["id"]]).fetchone()[0]
-        if owned != len(ids): raise HTTPException(403, "Alguna no es tuya")
-        conn.execute(f"DELETE FROM transactions WHERE id IN ({placeholders})", ids); conn.commit()
-    return {"ok": True, "count": len(ids)}
+        rows = conn.execute(f"SELECT * FROM transactions WHERE id IN ({placeholders})", ids).fetchall()
+        if len(rows) != len(ids) or any(r["user_id"] != user["id"] for r in rows):
+            raise HTTPException(403, "Alguna no es tuya")
+        trash_ids = _trash_and_delete(conn, rows, user["id"])  # un trash row por tx
+        conn.commit()
+    return {"ok": True, "count": len(rows), "trash_ids": trash_ids}
 
 
 @app.post("/api/transactions/bulk_move")
