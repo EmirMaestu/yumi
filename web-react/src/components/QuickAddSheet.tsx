@@ -12,6 +12,7 @@ import { useNotasMutations } from '../hooks/useNotas'
 import { useEventosMutations } from '../hooks/useEventos'
 import { useRecordatoriosMutations } from '../hooks/useRecordatorios'
 import { parseAmount } from '../lib/parseAmount'
+import { todayISODate, dateToNoonISO } from '../lib/format'
 
 // ---------- quick-type selector ----------
 type QuickType = 'gasto' | 'tarea' | 'nota' | 'evento' | 'recordatorio'
@@ -80,16 +81,16 @@ function GastoForm({ onClose }: { onClose: () => void }) {
   const { create } = useTxMutations()
   const { register, handleSubmit, control, formState: { errors } } = useForm<TxInput, unknown, TxOutput>({
     resolver: zodResolver(txSchema),
-    defaultValues: { type: 'gasto', occurred_at: new Date().toISOString().slice(0, 16) },
+    defaultValues: { type: 'gasto', occurred_at: todayISODate() },
   })
-  const onSubmit: SubmitHandler<TxOutput> = (v) => create.mutate(v, { onSuccess: onClose })
+  const onSubmit: SubmitHandler<TxOutput> = (v) =>
+    create.mutate({ ...v, occurred_at: dateToNoonISO(v.occurred_at) }, { onSuccess: onClose })
   const accountOpts = (accounts.data ?? []).map((a) => ({ value: String(a.id), label: a.name }))
   const categoryOpts = (categories.data ?? []).map((c) => ({ value: String(c.id), label: c.name }))
   const tipoOpts = [{ value: 'gasto', label: 'Gasto' }, { value: 'ingreso', label: 'Ingreso' }]
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'grid', gap: 12 }}>
-      <input type="hidden" {...register('occurred_at')} />
       <Controller name="type" control={control} render={({ field }) => (
         <Select value={field.value} onValueChange={(v) => field.onChange(v)} options={tipoOpts} placeholder="Tipo…" ariaLabel="Tipo" style={{ width: '100%' }} />
       )} />
@@ -103,6 +104,10 @@ function GastoForm({ onClose }: { onClose: () => void }) {
       <Controller name="category_id" control={control} render={({ field }) => (
         <Select value={field.value ? String(field.value) : undefined} onValueChange={(v) => field.onChange(Number(v))} options={categoryOpts} placeholder="Categoría (opcional)…" ariaLabel="Categoría" style={{ width: '100%' }} />
       )} />
+      <label style={{ display: 'grid', gap: 4, fontSize: 13, color: 'var(--color-sage)' }}>
+        Fecha
+        <input type="date" {...register('occurred_at')} style={fieldStyle} />
+      </label>
       <button type="submit" disabled={create.isPending} style={ctaStyle}>{create.isPending ? 'Guardando…' : 'Guardar →'}</button>
     </form>
   )
