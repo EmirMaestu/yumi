@@ -32,6 +32,7 @@ from crud_v2 import router as crud_v2_router, init_crud_v2
 import vencimientos
 import networth
 import trends
+import finance
 
 BASE_DIR = Path(__file__).parent
 load_dotenv(BASE_DIR / ".env")
@@ -1339,6 +1340,22 @@ def api_tx_create(body: dict = Body(...), user=Depends(require_user)):
              body.get("description"), body["occurred_at"], user["id"], kind))
         conn.commit()
     return {"id": cur.lastrowid, "ok": True}
+
+
+@app.get("/api/categories/suggest")
+def api_suggest_category(description: str = "", user=Depends(require_user)):
+    """Categoría sugerida por aprendizaje (category_learning), o null. Wrappea la
+    misma lógica que el bot (finance.learn_keywords + pick_learned_category)."""
+    kws = finance.learn_keywords(description)
+    if not kws:
+        return {"category_id": None}
+    ph = ",".join("?" * len(kws))
+    with db() as conn:
+        rows = conn.execute(
+            f"SELECT category_id, SUM(count) AS count FROM category_learning "
+            f"WHERE user_id=? AND keyword IN ({ph}) GROUP BY category_id",
+            [user["id"]] + kws).fetchall()
+    return {"category_id": finance.pick_learned_category([dict(r) for r in rows])}
 
 
 @app.post("/api/transfers")
