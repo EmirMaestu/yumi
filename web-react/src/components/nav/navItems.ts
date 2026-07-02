@@ -30,6 +30,7 @@ export const FINANZAS_RAIL: NavItem[] = [
   { to: '/tarjetas', label: 'Tarjetas', icon: 'ti-credit-card' },
   { to: '/cuentas', label: 'Cuentas', icon: 'ti-wallet' },
   { to: '/presupuestos', label: 'Presupuestos', icon: 'ti-target' },
+  { to: '/tendencias', label: 'Tendencias', icon: 'ti-chart-line' },
   { to: '/categorias', label: 'Categorías', icon: 'ti-tags' },
   { to: '/recurrentes', label: 'Recurrentes', icon: 'ti-repeat' },
 ]

@@ -1,4 +1,4 @@
-/* GENERADO por scripts/build-icons.mjs — NO editar. 50 iconos. */
+/* GENERADO por scripts/build-icons.mjs — NO editar. 51 iconos. */
 @font-face{font-family:"tabler-icons";font-style:normal;font-weight:400;font-display:block;src:url("/app/fonts/tabler-subset.woff2") format("woff2")}
 .ti{font-family:"tabler-icons"!important;speak:none;font-style:normal;font-weight:normal;font-variant:normal;text-transform:none;line-height:1;display:inline-block;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 .ti-alarm-snooze:before{content:"\f632"}
@@ -9,6 +9,7 @@
 .ti-brand-whatsapp:before{content:"\ec74"}
 .ti-calendar:before{content:"\ea53"}
 .ti-calendar-event:before{content:"\ea52"}
+.ti-chart-line:before{content:"\ea5c"}
 .ti-check:before{content:"\ea5e"}
 .ti-checkbox:before{content:"\eba6"}
 .ti-chevron-down:before{content:"\ea5f"}

@@ -21,6 +21,12 @@ export function formatMonthLabel(year: number, month1to12: number): string {
   return `${MESES[month1to12 - 1]} ${year}`
 }
 
+// 'YYYY-MM' → 'jun' (mes corto, para ejes de gráficos).
+export function formatMonthShort(ym: string): string {
+  const m = Number(ym.slice(5, 7))
+  return (MESES[m - 1] ?? '').slice(0, 3)
+}
+
 // Fecha local de hoy como 'YYYY-MM-DD' (para <input type="date">). No usa
 // toISOString() porque eso da UTC y cerca de medianoche cambia de día.
 export function todayISODate(): string {
