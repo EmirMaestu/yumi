@@ -156,7 +156,7 @@ function ListaCard({
             <button
               onClick={() => onDeleteLista(lista)}
               title="Eliminar lista"
-              style={{ ...iconBtn, color: '#c0392b' }}
+              style={{ ...iconBtn, color: 'var(--color-error)' }}
             >
               <i className="ti ti-trash" aria-hidden />
             </button>
