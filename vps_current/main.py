@@ -1954,6 +1954,13 @@ def reschedule_pending(app):
 
 async def recurring_daily(context):
     today_str = now_local().strftime("%Y-%m-%d")
+    # Purga de la papelera de transacciones borradas hace >30 días (D5, undo de BF12).
+    try:
+        _pc = sqlite3.connect(DB_PATH)
+        _pc.execute("DELETE FROM trash WHERE entity='transaction' AND deleted_at < datetime('now','localtime','-30 days')")
+        _pc.commit(); _pc.close()
+    except Exception:
+        log.exception("purge trash transacciones")
     conn = sqlite3.connect(DB_PATH); conn.row_factory = sqlite3.Row
     due = conn.execute("""SELECT r.*, u.telegram_id AS owner_tg
                           FROM recurring r LEFT JOIN users u ON u.id=r.user_id

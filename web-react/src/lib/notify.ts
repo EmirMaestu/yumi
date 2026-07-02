@@ -2,6 +2,11 @@ import { toast } from 'sonner'
 
 export const notifyOk = (msg: string) => toast.success(msg)
 
+// Éxito con acción "Deshacer" durante 10s (borrados recuperables, UX7).
+export function notifyUndo(msg: string, onUndo: () => void) {
+  toast(msg, { action: { label: 'Deshacer', onClick: onUndo }, duration: 10000 })
+}
+
 // Extrae el mensaje del ApiError. El body del server viene en español; FastAPI
 // suele mandarlo como {"detail":"..."} → desempaquetamos el detail.
 export function notifyErr(e: unknown) {

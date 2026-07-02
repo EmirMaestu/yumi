@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { apiGet, apiPost, apiPatch, apiDelete } from '../lib/api'
-import { notifyOk, notifyErr } from '../lib/notify'
+import { notifyOk, notifyErr, notifyUndo } from '../lib/notify'
 import type { Transaction, Currency, TxKind } from '../lib/types'
 
 // Filtros explícitos: year/month (mes navegable), date_from/date_to (rango), o nada (todo).
@@ -83,14 +83,42 @@ export function useTransferMutation(okMsg = 'Transferencia registrada') {
   })
 }
 
+interface DeleteResult { ok: boolean; trash_ids: number[] }
+
 export function useTxMutations() {
   const qc = useQueryClient()
-  const inval = () => { qc.invalidateQueries({ queryKey: ['transactions'] }); qc.invalidateQueries({ queryKey: ['overview2'] }); qc.invalidateQueries({ queryKey: ['accounts-balances'] }) }
+  const inval = () => { qc.invalidateQueries({ queryKey: ['transactions'] }); qc.invalidateQueries({ queryKey: ['overview2'] }); qc.invalidateQueries({ queryKey: ['accounts-balances'] }); qc.invalidateQueries({ queryKey: ['vencimientos'] }) }
+  // Restaura desde la papelera (undo de un borrado). BF12/UX7.
+  const restore = useMutation({
+    mutationFn: (trashId: number) => apiPost(`/api/transactions/restore/${trashId}`),
+    onSuccess: () => { inval(); notifyOk('Movimiento restaurado') },
+    onError: notifyErr,
+  })
+  const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`
   return {
+    restore,
     create: useMutation({ mutationFn: (b: Partial<Transaction>) => apiPost('/api/transactions', b), onSuccess: () => { inval(); notifyOk('Movimiento guardado') }, onError: notifyErr }),
     update: useMutation({ mutationFn: ({ id, ...b }: { id: number } & Partial<Transaction>) => apiPatch(`/api/transactions/${id}`, b), onSuccess: () => { inval(); notifyOk('Movimiento actualizado') }, onError: notifyErr }),
-    remove: useMutation({ mutationFn: (id: number) => apiDelete(`/api/transactions/${id}`), onSuccess: () => { inval(); notifyOk('Movimiento eliminado') }, onError: notifyErr }),
-    bulkDelete: useMutation({ mutationFn: (ids: number[]) => apiPost('/api/transactions/bulk_delete', { ids }), onSuccess: (_d, ids) => { inval(); notifyOk(`${ids.length} movimiento${ids.length === 1 ? '' : 's'} eliminado${ids.length === 1 ? '' : 's'}`) }, onError: notifyErr }),
-    bulkMove: useMutation({ mutationFn: (b: { ids: number[]; account_id: number }) => apiPost('/api/transactions/bulk_move', b), onSuccess: (_d, b) => { inval(); notifyOk(`${b.ids.length} movimiento${b.ids.length === 1 ? '' : 's'} movido${b.ids.length === 1 ? '' : 's'}`) }, onError: notifyErr }),
+    remove: useMutation({
+      mutationFn: (id: number) => apiDelete<DeleteResult>(`/api/transactions/${id}`),
+      onSuccess: (data) => {
+        inval()
+        const tid = data?.trash_ids?.[0]
+        if (tid) notifyUndo('Movimiento eliminado', () => restore.mutate(tid))
+        else notifyOk('Movimiento eliminado')
+      },
+      onError: notifyErr,
+    }),
+    bulkDelete: useMutation({
+      mutationFn: (ids: number[]) => apiPost<DeleteResult>('/api/transactions/bulk_delete', { ids }),
+      onSuccess: (data, ids) => {
+        inval()
+        const trashIds = data?.trash_ids ?? []
+        if (trashIds.length) notifyUndo(`${plural(ids.length, 'movimiento')} eliminado${ids.length === 1 ? '' : 's'}`, () => trashIds.forEach((t) => restore.mutate(t)))
+        else notifyOk(`${plural(ids.length, 'movimiento')} eliminado${ids.length === 1 ? '' : 's'}`)
+      },
+      onError: notifyErr,
+    }),
+    bulkMove: useMutation({ mutationFn: (b: { ids: number[]; account_id: number }) => apiPost('/api/transactions/bulk_move', b), onSuccess: (_d, b) => { inval(); notifyOk(`${plural(b.ids.length, 'movimiento')} movido${b.ids.length === 1 ? '' : 's'}`) }, onError: notifyErr }),
   }
 }
