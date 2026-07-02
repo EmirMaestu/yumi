@@ -44,7 +44,7 @@ export interface TransferBody {
   description?: string
 }
 
-export function useTransferMutation() {
+export function useTransferMutation(okMsg = 'Transferencia registrada') {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (b: TransferBody) => apiPost('/api/transfers', b),
@@ -53,7 +53,7 @@ export function useTransferMutation() {
       qc.invalidateQueries({ queryKey: ['overview2'] })
       qc.invalidateQueries({ queryKey: ['accounts-balances'] })
       qc.invalidateQueries({ queryKey: ['vencimientos'] })
-      notifyOk('Transferencia registrada')
+      notifyOk(okMsg)
     },
     onError: notifyErr,
   })

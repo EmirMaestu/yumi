@@ -16,6 +16,7 @@ import CardActions from '../components/ui/CardActions'
 import { TarjetaDetalleSkeleton } from '../components/ui/skeletons'
 import EmptyState from '../components/ui/EmptyState'
 import AccountForm from '../components/AccountForm'
+import PayCardModal from '../components/PayCardModal'
 
 // ---- Cuota form types ----
 interface CuotaForm {
@@ -135,6 +136,7 @@ export default function TarjetaDetalle() {
   const [addCuotaOpen, setAddCuotaOpen] = useState(false)
   const [editCuota, setEditCuota] = useState<Recurring | null>(null)
   const [deleteCuota, setDeleteCuota] = useState<Recurring | null>(null)
+  const [payOpen, setPayOpen] = useState(false)
 
   const isLoading = accounts.isLoading || vencimientos.isLoading || recurring.isLoading
 
@@ -210,6 +212,12 @@ export default function TarjetaDetalle() {
         <div style={{ marginTop: 10, fontSize: 11, color: 'var(--color-sage)', fontStyle: 'italic' }}>
           A pagar este mes = compras del ciclo + una cuota de cada plan. Deuda total = todo lo que queda por pagar.
         </div>
+        <button
+          onClick={() => setPayOpen(true)}
+          style={aPagarAhora > 0 ? payBtnPrimary : payBtnSecondary}
+        >
+          {aPagarAhora > 0 ? 'Registrar pago' : 'Registrar pago…'}
+        </button>
       </Card>
 
       {/* Recurrentes y cuotas section */}
@@ -303,6 +311,14 @@ export default function TarjetaDetalle() {
 
       {/* Movimientos de la tarjeta */}
       <MovimientosTarjeta accId={accId} />
+
+      {/* Registrar pago */}
+      <PayCardModal
+        card={{ id: account.id, name: account.name }}
+        defaultAmount={aPagarAhora}
+        open={payOpen}
+        onClose={() => setPayOpen(false)}
+      />
 
       {/* Edit account modal */}
       <AccountForm
@@ -401,6 +417,14 @@ const ghostBtn: React.CSSProperties = {
   padding: '7px 14px',
   fontSize: 13,
   cursor: 'pointer',
+}
+const payBtnPrimary: React.CSSProperties = {
+  marginTop: 14, width: '100%', background: 'var(--color-voltage)', color: 'var(--voltage-on-dark)',
+  border: 'none', borderRadius: 10, padding: '12px', fontWeight: 500, fontSize: 14, cursor: 'pointer',
+}
+const payBtnSecondary: React.CSSProperties = {
+  marginTop: 14, width: '100%', background: 'transparent', color: 'var(--color-obsidian-ink)',
+  border: '1px solid var(--color-mist)', borderRadius: 10, padding: '11px', fontSize: 14, cursor: 'pointer',
 }
 const ctaBtn: React.CSSProperties = {
   background: 'var(--color-voltage)',
