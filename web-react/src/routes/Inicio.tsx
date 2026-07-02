@@ -4,6 +4,7 @@ import { useVencimientos } from '../hooks/useVencimientos'
 import { useAccountsWithBalances } from '../hooks/useAccounts'
 import { useRecurring } from '../hooks/useRecurring'
 import { useCategories } from '../hooks/useCategories'
+import { useBudgets, budgetPct, budgetColor } from '../hooks/useBudgets'
 import { formatMoney, formatUsdApprox } from '../lib/format'
 import { Money } from '../lib/privacy'
 import { enCuotas as calcEnCuotas, cicloEnCursoTotal, aPagarCard, aPagarTotal } from '../lib/cards'
@@ -24,6 +25,7 @@ export default function Inicio() {
   const accounts = useAccountsWithBalances()
   const recurring = useRecurring()
   const cats = useCategories()
+  const budgets = useBudgets()
 
   if (isLoading) return <InicioSkeleton />
   if (isError || !data) return <EmptyState>No pudimos cargar tus datos. Reintentá.</EmptyState>
@@ -109,6 +111,34 @@ export default function Inicio() {
           })}
       </section>
 
+      {/* Presupuestos: top 3 por % usado */}
+      {(budgets.data?.length ?? 0) > 0 && (
+        <div style={{ padding: '4px 18px 0' }}>
+          <Card>
+            <Link to="/presupuestos" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', textDecoration: 'none', color: 'inherit' }}>
+              <span style={{ fontSize: 15, fontWeight: 500 }}><i className="ti ti-target" style={{ marginRight: 7 }} aria-hidden />Presupuestos</span>
+              <span style={{ fontSize: 12, color: 'var(--color-sage)' }}>Ver todos →</span>
+            </Link>
+            <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
+              {[...budgets.data!].sort((a, b) => budgetPct(b) - budgetPct(a)).slice(0, 3).map((b) => {
+                const pct = budgetPct(b)
+                return (
+                  <div key={b.id}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, marginBottom: 4 }}>
+                      <span>{b.icon ? `${b.icon} ` : ''}{b.name}</span>
+                      <span style={{ color: 'var(--color-sage)' }}><Money value={b.spent} /> / <Money value={b.amount} /></span>
+                    </div>
+                    <div style={{ height: 7, borderRadius: 5, background: 'var(--color-mist)', overflow: 'hidden' }}>
+                      <div style={{ width: `${Math.min(100, pct)}%`, height: '100%', background: budgetColor(pct) }} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* Secciones de finanzas como cards clickeables */}
       <section style={{ padding: '12px 18px 6px' }}>
         <div className="cap">Secciones</div>
@@ -116,6 +146,7 @@ export default function Inicio() {
       <SectionCard to="/movimientos" icon="ti-arrows-left-right" label="Movimientos" summary="Buscar y filtrar tus gastos e ingresos" />
       <SectionCard to="/tarjetas" icon="ti-credit-card" label="Tarjetas" summary={`${creditCards.length} tarjeta${creditCards.length === 1 ? '' : 's'} de crédito`} />
       <SectionCard to="/cuentas" icon="ti-wallet" label="Cuentas" summary={`${nCuentas} cuenta${nCuentas === 1 ? '' : 's'}`} />
+      <SectionCard to="/presupuestos" icon="ti-target" label="Presupuestos" summary={`${budgets.data?.length ?? 0} presupuesto${(budgets.data?.length ?? 0) === 1 ? '' : 's'}`} />
       <SectionCard to="/categorias" icon="ti-tags" label="Categorías" summary={`${nCats} categoría${nCats === 1 ? '' : 's'}`} />
       <SectionCard to="/recurrentes" icon="ti-repeat" label="Recurrentes" summary={`${nRec} recurrente${nRec === 1 ? '' : 's'}`} />
 
