@@ -1,4 +1,4 @@
-/* GENERADO por scripts/build-icons.mjs — NO editar. 52 iconos. */
+/* GENERADO por scripts/build-icons.mjs — NO editar. 53 iconos. */
 @font-face{font-family:"tabler-icons";font-style:normal;font-weight:400;font-display:block;src:url("/app/fonts/tabler-subset.woff2") format("woff2")}
 .ti{font-family:"tabler-icons"!important;speak:none;font-style:normal;font-weight:normal;font-variant:normal;text-transform:none;line-height:1;display:inline-block;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 .ti-alarm-snooze:before{content:"\f632"}
@@ -28,6 +28,7 @@
 .ti-eye:before{content:"\ea9a"}
 .ti-eye-off:before{content:"\ecf0"}
 .ti-file-text:before{content:"\eaa2"}
+.ti-flag:before{content:"\eaa6"}
 .ti-flame:before{content:"\ec2c"}
 .ti-lock:before{content:"\eae2"}
 .ti-logout:before{content:"\eba8"}
