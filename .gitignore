@@ -16,3 +16,6 @@ credenciales*.txt
 # backend backups
 *.bak
 *.bak.*
+
+# python venv local (tests backend)
+.venv/

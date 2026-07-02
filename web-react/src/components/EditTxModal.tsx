@@ -104,4 +104,4 @@ export default function EditTxModal({ tx, open, onClose }: { tx: Transaction | n
 
 const fieldStyle: React.CSSProperties = { border: '1px solid var(--color-mist)', borderRadius: 10, padding: '12px 14px', fontSize: 16, background: 'transparent', width: '100%', boxSizing: 'border-box' }
 const ctaStyle: React.CSSProperties = { background: 'var(--color-voltage)', color: 'var(--voltage-on-dark)', border: 'none', borderRadius: 10, padding: '14px', fontWeight: 500, boxShadow: 'var(--shadow-cta)', cursor: 'pointer' }
-const errStyle: React.CSSProperties = { color: '#a32d2d', fontSize: 12 }
+const errStyle: React.CSSProperties = { color: 'var(--color-error)', fontSize: 12 }

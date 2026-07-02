@@ -337,7 +337,7 @@ const inputStyle: React.CSSProperties = {
   boxSizing: 'border-box',
 }
 const labelStyle: React.CSSProperties = { display: 'grid', gap: 4, fontSize: 13, color: 'var(--color-sage)' }
-const errorStyle: React.CSSProperties = { fontSize: 12, color: '#c0392b', marginTop: 2 }
+const errorStyle: React.CSSProperties = { fontSize: 12, color: 'var(--color-error)', marginTop: 2 }
 const ctaBtn: React.CSSProperties = {
   background: 'var(--color-voltage)',
   color: 'var(--voltage-on-dark)',
