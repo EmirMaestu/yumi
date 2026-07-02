@@ -1,4 +1,4 @@
-import { type Account, type Recurring, type CicloTotal, type VencimientoCard } from './types'
+import { type Account, type Balance, type Recurring, type CicloTotal, type VencimientoCard } from './types'
 
 // ── Única fuente de verdad para los montos de una tarjeta ──────────────────
 // Convenciones (acordadas con el usuario):
@@ -8,8 +8,16 @@ import { type Account, type Recurring, type CicloTotal, type VencimientoCard } f
 //  • A pagar ahora   = ciclo cerrado (el resumen que vence), NO la deuda total
 //  • Cuota actual    = pagadas + 1 (igual que el bot)
 
+// BF5: SOLO el saldo ARS. Sin balance ARS devuelve 0 (nunca cae al primer balance:
+// una cuenta solo-USD no se computa como si fueran pesos).
 export function arsBalance(acc: Pick<Account, 'balances'>): number {
-  return (acc.balances ?? []).find(b => b.currency === 'ARS')?.balance ?? (acc.balances?.[0]?.balance ?? 0)
+  return (acc.balances ?? []).find(b => b.currency === 'ARS')?.balance ?? 0
+}
+
+// Saldos en moneda extranjera (no-ARS, distintos de 0), para mostrarlos como línea
+// aparte ("+ US$ 120,00"), nunca mezclados con el peso.
+export function foreignBalances(acc: Pick<Account, 'balances'>): Balance[] {
+  return (acc.balances ?? []).filter(b => b.currency !== 'ARS' && b.balance !== 0)
 }
 
 export function consumos(acc: Pick<Account, 'balances'>): number {

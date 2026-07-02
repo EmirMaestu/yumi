@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { type Recurring, type VencimientoCard } from './types'
-import { consumos, enCuotas, deudaTotal, cuotaActual, cicloArs, aPagarCard, aPagarTotal, recurrenteMensual, cicloEnCurso } from './cards'
+import { consumos, enCuotas, deudaTotal, cuotaActual, cicloArs, aPagarCard, aPagarTotal, recurrenteMensual, cicloEnCurso, arsBalance, foreignBalances } from './cards'
 
 const card = { balances: [{ currency: 'ARS' as const, balance: -100000 }] }
 
@@ -18,6 +18,17 @@ const recurring: Recurring[] = [
 describe('modelo de plata de la tarjeta', () => {
   test('consumos = valor absoluto del saldo ARS', () => {
     expect(consumos(card)).toBe(100000)
+  })
+
+  test('arsBalance NO cae al primer balance si no hay ARS (BF5)', () => {
+    const soloUsd = { balances: [{ currency: 'USD' as const, balance: 120 }] }
+    expect(arsBalance(soloUsd)).toBe(0)
+    expect(arsBalance({ balances: [{ currency: 'ARS' as const, balance: 500 }] })).toBe(500)
+  })
+
+  test('foreignBalances devuelve solo no-ARS distintos de 0', () => {
+    const acc = { balances: [{ currency: 'ARS' as const, balance: 500 }, { currency: 'USD' as const, balance: 120 }, { currency: 'EUR' as const, balance: 0 }] }
+    expect(foreignBalances(acc)).toEqual([{ currency: 'USD', balance: 120 }])
   })
 
   test('enCuotas suma lo que falta, incluyendo planes pausados', () => {

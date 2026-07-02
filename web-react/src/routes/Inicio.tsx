@@ -152,8 +152,16 @@ export default function Inicio() {
       <SectionCard to="/categorias" icon="ti-tags" label="Categorías" summary={`${nCats} categoría${nCats === 1 ? '' : 's'}`} />
       <SectionCard to="/recurrentes" icon="ti-repeat" label="Recurrentes" summary={`${nRec} recurrente${nRec === 1 ? '' : 's'}`} />
 
+      {(data.unconverted?.length ?? 0) > 0 && (
+        <div style={{ margin: '4px 18px 0', padding: '8px 12px', borderRadius: 10, background: '#fff3cd', color: '#7a5c00', fontSize: 12 }}>
+          {data.unconverted!.map((u) => `${u.currency} ${Math.abs(u.amount).toLocaleString('es-AR')}`).join(' · ')} sin convertir — no hay cotización
+        </div>
+      )}
       {formatUsdApprox(data.patrimonio_ars, data.blue) && (
-        <div style={{ padding: '0 18px', fontSize: 12, color: 'var(--color-sage)' }}>Patrimonio {formatUsdApprox(data.patrimonio_ars, data.blue)} · blue {formatMoney(data.blue)}</div>
+        <div style={{ padding: '0 18px', fontSize: 12, color: 'var(--color-sage)' }}>
+          Patrimonio {formatUsdApprox(data.patrimonio_ars, data.blue)} · blue {formatMoney(data.blue)}
+          {data.blue_at ? ` · ${new Date(data.blue_at * 1000).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}` : ''}
+        </div>
       )}
     </div>
   )

@@ -5,8 +5,9 @@ import { notifyOk, notifyErr } from '../lib/notify'
 import { useAccountsWithBalances, useAccountMutations } from '../hooks/useAccounts'
 import { useRecurring } from '../hooks/useRecurring'
 import { type Account } from '../lib/types'
-import { arsBalance, enCuotas, deudaTotal } from '../lib/cards'
+import { arsBalance, enCuotas, deudaTotal, foreignBalances } from '../lib/cards'
 import { Money } from '../lib/privacy'
+import { formatMoney } from '../lib/format'
 import Card from '../components/ui/Card'
 import BackButton from '../components/ui/BackButton'
 import { CuentasSkeleton } from '../components/ui/skeletons'
@@ -90,6 +91,11 @@ export default function Cuentas() {
               <div style={{ fontSize: 11, color: 'var(--color-sage)' }}>
                 Consumos <Money value={Math.abs(arsBalance(a))} /> · En cuotas <Money value={enCuotas(a.id, recurring.data)} />
               </div>
+              {foreignBalances(a).map((b) => (
+                <div key={b.currency} style={{ fontSize: 11, color: 'var(--color-sage)' }}>
+                  + {formatMoney(Math.abs(b.balance), b.currency)} en {b.currency}
+                </div>
+              ))}
             </div>
           ) : (
             /* Non-credit account: standard balance display */
