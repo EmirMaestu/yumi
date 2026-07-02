@@ -400,6 +400,13 @@ def init_db():
             created_at TEXT NOT NULL DEFAULT (datetime('now')));
         CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(user_id);
         CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT);
+        CREATE TABLE IF NOT EXISTS monthly_statements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            year INTEGER NOT NULL, month INTEGER NOT NULL,
+            data_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE(user_id, year, month));
     """)
     for tbl in ("accounts","transactions","recurring","eventos","recordatorios","tareas","habito_logs","notas"):
         cols = [r[1] for r in conn.execute(f"PRAGMA table_info({tbl})").fetchall()]
@@ -1961,6 +1968,22 @@ async def recurring_daily(context):
         _pc.commit(); _pc.close()
     except Exception:
         log.exception("purge trash transacciones")
+    # El día 1: generar el resumen mensual (statement) del mes anterior para cada usuario (D10).
+    _now = now_local()
+    if _now.day == 1:
+        try:
+            import web  # lazy: evita el costo de import en el arranque del bot
+            _py, _pm = (_now.year - 1, 12) if _now.month == 1 else (_now.year, _now.month - 1)
+            _sc = sqlite3.connect(DB_PATH); _sc.row_factory = sqlite3.Row
+            for _u in _sc.execute("SELECT id FROM users WHERE active=1").fetchall():
+                data = web.build_statement(_sc, _u["id"], _py, _pm)
+                _sc.execute(
+                    "INSERT OR IGNORE INTO monthly_statements(user_id, year, month, data_json, created_at) "
+                    "VALUES (?,?,?,?,datetime('now'))",
+                    (_u["id"], _py, _pm, json.dumps(data, ensure_ascii=False)))
+            _sc.commit(); _sc.close()
+        except Exception:
+            log.exception("generar statements del mes anterior")
     conn = sqlite3.connect(DB_PATH); conn.row_factory = sqlite3.Row
     due = conn.execute("""SELECT r.*, u.telegram_id AS owner_tg
                           FROM recurring r LEFT JOIN users u ON u.id=r.user_id

@@ -1935,6 +1935,79 @@ def api_trends(months: int = 6, by: str = "total", currency: str = "ARS",
         return trends.monthly_trend(rows, months=months, today=today)
 
 
+# ─── Resúmenes mensuales (statements, D10) ─────────────────────────────────
+def build_statement(conn, uid, year, month):
+    """Snapshot inmutable de un mes cerrado: totales, por categoría, por cuenta,
+    n_movimientos, vs_prev_pct. Todo kind='normal' (transferencias/ajustes fuera)."""
+    start = f"{year:04d}-{month:02d}-01"
+    ey, em = (year + 1, 1) if month == 12 else (year, month + 1)
+    end = f"{ey:04d}-{em:02d}-01"
+    py, pm = (year - 1, 12) if month == 1 else (year, month - 1)
+    pstart = f"{py:04d}-{pm:02d}-01"
+    base = ("FROM transactions WHERE user_id=? AND occurred_at>=? AND occurred_at<? "
+            "AND kind='normal' AND currency='ARS'")
+
+    def total(typ, s, e):
+        return conn.execute(f"SELECT COALESCE(SUM(amount),0) {base} AND type=?", (uid, s, e, typ)).fetchone()[0]
+
+    gasto = total("gasto", start, end)
+    ingreso = total("ingreso", start, end)
+    prev_gasto = total("gasto", pstart, start)
+    n = conn.execute(f"SELECT COUNT(*) {base}", (uid, start, end)).fetchone()[0]
+    por_categoria = [dict(r) for r in conn.execute(
+        "SELECT COALESCE(c.name,'(sin categoría)') AS name, SUM(t.amount) AS total "
+        "FROM transactions t LEFT JOIN categories c ON c.id=t.category_id "
+        "WHERE t.user_id=? AND t.occurred_at>=? AND t.occurred_at<? AND t.kind='normal' "
+        "AND t.type='gasto' AND t.currency='ARS' GROUP BY name ORDER BY total DESC",
+        (uid, start, end)).fetchall()]
+    por_cuenta = [dict(r) for r in conn.execute(
+        "SELECT a.name AS name, SUM(CASE WHEN t.type='ingreso' THEN t.amount ELSE -t.amount END) AS neto "
+        "FROM transactions t JOIN accounts a ON a.id=t.account_id "
+        "WHERE t.user_id=? AND t.occurred_at>=? AND t.occurred_at<? AND t.kind='normal' AND t.currency='ARS' "
+        "GROUP BY a.name ORDER BY neto", (uid, start, end)).fetchall()]
+    vs_prev_pct = ((gasto - prev_gasto) / prev_gasto * 100) if prev_gasto > 0 else None
+    return {
+        "gasto_total": gasto, "ingreso_total": ingreso, "n_movimientos": n,
+        "por_categoria": por_categoria, "por_cuenta": por_cuenta,
+        "tarjetas": [], "vs_prev_pct": vs_prev_pct,
+    }
+
+
+@app.get("/api/statements")
+def api_statements(user=Depends(require_user)):
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT year, month, data_json FROM monthly_statements WHERE user_id=? "
+            "ORDER BY year DESC, month DESC", (user["id"],)).fetchall()
+    out = []
+    for r in rows:
+        d = json.loads(r["data_json"])
+        out.append({"year": r["year"], "month": r["month"], "gasto_total": d.get("gasto_total", 0),
+                    "vs_prev_pct": d.get("vs_prev_pct")})
+    return out
+
+
+@app.get("/api/statements/{year}/{month}")
+def api_statement(year: int, month: int, user=Depends(require_user)):
+    now = now_local()
+    # El mes en curso (o futuro) todavía no cerró.
+    if (year, month) >= (now.year, now.month):
+        raise HTTPException(404, "El mes todavía no cerró")
+    with db() as conn:
+        row = conn.execute(
+            "SELECT data_json FROM monthly_statements WHERE user_id=? AND year=? AND month=?",
+            (user["id"], year, month)).fetchone()
+        if row:
+            return {"year": year, "month": month, **json.loads(row["data_json"])}
+        data = build_statement(conn, user["id"], year, month)
+        conn.execute(
+            "INSERT OR IGNORE INTO monthly_statements(user_id, year, month, data_json, created_at) "
+            "VALUES (?,?,?,?,datetime('now'))",
+            (user["id"], year, month, json.dumps(data, ensure_ascii=False)))
+        conn.commit()
+    return {"year": year, "month": month, **data}
+
+
 # ─── Calendario: pagos (plata) + agenda (vida) ──────────────────────────────
 # Conceptualmente hay tres orígenes distintos y NO deben mezclarse bajo "pagos":
 #   • pagos  = recurrentes + vencimientos de tarjeta (tienen monto)

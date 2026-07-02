@@ -76,6 +76,9 @@ CREATE TABLE trash (id INTEGER PRIMARY KEY AUTOINCREMENT,
 CREATE TABLE category_learning (user_id INTEGER NOT NULL, keyword TEXT NOT NULL,
     category_id INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 1,
     PRIMARY KEY (user_id, keyword, category_id));
+CREATE TABLE monthly_statements (id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL, year INTEGER NOT NULL, month INTEGER NOT NULL,
+    data_json TEXT NOT NULL, created_at TEXT NOT NULL, UNIQUE(user_id, year, month));
 """
 
 
