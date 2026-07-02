@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiGet, apiPost, apiPatch, apiDelete } from '../lib/api'
+import { notifyOk, notifyErr } from '../lib/notify'
 import { type Recurring } from '../lib/types'
 
 export function useRecurring(includeInactive = false) {
@@ -42,15 +43,26 @@ export function useRecurringMutations() {
   return {
     create: useMutation({
       mutationFn: (b: RecurringCreate) => apiPost('/api/recurring', b),
-      onSuccess: inval,
+      onSuccess: () => { inval(); notifyOk('Recurrente creado') },
+      onError: notifyErr,
     }),
     update: useMutation({
       mutationFn: ({ id, ...b }: RecurringUpdate) => apiPatch(`/api/recurring/${id}`, b),
-      onSuccess: inval,
+      onSuccess: (_d, vars) => {
+        inval()
+        // El mismo update sirve para editar y para pausar/reactivar (toggle de active).
+        if (vars.active !== undefined && Object.keys(vars).length === 2) {
+          notifyOk(vars.active ? 'Recurrente reactivado' : 'Recurrente pausado')
+        } else {
+          notifyOk('Recurrente actualizado')
+        }
+      },
+      onError: notifyErr,
     }),
     remove: useMutation({
       mutationFn: (id: number) => apiDelete(`/api/recurring/${id}`),
-      onSuccess: inval,
+      onSuccess: () => { inval(); notifyOk('Recurrente eliminado') },
+      onError: notifyErr,
     }),
   }
 }

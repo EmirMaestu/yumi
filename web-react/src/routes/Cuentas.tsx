@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { apiPost } from '../lib/api'
+import { notifyOk, notifyErr } from '../lib/notify'
 import { useAccountsWithBalances, useAccountMutations } from '../hooks/useAccounts'
 import { useRecurring } from '../hooks/useRecurring'
 import { type Account } from '../lib/types'
@@ -31,15 +32,22 @@ export default function Cuentas() {
   const recurring = useRecurring()
   const { remove } = useAccountMutations()
   const qc = useQueryClient()
-  const toggleShared = async (a: Account) => {
-    await apiPost('/api/share', { entity: 'accounts', id: a.id, shared: a.shared ? 0 : 1 })
-    qc.invalidateQueries()
+  const doToggleShared = async (a: Account) => {
+    const nowShared = !a.shared
+    try {
+      await apiPost('/api/share', { entity: 'accounts', id: a.id, shared: nowShared ? 1 : 0 })
+      qc.invalidateQueries()
+      notifyOk(nowShared ? 'Cuenta compartida' : 'Cuenta hecha privada')
+    } catch (e) {
+      notifyErr(e)
+    }
   }
 
   const [createOpen, setCreateOpen] = useState(false)
   const [editAccount, setEditAccount] = useState<Account | null>(null)
   const [deleteAccount, setDeleteAccount] = useState<Account | null>(null)
   const [adjustAccount, setAdjustAccount] = useState<Account | null>(null)
+  const [shareAccount, setShareAccount] = useState<Account | null>(null)
 
   if (isLoading) return <CuentasSkeleton />
 
@@ -66,7 +74,7 @@ export default function Cuentas() {
           {/* Secondary meta below name */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span className="cap" style={{ fontSize: 10.5 }}>{TYPE_LABEL[a.type] ?? a.type}</span>
-            <button onClick={() => toggleShared(a)} title="Privada solo vos / Compartida con tu pareja"
+            <button onClick={() => setShareAccount(a)} title="Privada solo vos / Compartida con tu pareja"
               style={a.shared ? sharedPill : privatePill}>
               {a.shared ? '👥 Compartida' : '🔒 Privada'}
             </button>
@@ -127,6 +135,21 @@ export default function Cuentas() {
         onConfirm={() => {
           if (deleteAccount) remove.mutate(deleteAccount.id)
           setDeleteAccount(null)
+        }}
+      />
+
+      {/* Share/unshare confirm */}
+      <ConfirmDialog
+        open={shareAccount !== null}
+        onOpenChange={(o) => { if (!o) setShareAccount(null) }}
+        title={shareAccount?.shared ? '¿Hacer privada esta cuenta?' : '¿Compartir esta cuenta?'}
+        description={shareAccount?.shared
+          ? 'Tu pareja va a dejar de verla.'
+          : 'Tu pareja va a ver todos los movimientos de esta cuenta, incluidos los anteriores.'}
+        confirmLabel={shareAccount?.shared ? 'Hacer privada' : 'Compartir'}
+        onConfirm={() => {
+          if (shareAccount) doToggleShared(shareAccount)
+          setShareAccount(null)
         }}
       />
 
