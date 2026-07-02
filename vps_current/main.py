@@ -33,6 +33,7 @@ import proactive
 import recurrence
 import streaks
 import shopping
+import finance_alerts
 
 BASE_DIR = Path(__file__).parent
 load_dotenv(BASE_DIR / ".env")
@@ -407,6 +408,10 @@ def init_db():
             data_json TEXT NOT NULL,
             created_at TEXT NOT NULL,
             UNIQUE(user_id, year, month));
+        CREATE TABLE IF NOT EXISTS notifications_sent (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER, kind TEXT, ref TEXT, sent_at TEXT,
+            UNIQUE(user_id, kind, ref));
     """)
     for tbl in ("accounts","transactions","recurring","eventos","recordatorios","tareas","habito_logs","notas"):
         cols = [r[1] for r in conn.execute(f"PRAGMA table_info({tbl})").fetchall()]
@@ -4898,6 +4903,27 @@ def _pay_button(push_item):
         "✅ Marcar pagado", callback_data=f"cardpay:{push_item['ref_id']}")]])
 
 
+async def finance_alerts_daily(context):
+    """Alertas de finanzas (cierre/vencimiento de tarjeta, presupuesto) con dedup."""
+    try:
+        import push_notify
+        today = now_local().date()
+        conn = sqlite3.connect(DB_PATH); conn.row_factory = sqlite3.Row
+        for uid, tg in each_user():
+            for kind, ref, text in finance_alerts.pending_alerts(conn, uid, today):
+                url = "/app/tarjetas" if kind.startswith("card") else "/app/presupuestos"
+                try:
+                    await notify_user(context.application, tg, text)
+                    push_notify.send_to_user(conn, [uid], "Yumi", text, url)
+                except Exception:
+                    log.exception("finance alert send uid=%s", uid)
+                finance_alerts.mark_sent(conn, uid, kind, ref)
+            conn.commit()
+        conn.close()
+    except Exception:
+        log.exception("finance_alerts_daily")
+
+
 async def payment_calendar_daily(context):
     try:
         import push_notify
@@ -5186,6 +5212,7 @@ def main():
     app.job_queue.run_repeating(reminder_watchdog, interval=60, first=15)
     app.job_queue.run_daily(networth_snapshot_daily, time=dtime(NETWORTH_HOUR, 0, tzinfo=TZ))
     app.job_queue.run_daily(payment_calendar_daily, time=dtime(9, 0, tzinfo=TZ))
+    app.job_queue.run_daily(finance_alerts_daily, time=dtime(9, 15, tzinfo=TZ))
     app.job_queue.run_daily(monthly_summary_daily, time=dtime(9, 30, tzinfo=TZ))
     app.job_queue.run_daily(weekly_digest, time=dtime(DIGEST_HOUR, 0, tzinfo=TZ))
     app.job_queue.run_repeating(dolar_alert_repeating, interval=1800, first=60)
