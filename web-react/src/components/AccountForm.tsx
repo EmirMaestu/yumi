@@ -6,6 +6,9 @@ import { useAccountMutations } from '../hooks/useAccounts'
 import { type Account } from '../lib/types'
 import Modal from './ui/Modal'
 import Select from './ui/Select'
+import Field from './form/Field'
+import TextInput from './form/TextInput'
+import PrimaryButton from './form/PrimaryButton'
 
 const schema = z.object({
   name: z.string().min(1, 'Requerido'),
@@ -96,14 +99,9 @@ export default function AccountForm({
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? 'Editar cuenta' : 'Nueva cuenta'}>
       <form onSubmit={handleSubmit(submit)} style={{ display: 'grid', gap: 12 }}>
-        <div>
-          <input
-            {...register('name')}
-            placeholder="Nombre de la cuenta"
-            style={inputStyle}
-          />
-          {errors.name && <span style={errorStyle}>{errors.name.message}</span>}
-        </div>
+        <Field error={errors.name?.message}>
+          <TextInput {...register('name')} placeholder="Nombre de la cuenta" />
+        </Field>
 
         <Controller
           name="type"
@@ -121,61 +119,22 @@ export default function AccountForm({
 
         {isCredit && (
           <>
-            <label style={labelStyle}>
-              Día de cierre
-              <input
-                type="number"
-                {...register('closing_day', { valueAsNumber: true })}
-                style={inputStyle}
-              />
-              {errors.closing_day && <span style={errorStyle}>{errors.closing_day.message}</span>}
-            </label>
-            <label style={labelStyle}>
-              Día de vencimiento
-              <input
-                type="number"
-                {...register('due_day', { valueAsNumber: true })}
-                style={inputStyle}
-              />
-              {errors.due_day && <span style={errorStyle}>{errors.due_day.message}</span>}
-            </label>
-            <label style={labelStyle}>
-              Límite de crédito (opcional)
-              <input
-                type="number"
-                step="0.01"
-                placeholder="Ej. 2000000"
-                {...register('credit_limit', { setValueAs: (v) => (v === '' || v == null ? undefined : Number(v)) })}
-                style={inputStyle}
-              />
-              {errors.credit_limit && <span style={errorStyle}>{errors.credit_limit.message}</span>}
-            </label>
+            <Field label="Día de cierre" error={errors.closing_day?.message}>
+              <TextInput type="number" {...register('closing_day', { valueAsNumber: true })} />
+            </Field>
+            <Field label="Día de vencimiento" error={errors.due_day?.message}>
+              <TextInput type="number" {...register('due_day', { valueAsNumber: true })} />
+            </Field>
+            <Field label="Límite de crédito (opcional)" error={errors.credit_limit?.message}>
+              <TextInput type="number" step="0.01" placeholder="Ej. 2000000"
+                {...register('credit_limit', { setValueAs: (v) => (v === '' || v == null ? undefined : Number(v)) })} />
+            </Field>
           </>
         )}
 
-        <button type="submit" style={ctaBtn} disabled={isPending}>{isPending ? 'Guardando…' : 'Guardar'}</button>
+        <PrimaryButton type="submit" loading={isPending}>Guardar</PrimaryButton>
       </form>
     </Modal>
   )
 }
 
-const inputStyle: React.CSSProperties = {
-  border: '1px solid var(--color-mist)',
-  borderRadius: 10,
-  padding: '10px 12px',
-  fontSize: 14,
-  background: 'var(--color-linen)',
-  width: '100%',
-  boxSizing: 'border-box',
-}
-const labelStyle: React.CSSProperties = { display: 'grid', gap: 4, fontSize: 13, color: 'var(--color-sage)' }
-const ctaBtn: React.CSSProperties = {
-  background: 'var(--color-voltage)',
-  color: 'var(--voltage-on-dark)',
-  border: 'none',
-  borderRadius: 10,
-  padding: '14px',
-  fontWeight: 500,
-  cursor: 'pointer',
-}
-const errorStyle: React.CSSProperties = { fontSize: 12, color: 'var(--color-error)', marginTop: 2 }
