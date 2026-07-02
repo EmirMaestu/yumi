@@ -5,7 +5,7 @@ import { useTransactions, useTxMutations } from '../hooks/useTransactions'
 import { type TxFilters } from '../hooks/useTransactions'
 import { useAccounts } from '../hooks/useAccounts'
 import { useCategories } from '../hooks/useCategories'
-import { formatMoney } from '../lib/format'
+import { Money } from '../lib/privacy'
 import { type Transaction } from '../lib/types'
 import { MovimientosSkeleton } from '../components/ui/skeletons'
 import EmptyState from '../components/ui/EmptyState'
@@ -129,8 +129,8 @@ export default function Movimientos() {
       {/* Totales del filtro (UX5) */}
       {!isLoading && data && data.length > 0 && (
         <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--color-linen)', padding: '4px 0 10px', fontSize: 12.5, color: 'var(--color-sage)', borderBottom: '1px solid var(--color-mist)', marginBottom: 8 }}>
-          Gastos <b style={{ color: 'var(--color-obsidian-ink)' }}>{formatMoney(totalGastos)}</b>
-          {' · '}Ingresos <b style={{ color: 'var(--color-obsidian-ink)' }}>{formatMoney(totalIngresos)}</b>
+          Gastos <b style={{ color: 'var(--color-obsidian-ink)' }}><Money value={totalGastos} /></b>
+          {' · '}Ingresos <b style={{ color: 'var(--color-obsidian-ink)' }}><Money value={totalIngresos} /></b>
           {' · '}{page?.total ?? data.length} movimiento{(page?.total ?? data.length) === 1 ? '' : 's'}
         </div>
       )}
@@ -172,7 +172,7 @@ export default function Movimientos() {
           {/* Amount + actions */}
           <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <span style={{ fontSize: 15, fontWeight: 500, color: t.type === 'ingreso' ? '#3b6d11' : 'var(--color-obsidian-ink)' }}>
-              {t.type === 'ingreso' ? '+' : '−'}{formatMoney(t.amount, t.currency)}
+              {t.type === 'ingreso' ? '+' : '−'}<Money value={t.amount} currency={t.currency} />
             </span>
             <button aria-label={`Editar ${t.description}`} onClick={() => setEditTx(t)} style={iconBtn}>
               <i className="ti ti-edit" aria-hidden />
