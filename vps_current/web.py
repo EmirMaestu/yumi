@@ -33,6 +33,7 @@ import vencimientos
 import networth
 import trends
 import finance
+import splits
 
 BASE_DIR = Path(__file__).parent
 load_dotenv(BASE_DIR / ".env")
@@ -2006,6 +2007,80 @@ def api_statement(year: int, month: int, user=Depends(require_user)):
             (user["id"], year, month, json.dumps(data, ensure_ascii=False)))
         conn.commit()
     return {"year": year, "month": month, **data}
+
+
+# ─── Splits de pareja (quién debe a quién) ─────────────────────────────────
+@app.get("/api/splits/summary")
+def api_splits_summary(user=Depends(require_user)):
+    """Balance de gastos compartidos con la pareja. 404 si el hogar es de 1."""
+    members = _household_member_ids(user["id"])
+    others = [m for m in members if m != user["id"]]
+    if not others:
+        raise HTTPException(404, "Hogar de una persona")
+    other_id = others[0]
+    with db() as conn:
+        rows = [dict(r) for r in conn.execute(
+            "SELECT * FROM shared_expenses WHERE (payer_user_id=? AND other_user_id=?) "
+            "OR (payer_user_id=? AND other_user_id=?)",
+            (user["id"], other_id, other_id, user["id"])).fetchall()]
+        orow = conn.execute("SELECT name FROM users WHERE id=?", (other_id,)).fetchone()
+    bal = splits.net_balance(rows, user["id"], other_id)
+    net = bal.get("ARS", 0) or (next(iter(bal.values())) if bal else 0)
+    status = "even" if not net else ("they_owe" if net > 0 else "you_owe")
+    return {"status": status, "amount": abs(net), "other_name": orow["name"] if orow else "tu pareja"}
+
+
+# ─── Metas de ahorro ────────────────────────────────────────────────────────
+@app.get("/api/savings_goals")
+def api_savings_list(user=Depends(require_user)):
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM savings_goals WHERE user_id=? AND active=1 ORDER BY created_at DESC",
+            (user["id"],)).fetchall()
+    return [dict(r) for r in rows]
+
+
+@app.post("/api/savings_goals")
+def api_savings_create(body: dict = Body(...), user=Depends(require_user)):
+    name = (body.get("name") or "").strip()
+    if not name: raise HTTPException(400, "Nombre requerido")
+    try: target = float(body["target_amount"])
+    except (KeyError, TypeError, ValueError): raise HTTPException(400, "Objetivo inválido")
+    if target <= 0: raise HTTPException(400, "El objetivo debe ser mayor a 0")
+    with db() as conn:
+        cur = conn.execute(
+            "INSERT INTO savings_goals(user_id, name, target_amount, currency, current_amount, deadline) "
+            "VALUES (?,?,?,?,?,?)",
+            (user["id"], name, target, body.get("currency", "USD"),
+             float(body.get("current_amount") or 0), body.get("deadline")))
+        conn.commit()
+    return {"id": cur.lastrowid, "ok": True}
+
+
+@app.patch("/api/savings_goals/{gid}")
+def api_savings_update(gid: int, body: dict = Body(...), user=Depends(require_user)):
+    with db() as conn:
+        row = conn.execute("SELECT user_id FROM savings_goals WHERE id=?", (gid,)).fetchone()
+        if not row: raise HTTPException(404, "No existe")
+        if row["user_id"] != user["id"]: raise HTTPException(403, "No es tuya")
+        fields = []; params = []
+        for k in ("name", "target_amount", "current_amount", "deadline", "currency"):
+            if k in body: fields.append(f"{k}=?"); params.append(body[k])
+        if "active" in body: fields.append("active=?"); params.append(1 if body["active"] else 0)
+        if not fields: raise HTTPException(400, "Sin cambios")
+        params.append(gid)
+        conn.execute(f"UPDATE savings_goals SET {', '.join(fields)} WHERE id=?", params); conn.commit()
+    return {"ok": True}
+
+
+@app.delete("/api/savings_goals/{gid}")
+def api_savings_delete(gid: int, user=Depends(require_user)):
+    with db() as conn:
+        row = conn.execute("SELECT user_id FROM savings_goals WHERE id=?", (gid,)).fetchone()
+        if not row: raise HTTPException(404, "No existe")
+        if row["user_id"] != user["id"]: raise HTTPException(403, "No es tuya")
+        conn.execute("DELETE FROM savings_goals WHERE id=?", (gid,)); conn.commit()
+    return {"ok": True}
 
 
 # ─── Calendario: pagos (plata) + agenda (vida) ──────────────────────────────

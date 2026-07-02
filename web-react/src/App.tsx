@@ -12,6 +12,7 @@ import Categorias from './routes/Categorias'
 import Presupuestos from './routes/Presupuestos'
 import Tendencias from './routes/Tendencias'
 import Resumenes, { ResumenDetalle } from './routes/Resumenes'
+import Metas from './routes/Metas'
 import Yo from './routes/Yo'
 import Recurrentes from './routes/Recurrentes'
 import Tareas from './routes/Tareas'
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="/tendencias" element={<Tendencias />} />
         <Route path="/resumenes" element={<Resumenes />} />
         <Route path="/resumenes/:year/:month" element={<ResumenDetalle />} />
+        <Route path="/metas" element={<Metas />} />
         <Route path="/yo" element={<Yo />} />
         <Route path="/perfil" element={<Navigate to="/yo" replace />} />
         <Route path="/recurrentes" element={<Recurrentes />} />

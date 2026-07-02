@@ -5,6 +5,7 @@ import { useAccountsWithBalances } from '../hooks/useAccounts'
 import { useRecurring } from '../hooks/useRecurring'
 import { useCategories } from '../hooks/useCategories'
 import { useBudgets, budgetPct, budgetColor } from '../hooks/useBudgets'
+import { useSplitsSummary } from '../hooks/useSplits'
 import { formatMoney, formatUsdApprox } from '../lib/format'
 import { Money } from '../lib/privacy'
 import { enCuotas as calcEnCuotas, cicloEnCursoTotal, aPagarCard, aPagarTotal } from '../lib/cards'
@@ -26,6 +27,7 @@ export default function Inicio() {
   const recurring = useRecurring()
   const cats = useCategories()
   const budgets = useBudgets()
+  const splits = useSplitsSummary()
 
   if (isLoading) return <InicioSkeleton />
   if (isError || !data) return <EmptyState>No pudimos cargar tus datos. Reintentá.</EmptyState>
@@ -137,6 +139,23 @@ export default function Inicio() {
                 )
               })}
             </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Splits de pareja (solo hogares de >1; read-only) */}
+      {splits.isSuccess && splits.data && (
+        <div style={{ padding: '4px 18px 0' }}>
+          <Card>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 14, fontWeight: 500 }}>Con {splits.data.other_name}</span>
+              <span style={{ fontSize: 15, fontWeight: 500, color: splits.data.status === 'you_owe' ? 'var(--color-error)' : splits.data.status === 'they_owe' ? '#3b6d11' : 'var(--color-sage)' }}>
+                {splits.data.status === 'even' ? 'Están a mano 🤝'
+                  : splits.data.status === 'they_owe' ? <>🟢 Te debe <Money value={splits.data.amount} /></>
+                    : <>🔴 Le debés <Money value={splits.data.amount} /></>}
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--color-sage)', marginTop: 4 }}>Gestionalo desde el bot</div>
           </Card>
         </div>
       )}
