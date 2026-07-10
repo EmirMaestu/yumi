@@ -768,6 +768,14 @@ def _wa_process_message(main, frm, profile, mtype, text):
                 return
         wa_send(frm, getattr(main, "REGISTER_MSG", "👋 Yumi es por invitación. Pedile su link a quien te invitó."))
         return
+    # Abrir la ventana de servicio de 24h: registrar el último inbound de WhatsApp.
+    # (La proactividad usa esto para elegir texto libre —gratis— vs plantilla.)
+    try:
+        with db() as _c:
+            _c.execute("UPDATE users SET wa_last_inbound_at=datetime('now') WHERE id=?", (user["id"],))
+            _c.commit()
+    except Exception as _e:
+        print("wa_last_inbound_at update fail:", _e)
     if mtype != "text" or not (text or "").strip():
         wa_send(frm, "Por ahora te entiendo por texto 🙂 (los audios llegan pronto).")
         return
