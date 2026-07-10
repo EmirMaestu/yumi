@@ -428,7 +428,9 @@ def init_db():
                   ("link_code", "TEXT"),
                   ("link_code_exp", "TEXT"),
                   ("cal_token", "TEXT"),
-                  ("share_all", "INTEGER DEFAULT 0")],
+                  ("share_all", "INTEGER DEFAULT 0"),
+                  ("wa_last_inbound_at", "TEXT"),      # último inbound de WhatsApp → ventana de 24h
+                  ("notify_channel", "TEXT")],         # auto|telegram|whatsapp|both (NULL=auto)
         "accounts": [("preferred_fx_rate", "TEXT"), ("closing_day", "INTEGER"), ("due_day", "INTEGER"), ("shared", "INTEGER DEFAULT 0"), ("credit_limit", "REAL")],
         "recordatorios": [("recurrence", "TEXT"), ("list_id", "INTEGER"), ("event_id", "INTEGER"), ("shared", "INTEGER DEFAULT 0")],
         "transactions": [("is_shared", "INTEGER DEFAULT 0"),
@@ -4553,13 +4555,36 @@ async def handle_photo(update, context):
         try: await notice.delete()
         except Exception: pass
 
+# ── Proactividad multicanal (Telegram + WhatsApp oficial) ──────────────────────
+# La lógica pura (decidir canal/modo) vive en notify.py (liviano, testeable en CI).
+from notify import delivery_plan  # noqa: E402
+
+
+async def notify_user(bot, user_row, text, template_params=None, reply_markup=None):
+    """Entrega un aviso proactivo por el/los canal(es) del usuario. `text` = lo que se ve
+    en Telegram/WhatsApp-libre; `template_params` = variables de la plantilla utility
+    (caso fuera de ventana). Fail-safe por canal."""
+    import whatsapp_api
+    for kind, tpl in delivery_plan(user_row):
+        try:
+            if kind == "telegram":
+                await bot.send_message(chat_id=user_row["telegram_id"], text=text, reply_markup=reply_markup)
+            elif kind == "wa_text":
+                whatsapp_api.send_text(user_row["wa_id"], text)
+            elif kind == "wa_template":
+                whatsapp_api.send_template(user_row["wa_id"], tpl, template_params or [text])
+        except Exception:
+            log.exception("notify_user %s", kind)
+
+
 async def reminder_watchdog(context):
     try:
         conn = sqlite3.connect(DB_PATH); conn.row_factory = sqlite3.Row
         nowstr = now_local().strftime("%Y-%m-%dT%H:%M")
         rows = conn.execute(
             "SELECT r.id, r.text, r.source, r.remind_at, r.recurrence, r.user_id, r.list_id, "
-            "u.telegram_id AS owner_tg, u.telegram_id AS telegram_id "
+            "u.telegram_id AS telegram_id, u.wa_id AS wa_id, "
+            "u.wa_last_inbound_at AS wa_last_inbound_at, u.notify_channel AS notify_channel "
             "FROM recordatorios r LEFT JOIN users u ON u.id=r.user_id "
             "WHERE r.fired=0 AND REPLACE(r.remind_at,' ','T') <= ? ORDER BY r.remind_at LIMIT 10",
             (nowstr,)).fetchall()
@@ -4567,16 +4592,20 @@ async def reminder_watchdog(context):
             conn.execute("UPDATE recordatorios SET fired=1 WHERE id=?", (r['id'],))
             conn.commit()
             extra = " (desde la web)" if r['source'] == "web" else ""
-            chat_id = r['owner_tg'] or (ALLOWED_USER_IDS[0] if ALLOWED_USER_IDS else None)
-            if chat_id:
-                body, kb = f"⏰ {r['text']}{extra}", None
-                if r['list_id']:
-                    try:
-                        ltext, kb = _render_shopping(r['list_id'])
-                        body = f"⏰ {r['text']}{extra}\n\n{ltext}"
-                    except Exception:
-                        log.exception("render lista en watchdog %s", r['id'])
-                await context.bot.send_message(chat_id=chat_id, text=body, reply_markup=kb)
+            display, kb = f"⏰ {r['text']}{extra}", None
+            if r['list_id']:
+                try:
+                    ltext, kb = _render_shopping(r['list_id'])
+                    display = f"⏰ {r['text']}{extra}\n\n{ltext}"
+                except Exception:
+                    log.exception("render lista en watchdog %s", r['id'])
+            urow = {"telegram_id": r['telegram_id'], "wa_id": r['wa_id'],
+                    "wa_last_inbound_at": r['wa_last_inbound_at'], "notify_channel": r['notify_channel']}
+            # Fallback histórico: sin canal resoluble → owner allow-listed (Telegram).
+            if not ((urow["telegram_id"] and int(urow["telegram_id"]) > 0) or urow["wa_id"]) and ALLOWED_USER_IDS:
+                urow["telegram_id"] = ALLOWED_USER_IDS[0]
+            # Router: Telegram y/o WhatsApp (texto libre si ventana abierta, plantilla si no).
+            await notify_user(context.bot, urow, display, template_params=[f"{r['text']}{extra}"], reply_markup=kb)
             try:
                 _reemit_recurring_reminder(context.application, r)
             except Exception:
