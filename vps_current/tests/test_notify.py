@@ -64,3 +64,24 @@ def test_plan_pref_whatsapp_closed_window():
 
 def test_plan_no_channels():
     assert notify.delivery_plan(_row(), NOW) == []
+
+
+# ── gate por plan: free = solo dentro de ventana (sin plantilla paga) ────────────
+def test_free_wa_out_of_window_drops_template():
+    # plan free (allow_template=False) + fuera de ventana → NO manda nada por WhatsApp
+    r = _row(wa_id="549261", telegram_id=-549261, wa_last_inbound_at=_ts(30))
+    assert notify.delivery_plan(r, NOW, allow_template=False) == []
+
+def test_free_wa_in_window_still_sends_free_text():
+    # plan free + dentro de ventana → texto libre (gratis), sí se manda
+    r = _row(wa_id="549261", telegram_id=-549261, wa_last_inbound_at=_ts(2))
+    assert notify.delivery_plan(r, NOW, allow_template=False) == [("wa_text", None)]
+
+def test_free_keeps_telegram():
+    # plan free no afecta Telegram (gratis siempre)
+    r = _row(telegram_id=555)
+    assert notify.delivery_plan(r, NOW, allow_template=False) == [("telegram", None)]
+
+def test_paid_wa_out_of_window_sends_template():
+    r = _row(wa_id="549261", telegram_id=-549261, wa_last_inbound_at=_ts(30))
+    assert notify.delivery_plan(r, NOW, allow_template=True) == [("wa_template", "yumi_aviso")]
