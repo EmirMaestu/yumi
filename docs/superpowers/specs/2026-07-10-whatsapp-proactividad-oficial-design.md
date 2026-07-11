@@ -11,6 +11,8 @@ Objetivo: que Yumi entregue **recordatorios y avisos** por **WhatsApp** (además
 ## Decisiones confirmadas
 - **La ventana de 24h decide el modo automáticamente:** usuario escribió hace <24h → **texto libre**; callado >24h → **plantilla de utilidad**.
 - **El disparo vive en el bot** (el `reminder_watchdog` que ya corre cada 60s), no en un scheduler nuevo del proceso web.
+- **Gate por plan (free vs pago):** el **plan free recibe WhatsApp proactivo SOLO dentro de la ventana de 24h** (texto libre, gratis); fuera de ventana no se manda plantilla (paga). Los planes de pago sí reciben plantilla fuera de ventana. Implementado con `allow_template` en `delivery_plan`/`notify_user`, calculado en el watchdog como `PLAN_RANK[household_plan(uid)] >= 1`.
+- **In-window NO requiere setup de Meta:** el texto libre dentro de la ventana es un mensaje de servicio (lo inicia el usuario) → funciona con el número ya conectado, **sin plantilla/verificación/pago**. Por eso la proactividad del plan free se puede prender YA; el setup de Meta es solo para el caso fuera de ventana (plantilla, planes de pago).
 - **Alcance de este spec: solo recordatorios/avisos.** Digest semanal, alertas de dólar, recurrentes generadas y otros proactivos quedan **fuera** (siguiente iteración, reusan la misma pieza).
 
 ## Modelo de datos (aditivo)

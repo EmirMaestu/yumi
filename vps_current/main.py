@@ -4560,12 +4560,14 @@ async def handle_photo(update, context):
 from notify import delivery_plan  # noqa: E402
 
 
-async def notify_user(bot, user_row, text, template_params=None, reply_markup=None):
+async def notify_user(bot, user_row, text, template_params=None, reply_markup=None, allow_template=True):
     """Entrega un aviso proactivo por el/los canal(es) del usuario. `text` = lo que se ve
     en Telegram/WhatsApp-libre; `template_params` = variables de la plantilla utility
-    (caso fuera de ventana). Fail-safe por canal."""
+    (caso fuera de ventana). `allow_template=False` (plan free) → NO manda plantilla fuera
+    de ventana (el free solo recibe WhatsApp proactivo mientras la ventana está abierta).
+    Fail-safe por canal."""
     import whatsapp_api
-    for kind, tpl in delivery_plan(user_row):
+    for kind, tpl in delivery_plan(user_row, allow_template=allow_template):
         try:
             if kind == "telegram":
                 await bot.send_message(chat_id=user_row["telegram_id"], text=text, reply_markup=reply_markup)
@@ -4604,8 +4606,12 @@ async def reminder_watchdog(context):
             # Fallback histórico: sin canal resoluble → owner allow-listed (Telegram).
             if not ((urow["telegram_id"] and int(urow["telegram_id"]) > 0) or urow["wa_id"]) and ALLOWED_USER_IDS:
                 urow["telegram_id"] = ALLOWED_USER_IDS[0]
+            # Plan free: WhatsApp proactivo SOLO dentro de la ventana de 24h (texto libre,
+            # gratis). Fuera de ventana la plantilla (paga) queda para planes de pago.
+            allow_tpl = bool(r['user_id']) and PLAN_RANK.get(household_plan(r['user_id']), 0) >= 1
             # Router: Telegram y/o WhatsApp (texto libre si ventana abierta, plantilla si no).
-            await notify_user(context.bot, urow, display, template_params=[f"{r['text']}{extra}"], reply_markup=kb)
+            await notify_user(context.bot, urow, display, template_params=[f"{r['text']}{extra}"],
+                              reply_markup=kb, allow_template=allow_tpl)
             try:
                 _reemit_recurring_reminder(context.application, r)
             except Exception:

@@ -19,13 +19,18 @@ def wa_window_open(last_inbound_str, now_utc=None):
     return 0 <= (now_utc - last).total_seconds() < 24 * 3600
 
 
-def delivery_plan(user_row, now_utc=None):
+def delivery_plan(user_row, now_utc=None, allow_template=True):
     """Decide canal(es) y modo. PURO (testeable, sin red). Devuelve acciones:
     ('telegram',None) | ('wa_text',None) | ('wa_template','yumi_aviso').
     user_row: dict/Row con telegram_id, wa_id, wa_last_inbound_at, notify_channel.
     Regla: telegram_id negativo = placeholder WhatsApp-only (no es Telegram real).
     notify_channel: auto (default) | telegram | whatsapp | both. En 'auto', si el
-    usuario está linkeado (tiene ambos) se prefiere Telegram para no duplicar."""
+    usuario está linkeado (tiene ambos) se prefiere Telegram para no duplicar.
+
+    allow_template: si False (típico del plan FREE), NO se manda plantilla fuera de la
+    ventana de 24h → el usuario free solo recibe proactividad por WhatsApp mientras la
+    ventana está abierta (texto libre, gratis). El envío in-window no requiere setup de
+    Meta (plantilla/verificación/pago); eso es solo para el caso fuera de ventana."""
     def _g(k):
         try:
             return user_row[k]
@@ -44,7 +49,7 @@ def delivery_plan(user_row, now_utc=None):
         actions.append(("telegram", None))
     if want_wa:
         if wa_window_open(_g("wa_last_inbound_at"), now_utc):
-            actions.append(("wa_text", None))
-        else:
-            actions.append(("wa_template", "yumi_aviso"))
+            actions.append(("wa_text", None))          # dentro de ventana: gratis, siempre
+        elif allow_template:
+            actions.append(("wa_template", "yumi_aviso"))  # fuera de ventana: plantilla (paga) — solo si el plan lo permite
     return actions
