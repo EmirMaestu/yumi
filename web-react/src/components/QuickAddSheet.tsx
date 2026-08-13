@@ -17,7 +17,7 @@ import { CURRENCY_CODES, CURRENCY_OPTS } from '../lib/currencies'
 import { apiGet } from '../lib/api'
 
 // ---------- quick-type selector ----------
-type QuickType = 'gasto' | 'tarea' | 'nota' | 'evento' | 'recordatorio'
+export type QuickType = 'gasto' | 'tarea' | 'nota' | 'evento' | 'recordatorio'
 
 const QUICK_TYPES: { value: QuickType; label: string }[] = [
   { value: 'gasto', label: 'Gasto' },
@@ -316,8 +316,10 @@ function TypeSwitcher({ value, onChange }: { value: QuickType; onChange: (v: Qui
 }
 
 // ---------- main component ----------
-export default function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function QuickAddSheet({ open, onClose, initialType }: { open: boolean; onClose: () => void; initialType?: QuickType }) {
   const [quickType, setQuickType] = useState<QuickType>('gasto')
+  // Al abrir desde una acción rápida del Inicio, arranca en el tipo pedido.
+  useEffect(() => { if (open && initialType) setQuickType(initialType) }, [open, initialType])
 
   return (
     <Sheet open={open} onClose={onClose} title="Agregar">
