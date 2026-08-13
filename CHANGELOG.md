@@ -5,6 +5,10 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 > Regla: cada tanda de features = bump de versión (MINOR), entrada en este archivo, tag de git (`vX.Y.Z`) y redeploy. `1.0.0` = lanzamiento del **asistente completo** (no solo finanzas).
 
 ## [Unreleased]
+### Added
+- **Registro autónomo (el bot deja entrar solo):** quien le escribe al bot de Telegram en frío (con `/start` o un mensaje) ahora **crea su cuenta solo** (hogar propio, plan free) sin necesitar un link de invitación. Los topes de costo (cap global diario + quota free) siguen protegiendo. Se puede apagar con `SELF_REGISTER=0`.
+### Fixed
+- **"¿Cómo invito a alguien?" ya no entra en loop:** el asistente reconoce el pedido de **invitar** en lenguaje natural (antes no existía ese intent → generaba una pregunta de aclaración distinta cada vez, sin seguir el hilo). Ahora responde con las dos formas: que la persona se registre sola, o el link para sumarla a tu hogar (o el aviso de "hogar completo" si tu plan no da para más).
 
 ## [1.3.0] - 2026-08-13
 ### Added

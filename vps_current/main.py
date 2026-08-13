@@ -587,6 +587,10 @@ def household_member_ids(uid):
 
 # ─── Referidos / onboarding (channel-agnostic) ──────────────────────────────
 INVITE_MODE = (os.environ.get("INVITE_MODE", "admins").strip().lower() or "admins")
+# Registro autónomo: si está prendido, quien le escribe al bot en frío crea su propia
+# cuenta (hogar propio, plan free) sin necesidad de invitación. Los topes de costo
+# (cap global diario + quota free) siguen protegiendo. Apagar con SELF_REGISTER=0.
+SELF_REGISTER = (os.environ.get("SELF_REGISTER", "1").strip().lower() not in ("0", "false", "no", "off"))
 _REF_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"  # sin caracteres ambiguos (l/o/0/1/i)
 
 def gen_referral_code(n=7):
@@ -1477,7 +1481,7 @@ PARSER_TOOL = {
                             "transaccion","transferencia","recurrente","mover","eliminar","editar",
                             "evento","recordatorio","tarea","habito","nota","crear_cuenta","editar_cuenta","consulta",
                             "gasto_compartido","saldar","meta_ahorro","lista_compra","alerta_dolar",
-                            "set_takenos_rate","dolar","afford","precio","desconocido"]},
+                            "set_takenos_rate","dolar","afford","precio","invitar","desconocido"]},
                         "confidence": {"type": "number"},
                         "data": {"type": "object"}
                     },
@@ -1562,6 +1566,7 @@ alerta_dolar: {"rate_type":"oficial"|"blue"|"mep"|"cripto"|"takenos","direction"
 set_takenos_rate: {"value":num}
 dolar: {}
 afford: {"afford_amount":num,"currency":"ARS"|"USD"|null,"afford_category":str|null}
+invitar: {}  (el usuario quiere SUMAR a alguien a Yumi/al asistente: invitar a su pareja/familia/amigo, "cómo invito a alguien", "quiero que X use la app", "pasame el link para invitar", "cómo abre una cuenta X". NO es invitar a un evento social ni compartir un gasto puntual.)
 desconocido: {"aclaracion":str}
 
 ALIAS de cuentas: mp/mercadopago->Mercado Pago - santander/santi->Tarjeta Santander - naranja->Tarjeta Naranja - cenco->Cenco - tk->Takenos - cash/plata->Efectivo
@@ -1627,6 +1632,9 @@ EJEMPLOS DE CONSULTA:
 
 "el otro dia estuvo bueno lo de marcos"
 -> [{"intent":"desconocido","confidence":0.3,"data":{"aclaracion":"Lo guardo como nota o era otra cosa?"}}]
+
+"como invito a alguien a abrir su cuenta" / "quiero invitar a mi pareja a Yumi" / "pasame el link para sumar a Gabi"
+-> [{"intent":"invitar","confidence":0.95,"data":{}}]
 
 EJEMPLOS FASE 1-6 (nuevos intents; SIEMPRE como array):
 "pagué 80 lucas el súper, mitad de Lisa"
@@ -2477,6 +2485,43 @@ async def post_init(app):
         log.exception("set_my_commands fallo (no critico)")
 
 
+def _new_user_welcome(new_user, temp_pw):
+    """Bienvenida para el registro autónomo (cuenta propia, hogar propio)."""
+    msg = (f"🎉 ¡Listo {new_user['name']}, tu cuenta de Yumi está creada!\n"
+           "Soy tu asistente de finanzas y agenda para el día a día. Mandame texto, audios o fotos:\n"
+           "💸 «pagué 1000 de café con débito»\n"
+           "📅 «cena con Ana el viernes 21»\n"
+           "⏰ «recordame mañana 9 llamar al banco»\n\n")
+    if temp_pw:
+        msg += (f"🌐 *App web de Yumi:* {APP_URL}\n"
+                f"Entrá con usuario *{new_user['username']}* y clave temporal `{temp_pw}` "
+                f"(cambiala con /password <nueva>). El bot también funciona acá en el chat.")
+    return msg
+
+
+async def try_self_register(update):
+    """Registro autónomo: si SELF_REGISTER está activo y el usuario no existe, lo crea
+    (hogar propio, plan free) y le da la bienvenida. Devuelve el user (existente o nuevo),
+    o None si el registro sigue cerrado por invitación."""
+    existing = get_user_by_tg(update.effective_user.id)
+    if existing:
+        return existing
+    if not SELF_REGISTER:
+        return None
+    try:
+        new_user, temp_pw = onboard_user("telegram", update.effective_user.id,
+                                         update.effective_user.first_name)
+    except Exception:
+        log.exception("auto-registro falló")
+        return None
+    try:
+        await update.message.reply_text(_new_user_welcome(new_user, temp_pw),
+                                        parse_mode="Markdown", disable_web_page_preview=True)
+    except Exception:
+        log.exception("no pude mandar la bienvenida de auto-registro")
+    return new_user
+
+
 async def start_cmd(update, context):
     code0 = (context.args[0].strip() if getattr(context, "args", None) else "")
     # Deep-link de vinculación (lo abre un usuario de WhatsApp en Telegram → une las cuentas).
@@ -2542,7 +2587,10 @@ async def start_cmd(update, context):
                         f"(cambiala con /password <nueva>). También funciona acá en el chat.")
             await update.message.reply_text(msg, parse_mode="Markdown")
             return
-        await send_register_prompt(update); return
+        # Link de familia inválido → si el registro autónomo está abierto, cuenta propia.
+        if not await try_self_register(update):
+            await send_register_prompt(update)
+        return
     if code:
         referrer = get_user_by_referral_code(code)
         if referrer and can_invite(referrer):
@@ -2560,7 +2608,9 @@ async def start_cmd(update, context):
                         f"(cambiala con /password <nueva>). El bot también funciona acá en el chat, sin necesidad de entrar a la web.")
             await update.message.reply_text(msg, parse_mode="Markdown")
             return
-    await send_register_prompt(update)
+    # Sin código (o inválido) → registro autónomo si está abierto; si no, gate de invitación.
+    if not await try_self_register(update):
+        await send_register_prompt(update)
 
 
 def family_invite(user_id, bot_username=None):
@@ -2606,6 +2656,32 @@ def family_invite_message(info):
         lines.append(f"Telegram: {info['telegram']}")
     if info["whatsapp"]:
         lines.append(f"WhatsApp: {info['whatsapp']}")
+    return "\n".join(lines)
+
+
+def invite_overview_message(user_id):
+    """Respuesta a 'cómo invito a alguien' en lenguaje natural. Cubre las dos formas:
+    que la persona cree su propia cuenta (registro autónomo) y sumarla a TU hogar
+    (family_invite: mismo hogar, comparten todo). Texto plano (links con guiones bajos)."""
+    info = family_invite(user_id)
+    bot_un = os.environ.get("BOT_USERNAME", "").lstrip("@")
+    lines = ["🔗 Para sumar a alguien a Yumi tenés dos formas:"]
+    if SELF_REGISTER:
+        who = f"@{bot_un}" if bot_un else "el bot de Yumi"
+        lines.append(f"1) Cuenta propia (aparte): que le escriba a {who} y mande /start. Se registra solo.")
+    idx = 2 if SELF_REGISTER else 1
+    if info["cap"] <= 1:
+        lines.append(f"{idx}) Sumarlo a TU hogar (compartir listas, gastos y agenda): tu plan es individual; "
+                     "actualizá a un plan pareja o superior para compartir.")
+    elif info["slots"] <= 0:
+        lines.append(f"{idx}) Sumarlo a TU hogar: ya está completo ({info['current']}/{info['cap']} del plan "
+                     f"{info['plan']}). Actualizá el plan para sumar a más.")
+    else:
+        lines.append(f"{idx}) Sumarlo a TU hogar (comparten todo): pasale este link y, cuando lo abra, se une:")
+        if info["telegram"]:
+            lines.append(f"   Telegram: {info['telegram']}")
+        if info["whatsapp"]:
+            lines.append(f"   WhatsApp: {info['whatsapp']}")
     return "\n".join(lines)
 
 
@@ -4415,6 +4491,9 @@ async def process_action(update, context, parsed, raw_id):
     elif intent == "precio" and parsed.get("precio"):
         await handle_precio_intent(update, context, parsed["precio"])
 
+    elif intent == "invitar":
+        await update.message.reply_text(invite_overview_message(uid), disable_web_page_preview=True)
+
     elif intent == "consulta":
         await handle_consulta_intent(update, context, parsed.get("consulta") or {})
 
@@ -4427,7 +4506,8 @@ async def process_action(update, context, parsed, raw_id):
 
 async def handle_text(update, context):
     if not is_allowed(update):
-        await send_register_prompt(update); return
+        if not await try_self_register(update):
+            await send_register_prompt(update); return
     user = update.effective_user; text = update.message.text
     raw_id = save_raw(user.id, user.username, "text", text)
     await process_text(update, context, text, raw_id)
@@ -4435,7 +4515,8 @@ async def handle_text(update, context):
 
 async def handle_voice(update, context):
     if not is_allowed(update):
-        await send_register_prompt(update); return
+        if not await try_self_register(update):
+            await send_register_prompt(update); return
     voice = update.message.voice
     notice = await update.message.reply_text("🎙️ Transcribiendo...")
     ogg_path = VOICE_DIR / f"{voice.file_id}.ogg"
@@ -4458,7 +4539,8 @@ async def handle_voice(update, context):
 
 async def handle_photo(update, context):
     if not is_allowed(update):
-        await send_register_prompt(update); return
+        if not await try_self_register(update):
+            await send_register_prompt(update); return
     user_db = current_user(update)
     if user_db:
         _blocked = cost_gate(user_db["id"])
