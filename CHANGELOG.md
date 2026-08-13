@@ -5,6 +5,8 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 > Regla: cada tanda de features = bump de versión (MINOR), entrada en este archivo, tag de git (`vX.Y.Z`) y redeploy. `1.0.0` = lanzamiento del **asistente completo** (no solo finanzas).
 
 ## [Unreleased]
+
+## [1.2.0] - 2026-08-13
 ### Added
 - **Sección "Tu pareja / familia" en la web (Yo):** muestra los integrantes de tu hogar y, si tenés plan (Pareja+) y lugar, botones para invitar por **WhatsApp** o **Telegram** (o copiar el link). Antes solo se podía con el comando `/invitar` de Telegram.
 ### Changed
