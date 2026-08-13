@@ -1,16 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import * as Checkbox from '@radix-ui/react-checkbox'
 import { useTransactionsInfinite, useTxMutations, type TxFilters } from '../hooks/useTransactions'
 import { useAccounts } from '../hooks/useAccounts'
 import { useCategories } from '../hooks/useCategories'
-import { formatMonthLabel, formatDayHeader, todayISODate } from '../lib/format'
+import { formatMonthLabel, formatDayHeader } from '../lib/format'
 import { Money } from '../lib/privacy'
 import { type Transaction } from '../lib/types'
 import { MovimientosSkeleton } from '../components/ui/skeletons'
-import EmptyState from '../components/ui/EmptyState'
 import BackButton from '../components/ui/BackButton'
 import Select from '../components/ui/Select'
+import Sheet from '../components/ui/Sheet'
 import Modal from '../components/ui/Modal'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import EditTxModal from '../components/EditTxModal'
@@ -21,14 +21,7 @@ type Period =
   | { mode: 'year'; year: number }
   | { mode: 'all' }
   | { mode: 'range'; from: string; to: string }
-
-const PRESET_OPTS = [
-  { value: 'month', label: 'Este mes' },
-  { value: 'prev', label: 'Mes pasado' },
-  { value: 'year', label: 'Este año' },
-  { value: 'all', label: 'Todo' },
-  { value: 'range', label: 'Rango…' },
-]
+type TypeFilter = 'gasto' | 'ingreso' | undefined
 
 function currentMonth(): Period {
   const n = new Date()
@@ -45,7 +38,8 @@ export default function Movimientos() {
     const c = sp.get('category_id'); return c ? Number(c) : undefined
   })
   const [q, setQ] = useState('')
-  const type = sp.get('type') === 'ingreso' ? 'ingreso' : sp.get('type') === 'gasto' ? 'gasto' : undefined
+  const [type, setType] = useState<TypeFilter>(sp.get('type') === 'ingreso' ? 'ingreso' : sp.get('type') === 'gasto' ? 'gasto' : undefined)
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   const filters: TxFilters = useMemo(() => {
     const base: TxFilters = { account_id, category_id, type, q: q || undefined }
@@ -63,22 +57,36 @@ export default function Movimientos() {
   const items = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data])
   const total = data?.pages[0]?.total ?? 0
   const sums = data?.pages[0]?.sums ?? []
-  const sumBy = (type: 'gasto' | 'ingreso') =>
-    sums.filter((s) => s.kind === 'normal' && s.type === type && s.currency === 'ARS').reduce((a, s) => a + s.total, 0)
+  const sumBy = (t: 'gasto' | 'ingreso') =>
+    sums.filter((s) => s.kind === 'normal' && s.type === t && s.currency === 'ARS').reduce((a, s) => a + s.total, 0)
   const totalGastos = sumBy('gasto')
   const totalIngresos = sumBy('ingreso')
 
+  // Deshacer inline: ocultamos la fila y confirmamos el borrado tras unos segundos.
+  const [pendingUndo, setPendingUndo] = useState<{ id: number; label: string } | null>(null)
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const softDelete = (t: Transaction) => {
+    if (undoTimer.current) { clearTimeout(undoTimer.current); if (pendingUndo) remove.mutate(pendingUndo.id) }
+    setPendingUndo({ id: t.id, label: t.description })
+    undoTimer.current = setTimeout(() => { remove.mutate(t.id); setPendingUndo(null); undoTimer.current = null }, 5000)
+  }
+  const undoDelete = () => {
+    if (undoTimer.current) { clearTimeout(undoTimer.current); undoTimer.current = null }
+    setPendingUndo(null)
+  }
+
   // Agrupación por día, preservando el orden desc.
+  const visibleItems = useMemo(() => items.filter((t) => t.id !== pendingUndo?.id), [items, pendingUndo])
   const groups = useMemo(() => {
     const map: { day: string; items: Transaction[] }[] = []
-    for (const t of items) {
+    for (const t of visibleItems) {
       const day = t.occurred_at.slice(0, 10)
       const last = map[map.length - 1]
       if (last && last.day === day) last.items.push(t)
       else map.push({ day, items: [t] })
     }
     return map
-  }, [items])
+  }, [visibleItems])
   const daySubtotal = (rows: Transaction[]) =>
     rows.filter((t) => (t.kind ?? 'normal') === 'normal' && t.type === 'gasto' && t.currency === 'ARS')
       .reduce((a, t) => a + t.amount, 0)
@@ -97,26 +105,21 @@ export default function Movimientos() {
   const [editTx, setEditTx] = useState<Transaction | null>(null)
   const [detailTx, setDetailTx] = useState<Transaction | null>(null)
 
-  const accountOpts = [{ value: 'all', label: 'Toda cuenta' }, ...(accounts.data ?? []).map((a) => ({ value: String(a.id), label: a.name }))]
-  const categoryOpts = [{ value: 'all', label: 'Toda categoría' }, ...(categories.data ?? []).map((c) => ({ value: String(c.id), label: c.name }))]
   const moveAccountOpts = (accounts.data ?? []).map((a) => ({ value: String(a.id), label: a.name }))
+  const activeFilterCount = (type ? 1 : 0) + (account_id ? 1 : 0) + (category_id ? 1 : 0)
+  const clearFilters = () => { setType(undefined); setAccountId(undefined); setCategoryId(undefined) }
 
-  // Navegador de mes
+  // Navegador de mes (fijo arriba).
   const now = new Date()
   const atCurrentMonth = period.mode === 'month' && period.year === now.getFullYear() && period.month === now.getMonth() + 1
   const stepMonth = (delta: number) => setPeriod((p) => {
-    if (p.mode !== 'month') return p
+    if (p.mode !== 'month') return currentMonth()
     const d = new Date(p.year, p.month - 1 + delta, 1)
     return { mode: 'month', year: d.getFullYear(), month: d.getMonth() + 1 }
   })
-  const onPreset = (v: string) => {
-    if (v === 'month') setPeriod(currentMonth())
-    else if (v === 'prev') { const d = new Date(now.getFullYear(), now.getMonth() - 1, 1); setPeriod({ mode: 'month', year: d.getFullYear(), month: d.getMonth() + 1 }) }
-    else if (v === 'year') setPeriod({ mode: 'year', year: now.getFullYear() })
-    else if (v === 'all') setPeriod({ mode: 'all' })
-    else if (v === 'range') setPeriod({ mode: 'range', from: todayISODate(), to: todayISODate() })
-  }
-  const presetValue = period.mode === 'month' ? 'month' : period.mode
+  const monthLabel = period.mode === 'month'
+    ? formatMonthLabel(period.year, period.month)
+    : period.mode === 'year' ? String(period.year) : period.mode === 'all' ? 'Todo' : 'Rango'
 
   // Export CSV
   const exportHref = period.mode === 'month'
@@ -125,55 +128,47 @@ export default function Movimientos() {
 
   return (
     <div style={{ padding: '14px 18px 24px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
         <BackButton />
-        <div className="cap" style={{ flex: 1 }}>Movimientos</div>
-        <a href={exportHref} download style={{ ...selectModeBtn, textDecoration: 'none', marginRight: 6, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          <i className="ti ti-download" aria-hidden /> Exportar
-        </a>
-        {!selectMode
-          ? <button onClick={() => setSelectMode(true)} style={selectModeBtn}>Seleccionar</button>
-          : <button onClick={() => { setSelectMode(false); setSel(new Set()) }} style={selectModeBtn}>Cancelar</button>}
+        <div className="num-serif" style={{ flex: 1, fontSize: 26 }}>Movimientos</div>
+        <button onClick={() => setFiltersOpen(true)} style={filtersPill}>
+          Filtros{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ''}
+        </button>
       </div>
 
-      {/* Período: navegador de mes + presets */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
-        {period.mode === 'month' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <button onClick={() => stepMonth(-1)} aria-label="Mes anterior" style={navBtn}>‹</button>
-            <span style={{ fontSize: 14, fontWeight: 500, minWidth: 120, textAlign: 'center', textTransform: 'capitalize' }}>
-              {formatMonthLabel(period.year, period.month)}
-            </span>
-            <button onClick={() => stepMonth(1)} disabled={atCurrentMonth} aria-label="Mes siguiente" style={{ ...navBtn, opacity: atCurrentMonth ? 0.35 : 1 }}>›</button>
-          </div>
-        )}
-        <Select value={presetValue} onValueChange={onPreset} options={PRESET_OPTS} ariaLabel="Período" />
+      {/* Navegador de mes fijo */}
+      <div style={monthNav}>
+        <button onClick={() => stepMonth(-1)} aria-label="Mes anterior" style={monthArrow}>‹</button>
+        <span style={{ fontSize: 14, fontWeight: 500, textTransform: 'capitalize' }}>{monthLabel} {period.mode === 'month' ? period.year : ''}</span>
+        <button onClick={() => stepMonth(1)} disabled={atCurrentMonth} aria-label="Mes siguiente" style={{ ...monthArrow, opacity: atCurrentMonth ? 0.35 : 1 }}>›</button>
       </div>
 
-      {period.mode === 'range' && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
-          <input type="date" value={period.from} onChange={(e) => setPeriod({ mode: 'range', from: e.target.value, to: period.to })} style={dateInput} />
-          <span style={{ color: 'var(--color-sage)' }}>→</span>
-          <input type="date" value={period.to} onChange={(e) => setPeriod({ mode: 'range', from: period.from, to: e.target.value })} style={dateInput} />
+      {/* Totales del filtro aplicado */}
+      <div style={{ display: 'flex', gap: 20, margin: '12px 2px 0' }}>
+        <div>
+          <div className="cap" style={{ fontSize: 9.5 }}>Salidas</div>
+          <div className="num-serif" style={{ fontSize: 16, marginTop: 2 }}><Money value={totalGastos} /></div>
         </div>
-      )}
-
-      {/* Filtros cuenta/categoría/búsqueda */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-        <Select value={account_id ? String(account_id) : 'all'} onValueChange={(v) => setAccountId(v === 'all' ? undefined : Number(v))} options={accountOpts} ariaLabel="Cuenta" />
-        <Select value={category_id ? String(category_id) : 'all'} onValueChange={(v) => setCategoryId(v === 'all' ? undefined : Number(v))} options={categoryOpts} ariaLabel="Categoría" />
-        <input placeholder="Buscar…" value={q} onChange={(e) => setQ(e.target.value)}
-          style={{ border: '1px solid var(--color-mist)', borderRadius: 10, padding: '9px 12px', fontSize: 14, background: 'var(--color-linen)', flex: 1, minWidth: 120 }} />
+        <div>
+          <div className="cap" style={{ fontSize: 9.5 }}>Entradas</div>
+          <div className="num-serif" style={{ fontSize: 16, marginTop: 2, color: '#3b6d11' }}><Money value={totalIngresos} /></div>
+        </div>
+        <div style={{ marginLeft: 'auto', alignSelf: 'flex-end' }}>
+          <a href={exportHref} download style={{ ...ghostBtn, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 6 }}>
+            <i className="ti ti-download" aria-hidden /> Exportar
+          </a>
+          {!selectMode
+            ? <button onClick={() => setSelectMode(true)} style={ghostBtn}>Seleccionar</button>
+            : <button onClick={() => { setSelectMode(false); setSel(new Set()) }} style={ghostBtn}>Cancelar</button>}
+        </div>
       </div>
 
-      {/* Totales del filtro (UX5) */}
-      {!isLoading && items.length > 0 && (
-        <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--color-linen)', padding: '4px 0 10px', fontSize: 12.5, color: 'var(--color-sage)', borderBottom: '1px solid var(--color-mist)', marginBottom: 8 }}>
-          Gastos <b style={{ color: 'var(--color-obsidian-ink)' }}><Money value={totalGastos} /></b>
-          {' · '}Ingresos <b style={{ color: 'var(--color-obsidian-ink)' }}><Money value={totalIngresos} /></b>
-          {' · '}{total} movimiento{total === 1 ? '' : 's'}
-        </div>
-      )}
+      {/* Búsqueda */}
+      <div style={searchBox}>
+        <i className="ti ti-search" aria-hidden style={{ color: 'var(--color-sage)' }} />
+        <input placeholder="Buscar descripción, monto…" value={q} onChange={(e) => setQ(e.target.value)}
+          style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 14, flex: 1, color: 'inherit' }} />
+      </div>
 
       {/* Selection toolbar */}
       {sel.size > 0 && (
@@ -187,11 +182,24 @@ export default function Movimientos() {
       )}
 
       {isLoading && <MovimientosSkeleton />}
-      {!isLoading && items.length === 0 && <EmptyState>Sin movimientos para este filtro.</EmptyState>}
+      {!isLoading && visibleItems.length === 0 && !pendingUndo && (
+        <div style={{ textAlign: 'center', padding: '40px 18px', color: 'var(--color-sage)' }}>
+          <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-obsidian-ink)' }}>Sin movimientos para este filtro</div>
+          <div style={{ fontSize: 13, marginTop: 6 }}>Cargá un gasto desde el botón + o escribile al bot.</div>
+        </div>
+      )}
+
+      {/* Deshacer inline */}
+      {pendingUndo && (
+        <div style={undoBar}>
+          <span style={{ fontSize: 12.5, color: 'var(--color-sage)', flex: 1 }}>Movimiento borrado</span>
+          <button onClick={undoDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, color: '#3b6d11', font: 'inherit' }}>Deshacer</button>
+        </div>
+      )}
 
       {groups.map((g) => (
         <div key={g.day}>
-          <div style={{ position: 'sticky', top: 36, zIndex: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', background: 'var(--color-linen)', padding: '8px 0 4px' }}>
+          <div style={{ position: 'sticky', top: 0, zIndex: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', background: 'var(--color-linen)', padding: '10px 0 4px' }}>
             <span className="cap" style={{ fontSize: 11, textTransform: 'capitalize' }}>{formatDayHeader(g.day)}</span>
             <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>−<Money value={daySubtotal(g.items)} /></span>
           </div>
@@ -220,7 +228,7 @@ export default function Movimientos() {
                   {!isTransfer && (
                     <button aria-label={`Editar ${t.description}`} onClick={() => setEditTx(t)} style={iconBtn}><i className="ti ti-edit" aria-hidden /></button>
                   )}
-                  <button aria-label={`Borrar ${t.description}`} onClick={() => remove.mutate(t.id)} style={iconBtn}><i className="ti ti-trash" aria-hidden /></button>
+                  <button aria-label={`Borrar ${t.description}`} onClick={() => softDelete(t)} style={iconBtn}><i className="ti ti-trash" aria-hidden /></button>
                 </span>
               </div>
             )
@@ -237,6 +245,40 @@ export default function Movimientos() {
           <div style={{ marginTop: 8 }}>Mostrando {items.length} de {total}</div>
         </div>
       )}
+
+      {/* Drawer de filtros */}
+      <Sheet open={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filtros">
+        <div style={{ display: 'grid', gap: 4 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button onClick={clearFilters} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, color: 'var(--color-sage)', font: 'inherit' }}>Limpiar</button>
+          </div>
+
+          <div className="cap" style={{ fontSize: 10, marginTop: 6 }}>Tipo</div>
+          <div style={chipRow}>
+            <FilterChip active={!type} onClick={() => setType(undefined)}>Todos</FilterChip>
+            <FilterChip active={type === 'gasto'} onClick={() => setType('gasto')}>Gastos</FilterChip>
+            <FilterChip active={type === 'ingreso'} onClick={() => setType('ingreso')}>Ingresos</FilterChip>
+          </div>
+
+          <div className="cap" style={{ fontSize: 10, marginTop: 14 }}>Cuenta</div>
+          <div style={chipRow}>
+            <FilterChip active={!account_id} onClick={() => setAccountId(undefined)}>Todas</FilterChip>
+            {(accounts.data ?? []).map((a) => (
+              <FilterChip key={a.id} active={account_id === a.id} onClick={() => setAccountId(account_id === a.id ? undefined : a.id)}>{a.name}</FilterChip>
+            ))}
+          </div>
+
+          <div className="cap" style={{ fontSize: 10, marginTop: 14 }}>Categoría</div>
+          <div style={chipRow}>
+            <FilterChip active={!category_id} onClick={() => setCategoryId(undefined)}>Todas</FilterChip>
+            {(categories.data ?? []).map((c) => (
+              <FilterChip key={c.id} active={category_id === c.id} onClick={() => setCategoryId(category_id === c.id ? undefined : c.id)}>{c.icon ? `${c.icon} ` : ''}{c.name}</FilterChip>
+            ))}
+          </div>
+
+          <button onClick={() => setFiltersOpen(false)} style={{ ...ctaBtn, marginTop: 20 }}>Ver {total} movimiento{total === 1 ? '' : 's'}</button>
+        </div>
+      </Sheet>
 
       {/* Bulk move modal */}
       <Modal open={moveOpen} onClose={() => setMoveOpen(false)} title="Mover a cuenta">
@@ -273,9 +315,19 @@ export default function Movimientos() {
   )
 }
 
-const iconBtn: React.CSSProperties = { background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-sage)', fontSize: 16, padding: 2 }
-const ghostBtn: React.CSSProperties = { background: 'transparent', border: '1px solid var(--color-mist)', borderRadius: 10, padding: '7px 14px', fontSize: 13, cursor: 'pointer' }
-const ctaBtn: React.CSSProperties = { background: 'var(--color-voltage)', color: 'var(--voltage-on-dark)', border: 'none', borderRadius: 10, padding: '14px', fontWeight: 500, cursor: 'pointer' }
-const selectModeBtn: React.CSSProperties = { background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-sage)', fontSize: 13 }
-const navBtn: React.CSSProperties = { background: 'transparent', border: '1px solid var(--color-mist)', borderRadius: 8, padding: '4px 10px', fontSize: 16, cursor: 'pointer', lineHeight: 1 }
-const dateInput: React.CSSProperties = { border: '1px solid var(--color-mist)', borderRadius: 10, padding: '9px 12px', fontSize: 14, background: 'var(--color-linen)' }
+function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return <button onClick={onClick} style={active ? chipOn : chipOff}>{children}</button>
+}
+
+const iconBtn: CSSProperties = { background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-sage)', fontSize: 16, padding: 2 }
+const ghostBtn: CSSProperties = { background: 'transparent', border: '1px solid var(--color-mist)', borderRadius: 10, padding: '7px 14px', fontSize: 13, cursor: 'pointer', color: 'inherit' }
+const ctaBtn: CSSProperties = { background: 'var(--color-voltage)', color: 'var(--voltage-on-dark)', border: 'none', borderRadius: 12, padding: '14px', fontWeight: 600, fontSize: 14, cursor: 'pointer' }
+const filtersPill: CSSProperties = { background: 'rgba(43,238,75,0.14)', color: 'var(--color-voltage-ink, #1f7a2e)', border: 'none', borderRadius: 9999, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', font: 'inherit' }
+const monthNav: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--color-linen)', border: '1px solid var(--color-mist)', borderRadius: 12, padding: '9px 14px', marginTop: 12 }
+const monthArrow: CSSProperties = { background: 'transparent', border: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--color-sage)', lineHeight: 1, padding: '0 6px' }
+const searchBox: CSSProperties = { display: 'flex', alignItems: 'center', gap: 9, border: '1px solid var(--color-mist)', borderRadius: 12, padding: '11px 13px', marginTop: 14, marginBottom: 8, background: 'var(--color-linen)' }
+const undoBar: CSSProperties = { display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', margin: '8px 0', borderRadius: 12, background: 'rgba(43,238,75,0.10)' }
+const chipRow: CSSProperties = { display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 8 }
+const chipBase: CSSProperties = { borderRadius: 9999, padding: '7px 13px', fontSize: 12, fontWeight: 600, cursor: 'pointer', font: 'inherit' }
+const chipOff: CSSProperties = { ...chipBase, background: 'transparent', border: '1px solid var(--color-mist)', color: 'var(--color-obsidian-ink)' }
+const chipOn: CSSProperties = { ...chipBase, background: 'var(--color-voltage)', border: '1px solid var(--color-voltage)', color: 'var(--voltage-on-dark)' }
