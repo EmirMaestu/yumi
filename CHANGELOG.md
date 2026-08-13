@@ -6,6 +6,14 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-08-13
+### Added
+- **Proactividad por WhatsApp (oficial):** los recordatorios/avisos ahora también llegan por WhatsApp (Cloud API de Meta). La ventana de servicio de 24h decide solo entre texto libre (gratis) y plantilla de utilidad. **Plan free:** recibe proactividad por WhatsApp solo si escribió en las últimas 24h (in-window, gratis; no requiere setup de Meta). De paso, se arreglan los recordatorios de usuarios WhatsApp-only que antes no se entregaban. *(Requiere setup de Meta —verificación + plantilla `yumi_aviso` + pago— para el envío fuera de ventana de planes de pago.)*
+### Fixed
+- **Bot caído (crash-loop):** `parse_local`/`fmt_dt` corrompían los datetimes con separador espacio (`YYYY-MM-DD HH:MM:SS`) agregándoles `T00:00` → el bot moría al arrancar y systemd lo reiniciaba en loop. Corregido (`dates.to_isoformat`, solo agrega hora a fechas solas) + test de regresión.
+### Changed
+- **Monitor de salud más robusto:** histéresis (no avisa por un blip o reinicio puntual) + detección de crash-loop (cuenta reinicios) → se terminó el flapeo de "caída/recuperó".
+
 ## [1.0.0] - 2026-07-02
 Reescritura profunda del **módulo de Finanzas** (plan `docs/finanzas/`, 16 work packages). También incluye lo que había quedado pendiente de release en 0.12.0.
 
