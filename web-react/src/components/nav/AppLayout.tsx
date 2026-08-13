@@ -5,18 +5,25 @@ import BottomNav from './BottomNav'
 import Sidebar from './Sidebar'
 import MoreSheet from './MoreSheet'
 import QuickAddSheet, { type QuickType } from '../QuickAddSheet'
+import KeypadExpenseSheet from '../KeypadExpenseSheet'
 
 // Contexto para que las pantallas (ej. las acciones rápidas del Inicio) abran
-// la hoja "Agregar" en el tipo que quieran.
-export interface LayoutCtx { openAdd: (t?: QuickType) => void }
+// la hoja "Agregar" en el tipo que quieran, o el teclado de gasto rápido (1c).
+export interface LayoutCtx { openAdd: (t?: QuickType) => void; openExpense: () => void }
 
 export default function AppLayout({ children }: { children?: ReactNode }) {
   const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= 1024)
   const [addOpen, setAddOpen] = useState(false)
   const [addType, setAddType] = useState<QuickType>('gasto')
+  const [keypadOpen, setKeypadOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   const openAdd = (t: QuickType = 'gasto') => { setAddType(t); setAddOpen(true) }
-  const ctx: LayoutCtx = { openAdd }
+  const openExpense = () => setKeypadOpen(true)
+  const ctx: LayoutCtx = { openAdd, openExpense }
+  const keypad = (
+    <KeypadExpenseSheet open={keypadOpen} onClose={() => setKeypadOpen(false)}
+      onChangeType={() => { setKeypadOpen(false); openAdd('gasto') }} />
+  )
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1024px)')
@@ -31,6 +38,7 @@ export default function AppLayout({ children }: { children?: ReactNode }) {
         <Sidebar onAdd={() => openAdd()} />
         <main style={{ flex: 1, padding: 24 }}>{children ?? <Outlet context={ctx} />}</main>
         <QuickAddSheet open={addOpen} initialType={addType} onClose={() => setAddOpen(false)} />
+        {keypad}
       </div>
     )
   }
@@ -43,6 +51,7 @@ export default function AppLayout({ children }: { children?: ReactNode }) {
       <BottomNav onAdd={() => openAdd()} onMore={() => setMoreOpen(true)} />
       <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} />
       <QuickAddSheet open={addOpen} initialType={addType} onClose={() => setAddOpen(false)} />
+      {keypad}
     </div>
   )
 }
