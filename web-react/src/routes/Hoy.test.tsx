@@ -3,6 +3,13 @@ import { vi, expect, test, afterEach } from 'vitest'
 import { renderWithProviders } from '../test/utils'
 import Hoy from './Hoy'
 
+// El Inicio (diseño 1a) lee LayoutCtx vía useOutletContext; en el test no hay
+// <Outlet>, así que lo stubbeamos manteniendo el resto de react-router-dom real.
+vi.mock('react-router-dom', async (orig) => {
+  const actual = await orig<typeof import('react-router-dom')>()
+  return { ...actual, useOutletContext: () => ({ openAdd: vi.fn(), openExpense: vi.fn() }) }
+})
+
 afterEach(() => vi.restoreAllMocks())
 
 const baseOverview = {
@@ -26,14 +33,11 @@ const baseOverview = {
   por_categoria: [],
 }
 
-function makeFetch(overview = baseOverview, tareas: unknown[] = []) {
+function makeFetch(overview = baseOverview) {
   return vi.fn((url: string) => {
     const u = String(url)
     if (u.includes('/api/overview2')) {
       return Promise.resolve(new Response(JSON.stringify(overview), { status: 200 }))
-    }
-    if (u.includes('/api/tareas')) {
-      return Promise.resolve(new Response(JSON.stringify(tareas), { status: 200 }))
     }
     if (u.includes('/api/vencimientos')) {
       // "A pagar" = ciclo en curso (compras del ciclo + cuotas del mes)
@@ -45,7 +49,7 @@ function makeFetch(overview = baseOverview, tareas: unknown[] = []) {
   })
 }
 
-test('renderiza los ítems de hoy del overview', async () => {
+test('renderiza los ítems de hoy del overview en "Tu día"', async () => {
   vi.stubGlobal('fetch', makeFetch())
   renderWithProviders(<Hoy />)
 
@@ -63,24 +67,12 @@ test('muestra EmptyState cuando hoy está vacío', async () => {
   expect(await screen.findByText(/Nada agendado para hoy/)).toBeInTheDocument()
 })
 
-test('muestra tareas pendientes', async () => {
-  const tareas = [
-    { id: 1, text: 'Comprar leche', priority: 'alta', status: 'pendiente', user_id: 1, created_at: '2026-06-24T00:00:00', due_at: null, completed_at: null },
-    { id: 2, text: 'Llamar al médico', priority: 'media', status: 'pendiente', user_id: 1, created_at: '2026-06-24T00:00:00', due_at: null, completed_at: null },
-  ]
-  vi.stubGlobal('fetch', makeFetch(baseOverview, tareas))
-  renderWithProviders(<Hoy />)
-
-  expect(await screen.findByText('Comprar leche')).toBeInTheDocument()
-  expect(screen.getByText('Llamar al médico')).toBeInTheDocument()
-  expect(screen.getByText('alta')).toBeInTheDocument()
-})
-
-test('muestra kpis financieros en la mini-card', async () => {
+test('muestra el disponible y la línea de gastado / a pagar', async () => {
   vi.stubGlobal('fetch', makeFetch())
   renderWithProviders(<Hoy />)
 
-  expect(await screen.findByText('$50.000,00')).toBeInTheDocument() // gastado
-  expect(screen.getByText('$12.000,00')).toBeInTheDocument()        // a pagar = ciclo en curso
-  expect(screen.getByText('$80.000,00')).toBeInTheDocument()        // disponible
+  // Disponible (héroe, componente Money → texto aislado)
+  expect(await screen.findByText('$80.000,00')).toBeInTheDocument()
+  // Subtítulo combinado: "Gastado $50.000,00 · A pagar $12.000,00 este mes"
+  expect(screen.getByText(/Gastado.*50\.000.*A pagar.*12\.000/)).toBeInTheDocument()
 })

@@ -25,6 +25,7 @@ function daysUntil(dateStr?: string): number | null { if (!dateStr) return null;
 export default function Inicio() {
   const ctx = useOutletContext<LayoutCtx | null>()
   const openAdd = ctx?.openAdd ?? (() => {})
+  const openExpense = ctx?.openExpense ?? (() => {})
   const nav = useNavigate()
   const { data, isLoading, isError } = useOverview()
   const venc = useVencimientos()
@@ -66,7 +67,7 @@ export default function Inicio() {
       </section>
       {/* Acciones del número grande (mismo patrón que el home) */}
       <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, padding: '16px 18px 4px' }}>
-        <ActionTile icon="ti-plus" label="Cargar gasto" onClick={() => openAdd('gasto')} />
+        <ActionTile icon="ti-plus" label="Cargar gasto" onClick={openExpense} />
         <ActionTile icon="ti-plus" label="Ingreso" onClick={() => openAdd('gasto')} />
         <ActionTile icon="ti-credit-card" label="Pagar tarjeta" onClick={() => nav('/tarjetas')} />
       </section>

@@ -5,6 +5,7 @@ import { getShortcutIds, setShortcutIds, shortcutById } from '../lib/shortcuts'
 import { useOverview } from '../hooks/useOverview'
 import { useVencimientos } from '../hooks/useVencimientos'
 import { useRecurring } from '../hooks/useRecurring'
+import { useBudgets, budgetPct, type Budget } from '../hooks/useBudgets'
 import { useMe } from '../hooks/useMe'
 import { cicloEnCursoTotal } from '../lib/cards'
 import { formatMoney } from '../lib/format'
@@ -37,12 +38,13 @@ function HoySkeleton() {
 }
 
 export default function Hoy() {
-  const { openAdd } = useOutletContext<LayoutCtx>()
+  const { openAdd, openExpense } = useOutletContext<LayoutCtx>()
   const nav = useNavigate()
   const { hidden, toggle } = usePrivacy()
   const overview = useOverview()
   const venc = useVencimientos()
   const recurring = useRecurring()
+  const budgets = useBudgets()
   const { data: me } = useMe()
   const [shortcutIds, setIds] = useState(getShortcutIds())
   const [editOpen, setEditOpen] = useState(false)
@@ -54,6 +56,8 @@ export default function Hoy() {
   const hoy: HoyItem[] = overview.data.hoy
   const aPagar = cicloEnCursoTotal(venc.data, recurring.data)
   const partner = me?.others?.[0]?.name
+  // Alerta de presupuesto (diseño 1d): el tope más comprometido, si alguno va ≥80%.
+  const atRisk = (budgets.data ?? []).filter((b) => budgetPct(b) >= 80).sort((a, b) => budgetPct(b) - budgetPct(a))[0]
 
   return (
     <div style={{ padding: '8px 18px 24px', display: 'grid', gap: 0 }}>
@@ -78,11 +82,14 @@ export default function Hoy() {
           Gastado {formatMoney(k.gasto_mes)} · A pagar {formatMoney(aPagar)} este mes
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 14 }}>
-          <QuickTile icon="ti-plus" label="Cargar gasto" onClick={() => openAdd('gasto')} />
+          <QuickTile icon="ti-plus" label="Cargar gasto" onClick={openExpense} />
           <QuickTile icon="ti-arrows-left-right" label="Movimientos" onClick={() => nav('/movimientos')} />
           <QuickTile icon="ti-credit-card" label="Tarjetas" onClick={() => nav('/tarjetas')} />
         </div>
       </Card>
+
+      {/* Alerta de presupuesto (1d) */}
+      {atRisk && <BudgetAlert b={atRisk} />}
 
       {/* Tus atajos (personalizables) */}
       <div style={{ padding: '20px 0 8px', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
@@ -151,6 +158,38 @@ function Shortcut({ icon, title, sub, badge, onClick }: { icon: string; title: s
       <div style={{ fontSize: 10.5, color: 'var(--color-sage)', marginTop: 2, textAlign: 'left' }}>{sub}</div>
     </button>
   )
+}
+
+// Alerta de presupuesto comprometido (1d): datos reales de useBudgets.
+function BudgetAlert({ b }: { b: Budget }) {
+  const pct = Math.round(budgetPct(b))
+  const over = pct >= 100
+  const remaining = Math.max(0, b.amount - b.spent)
+  const days = daysLeftInMonth()
+  const dl = days > 0 ? ` · faltan ${days} día${days === 1 ? '' : 's'}` : ''
+  return (
+    <Link to="/presupuestos" style={{ display: 'block', textDecoration: 'none', color: 'inherit', marginTop: 12 }}>
+      <div style={{ display: 'flex', gap: 11, alignItems: 'flex-start', background: 'var(--color-linen)', border: '1px solid var(--color-mist)', borderRadius: 14, padding: '12px 14px' }}>
+        <span style={{ width: 8, height: 8, borderRadius: '50%', background: over ? 'var(--color-error)' : '#e0a800', marginTop: 5, flexShrink: 0 }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-obsidian-ink)' }}>
+            {over ? `${b.name} se pasó del tope` : `${b.name} va al ${pct}% del tope`}
+          </div>
+          <div style={{ fontSize: 11.5, color: 'var(--color-sage)', marginTop: 2 }}>
+            {over
+              ? `Gastaste ${formatMoney(b.spent)} de ${formatMoney(b.amount)}${dl}`
+              : `Quedan ${formatMoney(remaining)} de ${formatMoney(b.amount)}${dl}`}
+          </div>
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-voltage-ink, #1f7a2e)', background: 'rgba(43,238,75,0.12)', borderRadius: 999, padding: '6px 11px', alignSelf: 'center', whiteSpace: 'nowrap' }}>Ver</span>
+      </div>
+    </Link>
+  )
+}
+
+function daysLeftInMonth(): number {
+  const now = new Date()
+  return new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate()
 }
 
 const tile: CSSProperties = {

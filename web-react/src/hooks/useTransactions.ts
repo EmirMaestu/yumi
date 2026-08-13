@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { apiGet, apiPost, apiPatch, apiDelete } from '../lib/api'
 import { notifyOk, notifyErr, notifyUndo } from '../lib/notify'
+import { formatMoney } from '../lib/format'
 import type { Transaction, Currency, TxKind } from '../lib/types'
 
 // Filtros explícitos: year/month (mes navegable), date_from/date_to (rango), o nada (todo).
@@ -86,6 +87,26 @@ export function useTransferMutation(okMsg = 'Transferencia registrada') {
 }
 
 interface DeleteResult { ok: boolean; trash_ids: number[] }
+
+// Carga rápida de gasto (teclado numérico del Inicio, diseño 1c/1d): crea el gasto
+// y ofrece "Deshacer" por 10s borrando el movimiento recién creado. Reutiliza las
+// mismas invalidaciones que useTxMutations; el borrado del undo es directo (sin su
+// propio toast de papelera, para no encadenar deshacer-sobre-deshacer).
+export function useQuickExpense() {
+  const qc = useQueryClient()
+  const inval = () => { qc.invalidateQueries({ queryKey: ['transactions'] }); qc.invalidateQueries({ queryKey: ['overview2'] }); qc.invalidateQueries({ queryKey: ['accounts-balances'] }); qc.invalidateQueries({ queryKey: ['vencimientos'] }) }
+  return useMutation({
+    mutationFn: (b: Partial<Transaction>) => apiPost<{ id: number }>('/api/transactions', b),
+    onSuccess: (data, vars) => {
+      inval()
+      const money = formatMoney(Number(vars.amount) || 0, (vars.currency as Currency) ?? 'ARS')
+      const id = data?.id
+      if (id) notifyUndo(`Gasto de ${money} guardado`, () => { apiDelete(`/api/transactions/${id}`).catch(() => {}).finally(inval) })
+      else notifyOk('Gasto guardado')
+    },
+    onError: notifyErr,
+  })
+}
 
 export function useTxMutations() {
   const qc = useQueryClient()
