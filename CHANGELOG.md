@@ -5,8 +5,20 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 > Regla: cada tanda de features = bump de versión (MINOR), entrada en este archivo, tag de git (`vX.Y.Z`) y redeploy. `1.0.0` = lanzamiento del **asistente completo** (no solo finanzas).
 
 ## [Unreleased]
+
+## [1.3.0] - 2026-08-13
 ### Added
+- **Rediseño completo de la app (estilo Mercado Pago, con atajos):** toda la interfaz se rehízo con un lenguaje visual consistente y soporte de **tema claro/oscuro**.
+  - **Inicio:** disponible bien arriba con ojito para ocultar, **acciones rápidas** (Cargar gasto / Movimientos / Tarjetas), **riel de atajos personalizables** (elegís cuáles y en qué orden, hasta 6) y "Tu día".
+  - **Cargar gasto en un toque:** hoja con **teclado numérico** y foco en el monto; cuenta y categoría se autocompletan con el último uso. "Cambiar tipo" lleva a la carga completa (ingreso/transferencia).
+  - **Asistente:** Agenda (con modal de Nuevo evento y posponer), Tareas por integrante, Listas + plantillas, Hábitos y Notas, todo rediseñado.
+  - **Finanzas:** Resumen con acciones rápidas, Movimientos con **drawer de filtros** y deshacer en línea, Detalle de tarjeta con progreso de cuotas + Registrar pago, Cuentas, Presupuestos/Metas con estado vivo, y Tendencias/Resúmenes.
+  - **Transversal:** Buscar (con acciones), menú "Más" ordenado por uso, Categorías con gasto del mes, y "Yo".
 - **Ingreso/egreso en varias monedas (Mercosur):** al agregar un gasto o ingreso podés elegir la **moneda** (ARS, USD, EUR, BRL, CLP, UYU, PYG, BOB). Se guarda y muestra en su moneda; el bot también las reconoce por chat. *(El total del patrimonio suma lo convertible —USD/ARS— y lista el resto por separado; la conversión de las demás es follow-up.)*
+- **Feedback más claro:** aviso de **presupuesto al 80%+** en el Inicio y **"Deshacer"** al cargar un gasto.
+
+### Changed
+- **Invitar a la pareja ahora comparte un link de verdad:** tocar "Invitar por WhatsApp" abre el selector de contactos con el link listo para **mandárselo a tu pareja** (o "Compartir link" / Telegram). Antes abría tu propio chat con Yumi. Cuando la otra persona abre el link y manda el mensaje, se suma a tu hogar.
 
 ## [1.2.0] - 2026-08-13
 ### Added
