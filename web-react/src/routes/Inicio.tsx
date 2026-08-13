@@ -1,4 +1,6 @@
-import { Link } from 'react-router-dom'
+import { type CSSProperties } from 'react'
+import { Link, useNavigate, useOutletContext } from 'react-router-dom'
+import { type LayoutCtx } from '../components/nav/AppLayout'
 import { useOverview } from '../hooks/useOverview'
 import { useVencimientos } from '../hooks/useVencimientos'
 import { useAccountsWithBalances } from '../hooks/useAccounts'
@@ -21,6 +23,9 @@ import SectionCard from '../components/ui/SectionCard'
 function daysUntil(dateStr?: string): number | null { if (!dateStr) return null; return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86_400_000) }
 
 export default function Inicio() {
+  const ctx = useOutletContext<LayoutCtx | null>()
+  const openAdd = ctx?.openAdd ?? (() => {})
+  const nav = useNavigate()
   const { data, isLoading, isError } = useOverview()
   const venc = useVencimientos()
   const accounts = useAccountsWithBalances()
@@ -58,6 +63,12 @@ export default function Inicio() {
           <div style={{ fontSize: 13, color: 'var(--color-sage)', marginTop: 4 }}>A este ritmo: ~<Money value={k.proyeccion_fin_mes} /> este mes</div>
         )}
         <div style={{ marginTop: 16 }}><TickMark /></div>
+      </section>
+      {/* Acciones del número grande (mismo patrón que el home) */}
+      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, padding: '16px 18px 4px' }}>
+        <ActionTile icon="ti-plus" label="Cargar gasto" onClick={() => openAdd('gasto')} />
+        <ActionTile icon="ti-plus" label="Ingreso" onClick={() => openAdd('gasto')} />
+        <ActionTile icon="ti-credit-card" label="Pagar tarjeta" onClick={() => nav('/tarjetas')} />
       </section>
       {(k.anomalias?.length ?? 0) > 0 && (
         <div style={{ padding: '4px 18px 0' }}>
@@ -200,4 +211,19 @@ export default function Inicio() {
       )}
     </div>
   )
+}
+
+// Acción del número grande: tile verde tenue (idéntico lenguaje al home).
+function ActionTile({ icon, label, onClick }: { icon: string; label: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} style={actionTile}>
+      <i className={`ti ${icon}`} style={{ fontSize: 20, color: 'var(--color-voltage-ink, #1f7a2e)' }} aria-hidden />
+      <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--color-voltage-ink, #1f7a2e)', textAlign: 'center' }}>{label}</span>
+    </button>
+  )
+}
+
+const actionTile: CSSProperties = {
+  background: 'rgba(43,238,75,0.12)', border: 'none', borderRadius: 13, padding: '11px 6px',
+  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, cursor: 'pointer', font: 'inherit',
 }

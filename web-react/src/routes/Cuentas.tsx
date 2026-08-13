@@ -27,6 +27,10 @@ const TYPE_LABEL: Record<string, string> = {
   cripto: 'Cripto',
   inversion: 'Inversión',
 }
+const TYPE_ICON: Record<string, string> = {
+  efectivo: '💵', billetera: '💳', debito: '💳', credito: '💳',
+  banco: '🏦', dolares: '💲', cripto: '🪙', inversion: '📈',
+}
 
 export default function Cuentas() {
   const { data, isLoading } = useAccountsWithBalances()
@@ -57,11 +61,19 @@ export default function Cuentas() {
 
   if (isLoading) return <CuentasSkeleton />
 
+  const nonCredit = (data ?? []).filter((a) => a.type !== 'credito')
+  const totalDisponible = nonCredit.reduce((s, a) => s + arsBalance(a), 0)
+
   return (
     <div style={{ padding: '14px 18px 24px', display: 'grid', gap: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
         <BackButton />
-        <div className="cap" style={{ flex: 1 }}>Cuentas</div>
+        <div style={{ flex: 1 }}>
+          <div className="num-serif" style={{ fontSize: 26 }}>Cuentas</div>
+          <div style={{ fontSize: 12.5, color: 'var(--color-sage)', marginTop: 3 }}>
+            {(data?.length ?? 0)} cuenta{(data?.length ?? 0) === 1 ? '' : 's'} · {formatMoney(totalDisponible)} disponible
+          </div>
+        </div>
         <button onClick={() => setCreateOpen(true)} style={ghostBtn}>+ Nueva cuenta</button>
       </div>
 
@@ -69,8 +81,9 @@ export default function Cuentas() {
 
       {data?.map((a) => (
         <Card key={a.id}>
-          {/* Header: name left, actions right */}
-          <div style={{ display: 'flex', alignItems: 'center' }}>
+          {/* Header: icon + name left, actions right */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--color-mist)', fontSize: 15, lineHeight: '32px', textAlign: 'center', flexShrink: 0 }}>{TYPE_ICON[a.type] ?? '💳'}</span>
             <span style={{ fontSize: 15, fontWeight: 500, flex: 1 }}>{a.name}</span>
             <CardActions
               onEdit={() => setEditAccount(a)}
@@ -78,7 +91,7 @@ export default function Cuentas() {
             />
           </div>
           {/* Secondary meta below name */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
             <span className="cap" style={{ fontSize: 10.5 }}>{TYPE_LABEL[a.type] ?? a.type}</span>
             <button onClick={() => setShareAccount(a)} title="Privada solo vos / Compartida con tu pareja"
               style={a.shared ? sharedPill : privatePill}>
@@ -142,6 +155,11 @@ export default function Cuentas() {
           ))}
         </div>
       )}
+
+      {/* Nota de privacidad (quién la ve) */}
+      <div style={{ background: 'rgba(43,238,75,0.10)', borderRadius: 14, padding: '13px 14px', fontSize: 12, lineHeight: 1.45, color: 'var(--color-voltage-ink, #1f7a2e)' }}>
+        Las cuentas privadas no aparecen en el resumen compartido, pero sí cuentan en tu patrimonio.
+      </div>
 
       {/* Create modal */}
       <AccountForm open={createOpen} onClose={() => setCreateOpen(false)} />

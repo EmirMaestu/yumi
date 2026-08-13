@@ -34,13 +34,13 @@ export default function Tendencias() {
 
   return (
     <div style={{ padding: '14px 18px 24px', display: 'grid', gap: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
         <BackButton />
-        <div className="cap" style={{ flex: 1 }}>Tendencias</div>
+        <div className="num-serif" style={{ flex: 1, fontSize: 26 }}>Tendencias</div>
         <div style={{ display: 'flex', gap: 6 }}>
           {[6, 12].map((mm) => (
             <button key={mm} onClick={() => setMonths(mm as 6 | 12)}
-              style={mm === months ? toggleOn : toggleOff}>{mm}m</button>
+              style={mm === months ? toggleOn : toggleOff}>{mm} meses</button>
           ))}
         </div>
       </div>

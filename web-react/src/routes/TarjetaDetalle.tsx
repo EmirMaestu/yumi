@@ -290,6 +290,13 @@ export default function TarjetaDetalle() {
                       />
                     </div>
                   </div>
+                  {/* Progreso de cuotas (mismo lenguaje de barras del diseño) */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                    <div style={{ flex: 1, height: 4, background: 'var(--color-mist)', borderRadius: 3, overflow: 'hidden' }}>
+                      <div style={{ width: `${total > 0 ? Math.min(100, (fired / total) * 100) : 0}%`, height: '100%', background: 'var(--color-voltage)' }} />
+                    </div>
+                    <span style={{ fontSize: 10.5, color: 'var(--color-sage)', flexShrink: 0 }}>{fired} de {total}</span>
+                  </div>
                   <div style={{ marginTop: 8, fontSize: 13, color: 'var(--color-sage)' }}>
                     Te falta:{' '}
                     <span className="num-serif" style={{ fontSize: 16, color: 'var(--color-obsidian-ink)' }}><Money value={restante} currency={r.currency} /></span>

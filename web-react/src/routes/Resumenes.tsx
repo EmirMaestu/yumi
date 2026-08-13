@@ -19,10 +19,13 @@ export default function Resumenes() {
 
   return (
     <div style={{ padding: '14px 18px 24px', display: 'grid', gap: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
         <BackButton />
-        <div className="cap" style={{ flex: 1 }}>Resúmenes anteriores</div>
-        <Link to={`/resumenes/${py}/${pm}`} style={{ fontSize: 13, color: 'var(--color-sage)', textDecoration: 'none' }}>Ver mes anterior →</Link>
+        <div style={{ flex: 1 }}>
+          <div className="num-serif" style={{ fontSize: 26 }}>Resúmenes</div>
+          <div style={{ fontSize: 12.5, color: 'var(--color-sage)', marginTop: 3 }}>Cierres mensuales · exportables</div>
+        </div>
+        <Link to={`/resumenes/${py}/${pm}`} style={{ fontSize: 13, color: 'var(--color-sage)', textDecoration: 'none', flexShrink: 0 }}>Mes anterior →</Link>
       </div>
 
       {items.length === 0

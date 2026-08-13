@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useSavingsGoals, useSavingsGoalMutations, type SavingsGoal } from '../hooks/useSavingsGoals'
 import { parseAmount } from '../lib/parseAmount'
+import { formatMoney } from '../lib/format'
 import { Money } from '../lib/privacy'
 import Card from '../components/ui/Card'
 import BackButton from '../components/ui/BackButton'
@@ -76,13 +77,18 @@ export default function Metas() {
 
   if (isLoading) return <MovimientosSkeleton />
   const goals = data ?? []
+  const savedArs = goals.filter((g) => g.currency === 'ARS').reduce((s, g) => s + g.current_amount, 0)
+  const subtitle = `${goals.length} activa${goals.length === 1 ? '' : 's'}${savedArs > 0 ? ` · ${formatMoney(savedArs)} ahorrados` : ''}`
 
   return (
     <div style={{ padding: '14px 18px 24px', display: 'grid', gap: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
         <BackButton />
-        <div className="cap" style={{ flex: 1 }}>Metas de ahorro</div>
-        <button onClick={() => setCreateOpen(true)} style={ghostBtn}>+ Nueva meta</button>
+        <div style={{ flex: 1 }}>
+          <div className="num-serif" style={{ fontSize: 26 }}>Metas</div>
+          {goals.length > 0 && <div style={{ fontSize: 12.5, color: 'var(--color-sage)', marginTop: 3 }}>{subtitle}</div>}
+        </div>
+        <button onClick={() => setCreateOpen(true)} style={ghostBtn}>+ Nueva</button>
       </div>
 
       {goals.length === 0
@@ -91,18 +97,19 @@ export default function Metas() {
           const pct = g.target_amount > 0 ? Math.min(100, (g.current_amount / g.target_amount) * 100) : 0
           return (
             <Card key={g.id}>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                 <span style={{ fontSize: 15, fontWeight: 500, flex: 1 }}>{g.name}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#3b6d11' }}>{Math.round(pct)}%</span>
                 <CardActions onEdit={() => setAportar(g)} onDelete={() => setDeleteGoal(g)} />
               </div>
-              <div style={{ fontSize: 13, color: 'var(--color-sage)', marginTop: 4 }}>
-                <Money value={g.current_amount} currency={g.currency as Currency} /> de <Money value={g.target_amount} currency={g.currency as Currency} /> ({Math.round(pct)}%)
-                {g.deadline ? ` · hasta ${g.deadline}` : ''}
-              </div>
-              <div style={{ height: 8, borderRadius: 6, background: 'var(--color-mist)', overflow: 'hidden', marginTop: 8 }}>
+              <div style={{ height: 8, borderRadius: 6, background: 'var(--color-mist)', overflow: 'hidden', marginTop: 9 }}>
                 <div style={{ width: `${pct}%`, height: '100%', background: 'var(--color-voltage)' }} />
               </div>
-              <button onClick={() => setAportar(g)} style={{ ...ghostBtn, marginTop: 10 }}>+ Aportar</button>
+              <div style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 7 }}>
+                <Money value={g.current_amount} currency={g.currency as Currency} /> de <Money value={g.target_amount} currency={g.currency as Currency} />
+                {g.deadline ? ` · hasta ${g.deadline}` : ''}
+              </div>
+              <button onClick={() => setAportar(g)} style={{ ...ghostBtn, marginTop: 10 }}>+ Sumar plata</button>
             </Card>
           )
         })}

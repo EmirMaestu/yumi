@@ -5,7 +5,6 @@ import { parseAmount } from '../lib/parseAmount'
 import { Money } from '../lib/privacy'
 import Card from '../components/ui/Card'
 import BackButton from '../components/ui/BackButton'
-import EmptyState from '../components/ui/EmptyState'
 import Modal from '../components/ui/Modal'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import CardActions from '../components/ui/CardActions'
@@ -66,19 +65,42 @@ export default function Presupuestos() {
     .filter((c) => !budgetedCatIds.has(c.id))
     .map((c) => ({ value: String(c.id), label: c.name }))
 
+  const now = new Date()
+  const monthName = now.toLocaleDateString('es-AR', { month: 'long' })
+  const daysLeft = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate()
+  const nAmber = budgets.filter((b) => { const p = budgetPct(b); return p >= 80 && p < 100 }).length
+  const nOver = budgets.filter((b) => budgetPct(b) >= 100).length
+  const subtitle = nOver > 0
+    ? `${monthName} · ${nOver} categoría${nOver === 1 ? '' : 's'} pasada${nOver === 1 ? '' : 's'} de tope`
+    : nAmber > 0
+      ? `${monthName} · ${nAmber} categoría${nAmber === 1 ? '' : 's'} en amarillo`
+      : `${monthName} · vas bien`
+
   return (
     <div style={{ padding: '14px 18px 24px', display: 'grid', gap: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
         <BackButton />
-        <div className="cap" style={{ flex: 1 }}>Presupuestos</div>
-        <button onClick={() => setCreateOpen(true)} style={ghostBtn}>+ Nuevo presupuesto</button>
+        <div style={{ flex: 1 }}>
+          <div className="num-serif" style={{ fontSize: 26 }}>Presupuestos</div>
+          {budgets.length > 0 && <div style={{ fontSize: 12.5, color: 'var(--color-sage)', marginTop: 3, textTransform: 'capitalize' }}>{subtitle}</div>}
+        </div>
+        <button onClick={() => setCreateOpen(true)} style={ghostBtn}>+ Nuevo</button>
       </div>
 
       {budgets.length === 0
-        ? <EmptyState>Definí cuánto querés gastar por categoría y te avisamos si te pasás.</EmptyState>
+        ? (
+          <div style={{ border: '1px dashed var(--color-mist)', borderRadius: 14, padding: 16 }}>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>Poné un tope a una categoría</div>
+            <div style={{ fontSize: 12.5, lineHeight: 1.45, color: 'var(--color-sage)', marginTop: 4 }}>
+              Elegí cuánto querés gastar por mes y Yumi les avisa a los dos al 80% del tope — antes de pasarse.
+            </div>
+            <button onClick={() => setCreateOpen(true)} style={{ ...ctaBtn, marginTop: 12, width: 'auto', padding: '10px 16px' }}>Crear presupuesto</button>
+          </div>
+        )
         : budgets.map((b) => {
           const pct = budgetPct(b)
           const color = budgetColor(pct)
+          const over = b.spent - b.amount
           return (
             <Card key={b.id}>
               <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -92,6 +114,13 @@ export default function Presupuestos() {
               </div>
               <div style={{ height: 8, borderRadius: 6, background: 'var(--color-mist)', overflow: 'hidden', marginTop: 8 }}>
                 <div style={{ width: `${Math.min(100, pct)}%`, height: '100%', background: color }} />
+              </div>
+              <div style={{ fontSize: 11.5, marginTop: 6, color: pct >= 100 ? 'var(--color-error)' : pct >= 80 ? '#a37718' : 'var(--color-sage)' }}>
+                {pct >= 100
+                  ? <>Te pasaste <Money value={over} /></>
+                  : pct >= 80
+                    ? <>{Math.round(pct)}% del tope · quedan {daysLeft} día{daysLeft === 1 ? '' : 's'}</>
+                    : 'Vas bien'}
               </div>
             </Card>
           )
