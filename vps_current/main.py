@@ -1532,6 +1532,7 @@ MULTI-USUARIO:
 MONTOS (Argentina):
 luca=1000 -> "50 lucas"=50000 - media luca=500 - palo=1000000 -> "1,5 palos"=1500000
 gamba=100 - 2k=2000 - 1.500=1500 (punto = miles) - dolares/USD/u$s/verdes -> USD - default ARS
+Monedas de la region: reales/R$ -> BRL - pesos chilenos/CLP -> CLP - pesos uruguayos -> UYU - guaranies -> PYG - bolivianos/Bs -> BOB (usa el codigo)
 
 FECHAS (resolver TODO a ISO usando HOY=__TODAY__ __DOW__):
 manana=+1d - pasado manana=+2d - en una hora=__NOW__+1h
@@ -1539,7 +1540,7 @@ el viernes=viernes mas proximo - el viernes que viene=siguiente
 fin de mes=ultimo dia del mes - recordatorio sin hora -> 09:00
 
 CAMPOS DE `data`:
-transaccion: {"type":"gasto"|"ingreso","amount":num,"currency":"ARS"|"USD"|"EUR","category":str,"account":str,"description":str,"occurred_at":"YYYY-MM-DDTHH:MM"}
+transaccion: {"type":"gasto"|"ingreso","amount":num,"currency":"ARS"|"USD"|"EUR"|"BRL"|"CLP"|"UYU"|"PYG"|"BOB","category":str,"account":str,"description":str,"occurred_at":"YYYY-MM-DDTHH:MM"}
 transferencia: {"amount":num,"from_account":str,"to_account":str,"from_currency":str,"to_currency":str,"exchange_rate":num|null,"rate_type":"oficial"|"blue"|"mep"|"cripto"|null,"description":str,"occurred_at":"YYYY-MM-DDTHH:MM"}
 recurrente: {"type":"gasto"|"ingreso","amount":num,"currency":str,"category":str,"account":str,"description":str,"frequency":"monthly"|"weekly"|"annual","day_of_month":num,"next_occurrence":"YYYY-MM-DD","total_installments":num|null}
 mover: {"target_account":str|null,"target_category":str|null,"filters":{...}}

@@ -1,4 +1,5 @@
-export type Currency = 'ARS' | 'USD' | 'EUR'
+import type { Currency } from './currencies'
+export type { Currency }
 
 export interface Me {
   id: number
