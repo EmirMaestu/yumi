@@ -33,6 +33,7 @@ import proactive
 import recurrence
 import streaks
 import shopping
+import dates
 import finance_alerts
 
 BASE_DIR = Path(__file__).parent
@@ -226,8 +227,9 @@ def get_whisper():
 
 def now_local(): return datetime.now(TZ)
 def parse_local(s):
-    if 'T' not in s: s += "T00:00"
-    return datetime.fromisoformat(s).replace(tzinfo=TZ)
+    # OJO: no agregar "T00:00" a datetimes con separador espacio ('YYYY-MM-DD HH:MM:SS');
+    # fromisoformat ya los acepta. Agregarlo los rompía y tumbaba el bot (dates.to_isoformat).
+    return datetime.fromisoformat(dates.to_isoformat(s)).replace(tzinfo=TZ)
 
 
 PBKDF2_ITERS = 200_000
@@ -1885,8 +1887,7 @@ def parse_photo(image_bytes, caption="", user_id=None, user_name=None):
 
 
 def fmt_dt(s):
-    if 'T' not in s: s += "T00:00"
-    d = datetime.fromisoformat(s)
+    d = datetime.fromisoformat(dates.to_isoformat(s))
     return f"{DIAS_ES[d.weekday()]} {d.strftime('%d/%m %H:%M')}"
 
 def fmt_d(s):
