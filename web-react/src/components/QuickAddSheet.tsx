@@ -13,6 +13,7 @@ import { useEventosMutations } from '../hooks/useEventos'
 import { useRecordatoriosMutations } from '../hooks/useRecordatorios'
 import { parseAmount } from '../lib/parseAmount'
 import { todayISODate, dateToNoonISO } from '../lib/format'
+import { CURRENCY_CODES, CURRENCY_OPTS } from '../lib/currencies'
 import { apiGet } from '../lib/api'
 
 // ---------- quick-type selector ----------
@@ -33,6 +34,7 @@ const txSchema = z.object({
   description: z.string().min(1, 'Falta descripción'),
   account_id: z.coerce.number().int(),
   category_id: z.coerce.number().int().optional(),
+  currency: z.enum(CURRENCY_CODES).default('ARS'),
   occurred_at: z.string(),
 })
 type TxInput = z.input<typeof txSchema>
@@ -108,7 +110,7 @@ function NormalTxForm({ tipo, onClose }: { tipo: 'gasto' | 'ingreso'; onClose: (
   const { create } = useTxMutations()
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<TxInput, unknown, TxOutput>({
     resolver: zodResolver(txSchema),
-    defaultValues: { type: tipo, occurred_at: todayISODate() },
+    defaultValues: { type: tipo, currency: 'ARS', occurred_at: todayISODate() },
   })
   const [suggested, setSuggested] = useState(false)
   const desc = watch('description')
@@ -132,7 +134,12 @@ function NormalTxForm({ tipo, onClose }: { tipo: 'gasto' | 'ingreso'; onClose: (
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'grid', gap: 12 }}>
-      <input {...register('amount')} inputMode="decimal" placeholder="Monto" style={fieldStyle} />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input {...register('amount')} inputMode="decimal" placeholder="Monto" style={{ ...fieldStyle, flex: 1, minWidth: 0 }} />
+        <Controller name="currency" control={control} render={({ field }) => (
+          <Select value={field.value} onValueChange={field.onChange} options={CURRENCY_OPTS} ariaLabel="Moneda" style={{ width: 104 }} />
+        )} />
+      </div>
       {errors.amount && <small style={errStyle}>{errors.amount.message}</small>}
       <input {...register('description')} placeholder="Descripción" style={fieldStyle} />
       {errors.description && <small style={errStyle}>{errors.description.message}</small>}

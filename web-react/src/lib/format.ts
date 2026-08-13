@@ -1,6 +1,6 @@
-type Currency = 'ARS' | 'USD' | 'EUR'
+import { type Currency, CURRENCY_SYMBOL } from './currencies'
 
-const SYMBOL: Record<Currency, string> = { ARS: '$', USD: 'US$', EUR: '€' }
+const SYMBOL = CURRENCY_SYMBOL
 const formatter = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const MESES = [
   'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -9,7 +9,8 @@ const MESES = [
 
 export function formatMoney(amount: number, currency: Currency = 'ARS'): string {
   const sign = amount < 0 ? '-' : ''
-  return `${sign}${SYMBOL[currency]}${formatter.format(Math.abs(amount))}`
+  const sym = SYMBOL[currency] ?? `${currency} `  // fallback: moneda desconocida → muestra el código
+  return `${sign}${sym}${formatter.format(Math.abs(amount))}`
 }
 
 export function formatUsdApprox(amountArs: number, blue: number | null): string | null {

@@ -10,8 +10,9 @@ import ConfirmDialog from '../components/ui/ConfirmDialog'
 import CardActions from '../components/ui/CardActions'
 import Select from '../components/ui/Select'
 import { MovimientosSkeleton } from '../components/ui/skeletons'
+import { CURRENCY_OPTS, type Currency } from '../lib/currencies'
 
-const CUR_OPTS = [{ value: 'USD', label: 'USD' }, { value: 'ARS', label: 'ARS' }, { value: 'EUR', label: 'EUR' }]
+const CUR_OPTS = CURRENCY_OPTS
 
 function GoalModal({ open, onClose, onSubmit }: { open: boolean; onClose: () => void; onSubmit: (b: { name: string; target_amount: number; currency: string; deadline?: string | null }) => void }) {
   const [name, setName] = useState('')
@@ -95,7 +96,7 @@ export default function Metas() {
                 <CardActions onEdit={() => setAportar(g)} onDelete={() => setDeleteGoal(g)} />
               </div>
               <div style={{ fontSize: 13, color: 'var(--color-sage)', marginTop: 4 }}>
-                <Money value={g.current_amount} currency={g.currency as 'ARS' | 'USD' | 'EUR'} /> de <Money value={g.target_amount} currency={g.currency as 'ARS' | 'USD' | 'EUR'} /> ({Math.round(pct)}%)
+                <Money value={g.current_amount} currency={g.currency as Currency} /> de <Money value={g.target_amount} currency={g.currency as Currency} /> ({Math.round(pct)}%)
                 {g.deadline ? ` · hasta ${g.deadline}` : ''}
               </div>
               <div style={{ height: 8, borderRadius: 6, background: 'var(--color-mist)', overflow: 'hidden', marginTop: 8 }}>

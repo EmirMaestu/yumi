@@ -5,6 +5,8 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 > Regla: cada tanda de features = bump de versión (MINOR), entrada en este archivo, tag de git (`vX.Y.Z`) y redeploy. `1.0.0` = lanzamiento del **asistente completo** (no solo finanzas).
 
 ## [Unreleased]
+### Added
+- **Ingreso/egreso en varias monedas (Mercosur):** al agregar un gasto o ingreso podés elegir la **moneda** (ARS, USD, EUR, BRL, CLP, UYU, PYG, BOB). Se guarda y muestra en su moneda; el bot también las reconoce por chat. *(El total del patrimonio suma lo convertible —USD/ARS— y lista el resto por separado; la conversión de las demás es follow-up.)*
 
 ## [1.2.0] - 2026-08-13
 ### Added
