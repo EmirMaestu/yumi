@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, fireEvent } from '@testing-library/react'
 import { vi, expect, test, afterEach } from 'vitest'
 import { renderWithProviders } from '../test/utils'
 import Tareas from './Tareas'
@@ -40,11 +40,11 @@ test('lista tareas pendientes y hechas', async () => {
 
   renderWithProviders(<Tareas />)
 
+  // Por defecto (filtro "Todas") se ven las pendientes
   expect(await screen.findByText('Comprar leche')).toBeInTheDocument()
-  expect(screen.getByText('Llamar al médico')).toBeInTheDocument()
-  // Priority label
-  expect(screen.getByText('alta')).toBeInTheDocument()
-  // Completed section heading
+  // Las hechas viven detrás del filtro "Hechas"
+  fireEvent.click(screen.getByText('Hechas'))
+  expect(await screen.findByText('Llamar al médico')).toBeInTheDocument()
   expect(screen.getByText('Completadas')).toBeInTheDocument()
 })
 

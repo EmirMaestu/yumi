@@ -56,11 +56,10 @@ test('muestra un evento y un recordatorio agrupados por día', async () => {
 
   expect(await screen.findByText('Reunión de equipo')).toBeInTheDocument()
   expect(screen.getByText('Llamar al banco')).toBeInTheDocument()
-  // type chips
-  expect(screen.getByText('evento')).toBeInTheDocument()
-  expect(screen.getByText('recordatorio')).toBeInTheDocument()
+  // recordatorio muestra su subtítulo
+  expect(screen.getByText(/Recordatorio ·/)).toBeInTheDocument()
   // day group label
-  expect(screen.getByText('Mañana')).toBeInTheDocument()
+  expect(screen.getAllByText('Mañana').length).toBeGreaterThan(0)
 })
 
 test('muestra EmptyState si no hay ítems', async () => {

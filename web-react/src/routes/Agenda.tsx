@@ -1,11 +1,9 @@
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
+import { useEffect, useState } from 'react'
 import { useEventos, useEventosMutations } from '../hooks/useEventos'
 import { useRecordatorios, useRecordatoriosMutations, type SnoozePreset } from '../hooks/useRecordatorios'
 import { useMe } from '../hooks/useMe'
-import { type Evento, type Recordatorio } from '../lib/types'
+import { useHouseholdMembers, useShareMutation } from '../hooks/useShare'
+import { type Evento, type Recordatorio, type HouseholdMember } from '../lib/types'
 import { cleanReminderText } from '../lib/format'
 import Card from '../components/ui/Card'
 import CardActions from '../components/ui/CardActions'
@@ -55,37 +53,38 @@ function isPast(iso: string) {
   return new Date(iso) < new Date()
 }
 
+const WEEKDAY_ABBR = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB']
+
 // ── unified item type ────────────────────────────────────────────────────────
 
 type AgendaItem =
   | { kind: 'evento'; data: Evento; sortKey: string }
   | { kind: 'recordatorio'; data: Recordatorio; sortKey: string }
 
-// ── form schemas ─────────────────────────────────────────────────────────────
+// ── Evento modal (rediseño 2b: chips de cuándo + recordatorio + compartir) ────
 
-const eventoSchema = z.object({
-  title: z.string().min(1, 'Requerido'),
-  starts_at: z.string().min(1, 'Requerido'),
-  location: z.string().optional(),
-  notes: z.string().optional(),
-})
-type EventoForm = z.infer<typeof eventoSchema>
+type EventoInitial = { title: string; starts_at: string; location?: string; notes?: string }
+type EventoPayload = {
+  title: string
+  starts_at: string
+  location: string
+  notes: string
+  reminder_offsets?: number[]
+  share?: boolean
+}
 
-const recSchema = z.object({
-  text: z.string().min(1, 'Requerido'),
-  remind_at: z.string().min(1, 'Requerido'),
-})
-type RecForm = z.infer<typeof recSchema>
-
-// ── Evento modal ─────────────────────────────────────────────────────────────
-
-const REMINDER_PRESETS = [
-  { min: 10, label: '10 min' },
-  { min: 60, label: '1 hora' },
-  { min: 120, label: '2 horas' },
-  { min: 1440, label: '1 día' },
-  { min: 2880, label: '2 días' },
-]
+function pad(n: number) { return String(n).padStart(2, '0') }
+function todayStr() { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` }
+function addDaysStr(days: number) {
+  const d = new Date(); d.setDate(d.getDate() + days)
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+function nextSaturdayStr() {
+  const d = new Date()
+  const delta = (6 - d.getDay() + 7) % 7 || 7 // próximo sábado (nunca hoy)
+  d.setDate(d.getDate() + delta)
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
 
 function EventoModal({
   open,
@@ -93,68 +92,130 @@ function EventoModal({
   title,
   initial,
   withReminders = false,
+  partnerLabel,
   onSubmit,
 }: {
   open: boolean
   onClose: () => void
   title: string
-  initial?: Partial<EventoForm>
+  initial?: EventoInitial
   withReminders?: boolean
-  onSubmit: (data: EventoForm & { reminder_offsets?: number[] }) => void
+  partnerLabel?: string | null
+  onSubmit: (data: EventoPayload) => void
 }) {
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<EventoForm>({
-    resolver: zodResolver(eventoSchema),
-    defaultValues: { title: '', starts_at: '', location: '', notes: '', ...initial },
-  })
-  const [offsets, setOffsets] = useState<number[]>([])
+  const [name, setName] = useState('')
+  const [dateStr, setDateStr] = useState(todayStr())
+  const [timeStr, setTimeStr] = useState('09:00')
+  const [pickDate, setPickDate] = useState(false)
+  const [reminder, setReminder] = useState<'1h' | '1d' | 'none'>('1h')
+  const [location, setLocation] = useState('')
+  const [notes, setNotes] = useState('')
+  const [share, setShare] = useState(false)
+  const [err, setErr] = useState(false)
 
-  const close = () => { onClose(); reset(); setOffsets([]) }
-  const submit = (data: EventoForm) => {
-    onSubmit({ ...data, reminder_offsets: withReminders ? offsets : undefined })
-    reset(); setOffsets([])
+  // Reset al abrir; precargar valores en edición.
+  useEffect(() => {
+    if (!open) return
+    if (initial) {
+      const d = new Date(initial.starts_at)
+      setName(initial.title)
+      setDateStr(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`)
+      setTimeStr(`${pad(d.getHours())}:${pad(d.getMinutes())}`)
+      setLocation(initial.location ?? '')
+      setNotes(initial.notes ?? '')
+    } else {
+      setName(''); setDateStr(todayStr()); setTimeStr('09:00'); setLocation(''); setNotes('')
+    }
+    setPickDate(false); setReminder('1h'); setShare(false); setErr(false)
+  }, [open, initial])
+
+  const sat = nextSaturdayStr()
+  const quick: { key: string; label: string; val: string }[] = [
+    { key: 'hoy', label: 'Hoy', val: todayStr() },
+    { key: 'manana', label: 'Mañana', val: addDaysStr(1) },
+    { key: 'sabado', label: 'Sábado', val: sat },
+  ]
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!name.trim()) { setErr(true); return }
+    const reminder_offsets = withReminders
+      ? (reminder === '1h' ? [60] : reminder === '1d' ? [1440] : [])
+      : undefined
+    onSubmit({
+      title: name.trim(),
+      starts_at: `${dateStr}T${timeStr}`,
+      location: location.trim(),
+      notes: notes.trim(),
+      reminder_offsets,
+      share: withReminders ? share : undefined,
+    })
   }
 
   return (
-    <Modal open={open} onClose={close} title={title}>
-      <form onSubmit={handleSubmit(submit)} style={{ display: 'grid', gap: 12 }}>
+    <Modal open={open} onClose={onClose} title={title}>
+      <form onSubmit={submit} style={{ display: 'grid', gap: 14 }}>
         <div>
-          <input {...register('title')} placeholder="Título del evento" autoFocus style={inputStyle} />
-          {errors.title && <span style={errorStyle}>{errors.title.message}</span>}
+          <input
+            value={name}
+            onChange={(e) => { setName(e.target.value); if (err) setErr(false) }}
+            placeholder="Título del evento"
+            autoFocus
+            style={{ ...inputStyle, border: `1.6px solid ${err ? 'var(--color-error)' : 'var(--color-obsidian-ink)'}`, fontWeight: 500 }}
+          />
+          {err && <span style={errorStyle}>Poné un título</span>}
         </div>
-        <label style={labelStyle}>
-          Fecha y hora
-          <input type="datetime-local" {...register('starts_at')} style={inputStyle} />
-          {errors.starts_at && <span style={errorStyle}>{errors.starts_at.message}</span>}
-        </label>
-        <input {...register('location')} placeholder="Lugar (opcional)" style={inputStyle} />
-        <textarea {...register('notes')} placeholder="Notas (opcional)" rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+
+        <div>
+          <div style={groupLabel}>Cuándo</div>
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+            {quick.map((q) => (
+              <button key={q.key} type="button" onClick={() => { setDateStr(q.val); setPickDate(false) }} style={chip(!pickDate && dateStr === q.val)}>
+                {q.label}
+              </button>
+            ))}
+            <button type="button" onClick={() => setPickDate(true)} style={chip(pickDate || !quick.some((q) => q.val === dateStr))}>
+              Elegir fecha
+            </button>
+          </div>
+          {(pickDate || !quick.some((q) => q.val === dateStr)) && (
+            <input type="date" value={dateStr} onChange={(e) => setDateStr(e.target.value)} style={{ ...inputStyle, marginTop: 9 }} />
+          )}
+          <div style={{ display: 'flex', gap: 9, marginTop: 9 }}>
+            <label style={{ ...fieldBox, flex: 1 }}>
+              <span style={miniLabel}>Hora</span>
+              <input type="time" value={timeStr} onChange={(e) => setTimeStr(e.target.value)} style={bareInput} />
+            </label>
+            <label style={{ ...fieldBox, flex: 1 }}>
+              <span style={miniLabel}>Lugar (opcional)</span>
+              <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="—" style={bareInput} />
+            </label>
+          </div>
+        </div>
+
         {withReminders && (
-          <div style={labelStyle}>
-            Avisarme antes
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
-              {REMINDER_PRESETS.map((p) => {
-                const on = offsets.includes(p.min)
-                return (
-                  <button
-                    key={p.min}
-                    type="button"
-                    onClick={() => setOffsets((o) => (on ? o.filter((x) => x !== p.min) : [...o, p.min]))}
-                    style={{
-                      fontSize: 12, padding: '5px 11px', borderRadius: 9999, cursor: 'pointer',
-                      border: `1px solid ${on ? 'var(--color-voltage)' : 'var(--color-mist)'}`,
-                      background: on ? 'var(--color-voltage)' : 'transparent',
-                      color: on ? 'var(--voltage-on-dark)' : 'var(--color-sage)',
-                      fontWeight: on ? 600 : 400,
-                    }}
-                  >
-                    {p.label}
-                  </button>
-                )
-              })}
+          <div>
+            <div style={groupLabel}>Recordatorio</div>
+            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+              <button type="button" onClick={() => setReminder('1h')} style={chip(reminder === '1h')}>1 h antes</button>
+              <button type="button" onClick={() => setReminder('1d')} style={chip(reminder === '1d')}>1 día antes</button>
+              <button type="button" onClick={() => setReminder('none')} style={chip(reminder === 'none')}>Sin aviso</button>
             </div>
           </div>
         )}
-        <button type="submit" style={ctaBtn}>Guardar</button>
+
+        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notas (opcional)" rows={2} style={{ ...inputStyle, resize: 'vertical' }} />
+
+        {withReminders && partnerLabel && (
+          <label style={shareRow}>
+            <span style={{ flex: 1, fontSize: 13, fontWeight: 500 }}>Compartir con {partnerLabel}</span>
+            <button type="button" role="switch" aria-checked={share} aria-label={`Compartir con ${partnerLabel}`} onClick={() => setShare((s) => !s)} style={toggleTrack(share)}>
+              <span style={toggleKnob(share)} />
+            </button>
+          </label>
+        )}
+
+        <button type="submit" style={solidCta}>Guardar evento</button>
       </form>
     </Modal>
   )
@@ -175,42 +236,55 @@ function RecordatorioModal({
   title: string
   initial?: { text?: string; remind_at?: string; event_id?: number | null }
   events: Evento[]
-  onSubmit: (data: RecForm & { event_id: number | null }) => void
+  onSubmit: (data: { text: string; remind_at: string; event_id: number | null }) => void
 }) {
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<RecForm>({
-    resolver: zodResolver(recSchema),
-    defaultValues: { text: initial?.text ?? '', remind_at: initial?.remind_at ?? '' },
-  })
-  const [eventId, setEventId] = useState<string>(initial?.event_id ? String(initial.event_id) : 'none')
+  const [text, setText] = useState('')
+  const [remindAt, setRemindAt] = useState('')
+  const [eventId, setEventId] = useState<string>('none')
+  const [err, setErr] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    setText(initial?.text ?? '')
+    setRemindAt(initial?.remind_at ? initial.remind_at.slice(0, 16) : '')
+    setEventId(initial?.event_id ? String(initial.event_id) : 'none')
+    setErr(false)
+  }, [open, initial])
 
   const eventOpts = [
     { value: 'none', label: 'Sin evento' },
     ...events.map((e) => ({ value: String(e.id), label: `${e.title} · ${fmtDateLabel(e.starts_at)} ${fmtTime(e.starts_at)}` })),
   ]
 
-  const close = () => { onClose(); reset(); setEventId('none') }
-  const submit = (data: RecForm) => {
-    onSubmit({ ...data, event_id: eventId === 'none' ? null : Number(eventId) })
-    reset(); setEventId('none')
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!text.trim() || !remindAt) { setErr(true); return }
+    onSubmit({ text: text.trim(), remind_at: remindAt, event_id: eventId === 'none' ? null : Number(eventId) })
   }
 
   return (
-    <Modal open={open} onClose={close} title={title}>
-      <form onSubmit={handleSubmit(submit)} style={{ display: 'grid', gap: 12 }}>
+    <Modal open={open} onClose={onClose} title={title}>
+      <form onSubmit={submit} style={{ display: 'grid', gap: 12 }}>
         <div>
-          <input {...register('text')} placeholder="¿De qué te recordamos?" autoFocus style={inputStyle} />
-          {errors.text && <span style={errorStyle}>{errors.text.message}</span>}
+          <input
+            value={text}
+            onChange={(e) => { setText(e.target.value); if (err) setErr(false) }}
+            placeholder="¿De qué te recordamos?"
+            autoFocus
+            style={{ ...inputStyle, border: '1.6px solid var(--color-obsidian-ink)', fontWeight: 500 }}
+          />
+          {err && !text.trim() && <span style={errorStyle}>Requerido</span>}
         </div>
         <label style={labelStyle}>
           Recordar a las
-          <input type="datetime-local" {...register('remind_at')} style={inputStyle} />
-          {errors.remind_at && <span style={errorStyle}>{errors.remind_at.message}</span>}
+          <input type="datetime-local" value={remindAt} onChange={(e) => setRemindAt(e.target.value)} style={inputStyle} />
+          {err && !remindAt && <span style={errorStyle}>Elegí fecha y hora</span>}
         </label>
         <label style={labelStyle}>
           Vincular a un evento (opcional)
           <Select value={eventId} onValueChange={setEventId} options={eventOpts} ariaLabel="Evento" style={{ width: '100%' }} />
         </label>
-        <button type="submit" style={ctaBtn}>Guardar</button>
+        <button type="submit" style={solidCta}>Guardar</button>
       </form>
     </Modal>
   )
@@ -220,23 +294,10 @@ function RecordatorioModal({
 
 function SnoozeMenu({ onSnooze }: { onSnooze: (p: SnoozePreset) => void }) {
   return (
-    <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+    <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
       {(['1h', 'manana', 'semana'] as SnoozePreset[]).map((p) => (
-        <button
-          key={p}
-          onClick={() => onSnooze(p)}
-          style={{
-            fontSize: 11,
-            padding: '3px 9px',
-            borderRadius: 9999,
-            border: '1px solid var(--color-mist)',
-            background: 'transparent',
-            cursor: 'pointer',
-            color: 'var(--color-sage)',
-            fontWeight: 500,
-          }}
-        >
-          {p === '1h' ? '+1h' : p === 'manana' ? 'Mañana' : 'Semana'}
+        <button key={p} type="button" onClick={() => onSnooze(p)} style={chip(false)}>
+          {p === '1h' ? '+1 h' : p === 'manana' ? 'Mañana' : 'Semana'}
         </button>
       ))}
     </div>
@@ -255,28 +316,28 @@ export default function Agenda() {
   const { data: recordatorios, isLoading: loadR } = useRecordatorios(false)
   const evMut = useEventosMutations()
   const recMut = useRecordatoriosMutations()
+  const shareEv = useShareMutation('eventos')
   const { data: me } = useMe()
+  const { data: members } = useHouseholdMembers()
 
   const [addMode, setAddMode] = useState<AddMode>(null)
-
-  // edit state
   const [editEvento, setEditEvento] = useState<Evento | null>(null)
   const [editRec, setEditRec] = useState<Recordatorio | null>(null)
-
-  // delete + share state
   const [deleteItem, setDeleteItem] = useState<AgendaItem | null>(null)
   const [shareItem, setShareItem] = useState<AgendaItem | null>(null)
 
+  const memberById = new Map<number, HouseholdMember>((members ?? []).map((m) => [m.id, m]))
+  const others = (members ?? []).filter((m) => !m.is_me)
+  const partnerLabel = others.length === 1 ? others[0].name : others.length > 1 ? 'el plan' : null
+
   if (loadE || loadR) return <MovimientosSkeleton />
 
-  // combine all items into a unified sorted list
   const allItems: AgendaItem[] = [
     ...(eventos ?? []).map((e): AgendaItem => ({ kind: 'evento', data: e, sortKey: e.starts_at })),
     ...(eventosPast ?? []).map((e): AgendaItem => ({ kind: 'evento', data: e, sortKey: e.starts_at })),
     ...(recordatorios ?? []).filter((r) => !r.event_id).map((r): AgendaItem => ({ kind: 'recordatorio', data: r, sortKey: r.remind_at })),
   ].sort((a, b) => a.sortKey.localeCompare(b.sortKey))
 
-  // group by day
   const groups = new Map<string, AgendaItem[]>()
   for (const item of allItems) {
     const key = dayKey(item.sortKey)
@@ -284,26 +345,48 @@ export default function Agenda() {
     groups.get(key)!.push(item)
   }
 
-  const handleCreateEvento = (data: EventoForm & { reminder_offsets?: number[] }) => {
-    evMut.create.mutate({
-      title: data.title,
-      starts_at: data.starts_at,
-      location: data.location || null,
-      notes: data.notes || null,
-      reminder_offsets: data.reminder_offsets,
-    })
+  // Cosas de acá a fin de semana (para el subtítulo)
+  const weekEnd = new Date(); weekEnd.setDate(weekEnd.getDate() + 7)
+  const thisWeekCount = allItems.filter((i) => !isPast(i.sortKey) && new Date(i.sortKey) <= weekEnd).length
+  const monthName = new Intl.DateTimeFormat('es-AR', { month: 'long' }).format(new Date())
+
+  // Tira de días (próximos 6 desde hoy)
+  const strip = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(); d.setDate(d.getDate() + i)
+    return d
+  })
+
+  const scrollToDay = (key: string) => {
+    document.getElementById(`day-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const handleCreateEvento = (data: EventoPayload) => {
+    evMut.create.mutate(
+      {
+        title: data.title,
+        starts_at: data.starts_at,
+        location: data.location || null,
+        notes: data.notes || null,
+        reminder_offsets: data.reminder_offsets,
+      },
+      {
+        onSuccess: (res) => {
+          if (data.share && res?.id) shareEv.mutate({ id: res.id, shared: 1 })
+        },
+      },
+    )
     setAddMode(null)
   }
-  const handleCreateRec = (data: RecForm & { event_id: number | null }) => {
+  const handleCreateRec = (data: { text: string; remind_at: string; event_id: number | null }) => {
     recMut.create.mutate({ text: data.text, remind_at: data.remind_at, event_id: data.event_id })
     setAddMode(null)
   }
-  const handleEditEvento = (data: EventoForm) => {
+  const handleEditEvento = (data: EventoPayload) => {
     if (!editEvento) return
     evMut.update.mutate({ id: editEvento.id, title: data.title, starts_at: data.starts_at, location: data.location || null, notes: data.notes || null })
     setEditEvento(null)
   }
-  const handleEditRec = (data: RecForm & { event_id: number | null }) => {
+  const handleEditRec = (data: { text: string; remind_at: string; event_id: number | null }) => {
     if (!editRec) return
     recMut.update.mutate({ id: editRec.id, text: data.text, remind_at: data.remind_at, event_id: data.event_id })
     setEditRec(null)
@@ -316,22 +399,46 @@ export default function Agenda() {
   }
 
   return (
-    <div style={{ padding: '14px 18px 24px', display: 'grid', gap: 14 }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div className="cap" style={{ flex: 1 }}>Agenda</div>
-        <button
-          onClick={() => setAddMode('evento')}
-          style={ghostBtn}
-        >
-          + Evento
+    <div style={{ padding: '10px 18px 24px' }}>
+      {/* Título */}
+      <div style={pageTitle}>Agenda</div>
+      <div style={pageSub}>
+        <span style={{ textTransform: 'capitalize' }}>{monthName}</span> · {thisWeekCount} cosa{thisWeekCount === 1 ? '' : 's'} esta semana
+      </div>
+
+      {/* Acciones de creación */}
+      <div style={{ display: 'flex', gap: 8, margin: '16px 0 12px' }}>
+        <button onClick={() => setAddMode('evento')} style={solidPill}>
+          <i className="ti ti-plus" aria-hidden /> Evento
         </button>
-        <button
-          onClick={() => setAddMode('recordatorio')}
-          style={ghostBtn}
-        >
-          + Recordatorio
+        <button onClick={() => setAddMode('recordatorio')} style={ghostPill}>
+          <i className="ti ti-plus" aria-hidden /> Recordatorio
         </button>
+      </div>
+
+      {/* Tira de días */}
+      <div style={{ display: 'flex', gap: 6, paddingBottom: 14, borderBottom: '1px solid var(--color-mist)', overflowX: 'auto' }}>
+        {strip.map((d, i) => {
+          const key = localDay(d)
+          const isToday = i === 0
+          const hasItems = groups.has(key)
+          return (
+            <button
+              key={key}
+              onClick={() => hasItems && scrollToDay(key)}
+              style={{
+                flex: 'none', width: 44, borderRadius: 12, padding: '8px 0', textAlign: 'center', cursor: hasItems ? 'pointer' : 'default',
+                border: 'none', background: isToday ? 'var(--color-obsidian-ink)' : 'transparent',
+              }}
+            >
+              <div style={{ fontSize: 9.5, fontWeight: 500, color: isToday ? 'var(--color-linen)' : 'var(--color-sage)' }}>{WEEKDAY_ABBR[d.getDay()]}</div>
+              <div className="num-serif" style={{ fontSize: 16, fontWeight: 600, color: isToday ? 'var(--color-linen)' : 'var(--color-obsidian-ink)' }}>{d.getDate()}</div>
+              <div style={{ height: 4, marginTop: 2, display: 'flex', justifyContent: 'center' }}>
+                {hasItems && <span style={{ width: 4, height: 4, borderRadius: '50%', background: isToday ? 'var(--color-voltage)' : 'var(--color-voltage)' }} />}
+              </div>
+            </button>
+          )
+        })}
       </div>
 
       {/* Empty state */}
@@ -339,17 +446,18 @@ export default function Agenda() {
         <EmptyState>Sin eventos ni recordatorios. ¡Agregá algo!</EmptyState>
       )}
 
-      {/* Grouped days */}
+      {/* Días agrupados */}
       {[...groups.entries()].map(([dateKey, items]) => (
-        <div key={dateKey}>
-          <div style={sectionLabel}>{fmtDateLabel(dateKey + 'T00:00')}</div>
-          <div style={{ display: 'grid', gap: 8 }}>
+        <div key={dateKey} id={`day-${dateKey}`} style={{ marginTop: 16 }}>
+          <div style={{ ...sectionLabel, textTransform: 'uppercase' }}>{fmtDateLabel(dateKey + 'T00:00')}</div>
+          <div style={{ display: 'grid', gap: 9 }}>
             {items.map((item) =>
               item.kind === 'evento' ? (
                 <EventoCard
                   key={`e-${item.data.id}`}
                   evento={item.data}
                   isOwner={me?.id === item.data.user_id}
+                  owner={memberById.get(item.data.user_id)}
                   dimmed={isPast(item.data.starts_at)}
                   onEdit={() => setEditEvento(item.data)}
                   onDelete={() => setDeleteItem(item)}
@@ -361,6 +469,7 @@ export default function Agenda() {
                   key={`r-${item.data.id}`}
                   rec={item.data}
                   isOwner={me?.id === item.data.user_id}
+                  owner={memberById.get(item.data.user_id)}
                   dimmed={isPast(item.data.remind_at)}
                   onEdit={() => setEditRec(item.data)}
                   onDelete={() => setDeleteItem(item)}
@@ -379,6 +488,7 @@ export default function Agenda() {
         onClose={() => setAddMode(null)}
         title="Nuevo evento"
         withReminders
+        partnerLabel={partnerLabel}
         onSubmit={handleCreateEvento}
       />
       <RecordatorioModal
@@ -428,7 +538,7 @@ export default function Agenda() {
         onConfirm={handleDelete}
       />
 
-      {/* Share sheet (evento o recordatorio según el ítem) */}
+      {/* Share sheet */}
       <ShareSheet
         open={shareItem !== null}
         onClose={() => setShareItem(null)}
@@ -440,6 +550,21 @@ export default function Agenda() {
 }
 
 // ── sub-components ───────────────────────────────────────────────────────────
+
+function MemberDot({ member }: { member: HouseholdMember }) {
+  return (
+    <span
+      title={member.name}
+      style={{
+        width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+        background: member.color || 'rgba(43,238,75,0.22)', color: 'var(--voltage-on-dark)',
+        fontSize: 9, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      }}
+    >
+      {member.name.slice(0, 1).toUpperCase()}
+    </span>
+  )
+}
 
 // Etiqueta del aviso relativo al inicio del evento ("1 día antes", "2 h antes")
 function reminderOffsetLabel(remindAt: string, startsAt: string): string {
@@ -456,6 +581,7 @@ function reminderOffsetLabel(remindAt: string, startsAt: string): string {
 function EventoCard({
   evento,
   isOwner,
+  owner,
   dimmed,
   onEdit,
   onDelete,
@@ -464,6 +590,7 @@ function EventoCard({
 }: {
   evento: Evento
   isOwner: boolean
+  owner?: HouseholdMember
   dimmed: boolean
   onEdit: () => void
   onDelete: () => void
@@ -471,51 +598,43 @@ function EventoCard({
   onRemoveReminder: (id: number) => void
 }) {
   const reminders = evento.reminders ?? []
+  const sub = [evento.location, reminders[0] ? `recordatorio ${reminderOffsetLabel(reminders[0].remind_at, evento.starts_at)}` : null]
+    .filter(Boolean).join(' · ')
   return (
-    <Card style={{ opacity: dimmed ? 0.55 : 1 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-        <div style={{ width: 4, borderRadius: 4, background: 'var(--color-voltage)', alignSelf: 'stretch', flexShrink: 0 }} />
+    <Card style={{ opacity: dimmed ? 0.55 : 1, padding: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11 }}>
+        <div style={{ ...timeCol }}>{fmtTime(evento.starts_at)}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={timeLabel}>{fmtTime(evento.starts_at)}</span>
-            <span style={chipStyle('#2bee4b22', 'var(--color-sage)')}>evento</span>
-            {isOwner && <ShareBadge shared={evento.shared} count={evento.share_count} />}
-          </div>
-          <div style={{ fontSize: 14, fontWeight: 500, marginTop: 2, color: 'var(--color-obsidian-ink)' }}>
-            {evento.title}
-          </div>
-          {evento.location && (
-            <div style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 2 }}>
-              <i className="ti ti-map-pin" aria-hidden /> {evento.location}
+          <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--color-obsidian-ink)' }}>{evento.title}</div>
+          {(sub || evento.notes) && (
+            <div style={{ fontSize: 11.5, color: 'var(--color-sage)', marginTop: 2 }}>{sub || evento.notes}</div>
+          )}
+          {isOwner && <div style={{ marginTop: 6 }}><ShareBadge shared={evento.shared} count={evento.share_count} /></div>}
+          {reminders.length > 0 && (
+            <div style={{ marginTop: 8, display: 'grid', gap: 5 }}>
+              {reminders.map((r) => (
+                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--color-sage)' }}>
+                  <i className="ti ti-bell" aria-hidden style={{ fontSize: 12 }} />
+                  <span style={{ flex: 1 }}>te aviso {reminderOffsetLabel(r.remind_at, evento.starts_at)}</span>
+                  <button
+                    onClick={() => onRemoveReminder(r.id)}
+                    aria-label="Quitar aviso"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-sage)', padding: 0, lineHeight: 1 }}
+                  >
+                    <i className="ti ti-x" style={{ fontSize: 12 }} aria-hidden />
+                  </button>
+                </div>
+              ))}
             </div>
           )}
-          {evento.notes && (
-            <div style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 2 }}>{evento.notes}</div>
-          )}
         </div>
+        {!isOwner && owner && <MemberDot member={owner} />}
         <CardActions
           onShare={isOwner ? onShare : undefined}
           onEdit={onEdit}
           onDelete={isOwner ? onDelete : undefined}
         />
       </div>
-      {reminders.length > 0 && (
-        <div style={{ marginTop: 8, marginLeft: 14, display: 'grid', gap: 5 }}>
-          {reminders.map((r) => (
-            <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--color-sage)' }}>
-              <i className="ti ti-bell" aria-hidden style={{ fontSize: 12 }} />
-              <span style={{ flex: 1 }}>te aviso {reminderOffsetLabel(r.remind_at, evento.starts_at)}</span>
-              <button
-                onClick={() => onRemoveReminder(r.id)}
-                aria-label="Quitar aviso"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-sage)', padding: 0, lineHeight: 1 }}
-              >
-                <i className="ti ti-x" style={{ fontSize: 12 }} aria-hidden />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
     </Card>
   )
 }
@@ -523,6 +642,7 @@ function EventoCard({
 function RecordatorioCard({
   rec,
   isOwner,
+  owner,
   dimmed,
   onEdit,
   onDelete,
@@ -531,6 +651,7 @@ function RecordatorioCard({
 }: {
   rec: Recordatorio
   isOwner: boolean
+  owner?: HouseholdMember
   dimmed: boolean
   onEdit: () => void
   onDelete: () => void
@@ -540,35 +661,23 @@ function RecordatorioCard({
   const [showSnooze, setShowSnooze] = useState(false)
 
   return (
-    <Card style={{ opacity: dimmed ? 0.55 : 1 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-        <div style={{ width: 4, borderRadius: 4, background: 'var(--color-mist)', alignSelf: 'stretch', flexShrink: 0 }} />
+    <Card style={{ opacity: dimmed ? 0.55 : 1, padding: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11 }}>
+        <i className="ti ti-bell" aria-hidden style={{ fontSize: 16, color: 'var(--color-sage)', marginTop: 2 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={timeLabel}>{fmtTime(rec.remind_at)}</span>
-            <span style={chipStyle('var(--color-mist)', 'var(--color-sage)')}>recordatorio</span>
-            {isOwner && <ShareBadge shared={rec.shared} count={rec.share_count} />}
-          </div>
-          <div style={{ fontSize: 14, fontWeight: 500, marginTop: 2, color: 'var(--color-obsidian-ink)' }}>
-            {cleanReminderText(rec.text)}
-          </div>
-          {dimmed && (
-            <button
-              onClick={() => setShowSnooze((v) => !v)}
-              style={{ ...ghostBtn, marginTop: 6, padding: '4px 10px', fontSize: 12 }}
-            >
-              <i className="ti ti-alarm-snooze" aria-hidden /> Posponer
-            </button>
-          )}
+          <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--color-obsidian-ink)' }}>{cleanReminderText(rec.text)}</div>
+          <div style={{ fontSize: 11.5, color: 'var(--color-sage)', marginTop: 2 }}>Recordatorio · {fmtTime(rec.remind_at)}</div>
+          {isOwner && <div style={{ marginTop: 6 }}><ShareBadge shared={rec.shared} count={rec.share_count} /></div>}
           {showSnooze && (
             <SnoozeMenu
-              onSnooze={(p) => {
-                onSnooze(p)
-                setShowSnooze(false)
-              }}
+              onSnooze={(p) => { onSnooze(p); setShowSnooze(false) }}
             />
           )}
         </div>
+        {!isOwner && owner && <MemberDot member={owner} />}
+        <button onClick={() => setShowSnooze((v) => !v)} style={{ ...ghostPill, padding: '5px 10px', fontSize: 11 }}>
+          Posponer
+        </button>
         <CardActions
           onShare={isOwner ? onShare : undefined}
           onEdit={onEdit}
@@ -581,6 +690,9 @@ function RecordatorioCard({
 
 // ── styles ───────────────────────────────────────────────────────────────────
 
+const pageTitle: React.CSSProperties = { fontFamily: 'var(--font-serif)', fontWeight: 600, fontSize: 30, lineHeight: 1.05, color: 'var(--color-obsidian-ink)' }
+const pageSub: React.CSSProperties = { fontSize: 12.5, color: 'var(--color-sage)', marginTop: 3 }
+
 const inputStyle: React.CSSProperties = {
   border: '1px solid var(--color-mist)',
   borderRadius: 10,
@@ -591,47 +703,63 @@ const inputStyle: React.CSSProperties = {
   boxSizing: 'border-box',
 }
 const labelStyle: React.CSSProperties = { display: 'grid', gap: 4, fontSize: 13, color: 'var(--color-sage)' }
-const errorStyle: React.CSSProperties = { fontSize: 12, color: 'var(--color-error)', marginTop: 2 }
-const ctaBtn: React.CSSProperties = {
+const errorStyle: React.CSSProperties = { fontSize: 12, color: 'var(--color-error)', marginTop: 4, display: 'block' }
+const groupLabel: React.CSSProperties = { fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-sage)', marginBottom: 8 }
+const miniLabel: React.CSSProperties = { fontSize: 10, color: 'var(--color-sage)', display: 'block' }
+const fieldBox: React.CSSProperties = { border: '1px solid var(--color-mist)', borderRadius: 12, padding: '8px 12px', display: 'grid', gap: 2, boxSizing: 'border-box' }
+const bareInput: React.CSSProperties = { border: 'none', background: 'transparent', fontSize: 14, color: 'var(--color-obsidian-ink)', padding: 0, width: '100%', outline: 'none' }
+
+const shareRow: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 11, borderTop: '1px solid var(--color-mist)', paddingTop: 14 }
+
+function toggleTrack(on: boolean): React.CSSProperties {
+  return {
+    width: 40, height: 22, borderRadius: 9999, border: 'none', cursor: 'pointer', position: 'relative', flexShrink: 0,
+    background: on ? 'var(--color-voltage)' : 'var(--color-mist)', transition: 'background .15s', padding: 0,
+  }
+}
+function toggleKnob(on: boolean): React.CSSProperties {
+  return {
+    position: 'absolute', top: 2, left: on ? 20 : 2, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left .15s',
+  }
+}
+
+const solidCta: React.CSSProperties = {
   background: 'var(--color-voltage)',
   color: 'var(--voltage-on-dark)',
   border: 'none',
-  borderRadius: 10,
+  borderRadius: 12,
   padding: '14px',
-  fontWeight: 500,
+  fontWeight: 600,
+  fontSize: 14,
   cursor: 'pointer',
 }
-const ghostBtn: React.CSSProperties = {
-  background: 'transparent',
-  border: '1px solid var(--color-mist)',
-  borderRadius: 10,
-  padding: '7px 14px',
-  fontSize: 13,
-  cursor: 'pointer',
+const solidPill: React.CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', gap: 5,
+  background: 'var(--color-voltage)', color: 'var(--voltage-on-dark)', border: 'none',
+  borderRadius: 9999, padding: '9px 15px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+}
+const ghostPill: React.CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', gap: 5,
+  background: 'transparent', color: 'var(--color-obsidian-ink)', border: '1px solid var(--color-mist)',
+  borderRadius: 9999, padding: '9px 15px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
 }
 const sectionLabel: React.CSSProperties = {
-  fontSize: 11,
+  fontSize: 10,
   fontWeight: 600,
-  letterSpacing: '0.08em',
+  letterSpacing: '0.1em',
   color: 'var(--color-sage)',
   textTransform: 'uppercase',
   marginBottom: 8,
 }
-const timeLabel: React.CSSProperties = {
-  fontSize: 12,
-  color: 'var(--color-sage)',
-  fontVariantNumeric: 'tabular-nums',
+const timeCol: React.CSSProperties = {
+  fontSize: 12, fontWeight: 600, color: 'var(--color-sage)', width: 40, flexShrink: 0, fontVariantNumeric: 'tabular-nums', marginTop: 1,
 }
 
-function chipStyle(bg: string, color: string): React.CSSProperties {
+function chip(active: boolean): React.CSSProperties {
   return {
-    fontSize: 10,
-    fontWeight: 600,
-    textTransform: 'uppercase',
-    letterSpacing: '0.06em',
-    padding: '2px 7px',
-    borderRadius: 9999,
-    background: bg,
-    color,
+    fontSize: 11.5, fontWeight: 600, padding: '7px 12px', borderRadius: 9999, cursor: 'pointer',
+    border: active ? '1px solid var(--color-voltage)' : '1px solid var(--color-mist)',
+    background: active ? 'var(--color-voltage)' : 'transparent',
+    color: active ? 'var(--voltage-on-dark)' : 'var(--color-obsidian-ink)',
   }
 }
