@@ -1,130 +1,199 @@
-import { useState } from 'react'
+import { type CSSProperties, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { useNavigate } from 'react-router-dom'
 import { useCategories, useCategoryMutations } from '../hooks/useCategories'
+import { useOverview } from '../hooks/useOverview'
 import { type Category } from '../lib/types'
 import { PALETTE } from '../lib/palette'
-import Card from '../components/ui/Card'
-import BackButton from '../components/ui/BackButton'
+import { formatMoney } from '../lib/format'
 import EmptyState from '../components/ui/EmptyState'
-import Modal from '../components/ui/Modal'
+import Sheet from '../components/ui/Sheet'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
-import CardActions from '../components/ui/CardActions'
 import { CategoriasSkeleton } from '../components/ui/skeletons'
 
-interface CatForm { name: string; color?: string; icon?: string }
+const EMOJIS = ['🍽', '🍕', '☕', '🍺', '🛒', '🎁', '🏠', '⛽', '🚌', '💊', '👕', '🎬', '✈️', '📱', '💡', '🐶']
 
-function CategoryFormModal({ open, onClose, initial, onSubmit, title }: {
-  open: boolean
-  onClose: () => void
-  initial?: CatForm
-  onSubmit: (data: CatForm) => void
-  title: string
+// Convierte un hex de la paleta a un rgba tenue para los tintes de fondo
+// (funciona igual en claro y oscuro porque el color es de marca, no del tema).
+function tint(hex: string | undefined, alpha: number): string {
+  if (!hex || !/^#[0-9a-f]{6}$/i.test(hex)) return 'var(--color-mist)'
+  const n = parseInt(hex.slice(1), 16)
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`
+}
+
+interface CatForm { name: string }
+
+// Drawer de edición/creación (4c): color + emoji + el gasto del mes para contexto.
+function CategoryDrawer({ initial, monthSpend, onSubmit, onDelete }: {
+  initial?: Category
+  monthSpend: number
+  onSubmit: (data: { name: string; color?: string; icon?: string }) => void
+  onDelete?: () => void
 }) {
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<CatForm>({
-    defaultValues: initial ?? { name: '', color: PALETTE[0], icon: '' },
+  const { register, handleSubmit, formState: { errors } } = useForm<CatForm>({
+    defaultValues: { name: initial?.name ?? '' },
   })
-  const color = watch('color')
-  const submit = (data: CatForm) => { onSubmit(data); reset() }
+  const [color, setColor] = useState<string>(initial?.color ?? PALETTE[0])
+  const [icon, setIcon] = useState<string>(initial?.icon ?? '')
+
+  const submit = (data: CatForm) => onSubmit({ name: data.name.trim(), color, icon: icon || undefined })
+
   return (
-    <Modal open={open} onClose={() => { onClose(); reset() }} title={title}>
-      <form onSubmit={handleSubmit(submit)} style={{ display: 'grid', gap: 12 }}>
-        <div>
+    <form onSubmit={handleSubmit(submit)} style={{ display: 'grid', gap: 0 }}>
+      {/* Emoji grande + nombre */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ ...bigTile, background: tint(color, 0.18) }}>{icon || '🏷️'}</span>
+        <div style={{ flex: 1 }}>
           <input
             {...register('name', { required: 'Requerido' })}
             placeholder="Nombre de la categoría"
-            style={inputStyle}
+            autoFocus
+            style={nameInput}
           />
           {errors.name && <span style={errorStyle}>{errors.name.message}</span>}
         </div>
-        <input {...register('icon')} placeholder="Emoji (opcional, ej. 🛒)" maxLength={2} style={inputStyle} />
-        <div>
-          <span style={{ fontSize: 13, color: 'var(--color-sage)' }}>Color</span>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
-            {PALETTE.map((c) => (
-              <button key={c} type="button" onClick={() => setValue('color', c)} aria-label={`Color ${c}`}
-                style={{ width: 26, height: 26, borderRadius: '50%', background: c, cursor: 'pointer', border: color === c ? '2px solid var(--color-obsidian-ink)' : '2px solid transparent' }} />
-            ))}
-          </div>
-        </div>
-        <button type="submit" style={ctaBtn}>Guardar</button>
-      </form>
-    </Modal>
+      </div>
+
+      {/* Color */}
+      <Label>Color</Label>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+        {PALETTE.map((c) => (
+          <button
+            key={c}
+            type="button"
+            onClick={() => setColor(c)}
+            aria-label={`Color ${c}`}
+            style={{
+              width: 34, height: 34, borderRadius: '50%', background: c, cursor: 'pointer', border: 'none', padding: 0,
+              boxShadow: color === c ? '0 0 0 2px var(--color-linen), 0 0 0 4px var(--color-obsidian-ink)' : 'none',
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Emoji */}
+      <Label>Emoji</Label>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9 }}>
+        {EMOJIS.map((e) => (
+          <button
+            key={e}
+            type="button"
+            onClick={() => setIcon((cur) => (cur === e ? '' : e))}
+            aria-label={`Emoji ${e}`}
+            style={{
+              width: 38, height: 38, borderRadius: 11, fontSize: 18, cursor: 'pointer', padding: 0,
+              background: icon === e ? tint(color, 0.22) : 'var(--color-mist)',
+              border: icon === e ? '1.6px solid var(--color-obsidian-ink)' : '1.6px solid transparent',
+            }}
+          >
+            {e}
+          </button>
+        ))}
+      </div>
+
+      {/* Contexto */}
+      <div style={context}>
+        {monthSpend > 0
+          ? <>Este mes gastaste <b>{formatMoney(monthSpend)}</b> en esta categoría. </>
+          : <>Sin gasto este mes en esta categoría. </>}
+        {onDelete && <>Si la borrás, sus movimientos pasan a “Sin categoría”.</>}
+      </div>
+
+      {/* Acciones */}
+      <div style={{ display: 'flex', gap: 9, marginTop: 14 }}>
+        {onDelete && (
+          <button type="button" onClick={onDelete} style={deleteBtn}>Borrar</button>
+        )}
+        <button type="submit" style={saveBtn}>Guardar</button>
+      </div>
+    </form>
   )
 }
 
 export default function Categorias() {
+  const navigate = useNavigate()
   const { data, isLoading } = useCategories()
+  const { data: overview } = useOverview()
   const { create, update, remove } = useCategoryMutations()
 
-  const [createOpen, setCreateOpen] = useState(false)
-  const [editCat, setEditCat] = useState<Category | null>(null)
+  const [mode, setMode] = useState<'new' | Category | null>(null)
   const [deleteCat, setDeleteCat] = useState<Category | null>(null)
+
+  // Gasto del mes por categoría (por nombre) desde el overview.
+  const spendByName = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const c of overview?.por_categoria ?? []) m.set(c.cat, (m.get(c.cat) ?? 0) + c.total)
+    return m
+  }, [overview])
+  const spendOf = (c: Category) => spendByName.get(c.name) ?? 0
 
   if (isLoading) return <CategoriasSkeleton />
 
+  const cats = data ?? []
+  const conGasto = cats.filter((c) => spendOf(c) > 0).length
+  const editing = mode && mode !== 'new' ? mode : undefined
+
   return (
-    <div style={{ padding: '14px 18px 24px', display: 'grid', gap: 10 }}>
-      <div style={{ display: 'flex', alignItems: 'center' }}>
-        <BackButton />
-        <div className="cap" style={{ flex: 1 }}>Categorías</div>
-        <button onClick={() => setCreateOpen(true)} style={ghostBtn}>+ Nueva categoría</button>
+    <div style={{ padding: '14px 18px 24px', display: 'grid', gap: 0 }}>
+      {/* Encabezado */}
+      <button onClick={() => navigate('/finanzas')} style={backLink}>
+        <i className="ti ti-arrow-left" style={{ fontSize: 15 }} aria-hidden /> Resumen
+      </button>
+      <div className="num-serif" style={{ fontSize: 30, marginTop: 6 }}>Categorías</div>
+      <div style={{ fontSize: 12.5, color: 'var(--color-sage)', marginTop: 3 }}>
+        {cats.length} categoría{cats.length === 1 ? '' : 's'}
+        {conGasto > 0 && ` · ${conGasto} con gasto este mes`}
       </div>
 
-      {!data || data.length === 0 ? <EmptyState>Sin categorías.</EmptyState> : (
-        <Card>
-          {data.map((c) => (
-            <div
-              key={c.id}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '10px 0',
-                borderBottom: '1px solid var(--color-mist)',
-              }}
-            >
-              {/* Dot de color + emoji + nombre */}
-              <span style={{ fontSize: 14, flex: 1, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-                <span style={{ width: 10, height: 10, borderRadius: '50%', background: c.color ?? 'var(--color-mist)', flexShrink: 0 }} />
-                {c.icon ? <span>{c.icon}</span> : null}
-                {c.name}
-              </span>
-              <CardActions
-                onEdit={() => setEditCat(c)}
-                onDelete={() => setDeleteCat(c)}
-              />
-            </div>
-          ))}
-        </Card>
+      {cats.length === 0 ? (
+        <div style={{ marginTop: 16 }}><EmptyState>Sin categorías.</EmptyState></div>
+      ) : (
+        <div style={{ marginTop: 16, border: '1px solid var(--color-mist)', borderRadius: 14, overflow: 'hidden' }}>
+          {cats.map((c, i) => {
+            const spent = spendOf(c)
+            return (
+              <button
+                key={c.id}
+                onClick={() => setMode(c)}
+                style={{ ...catRow, borderBottom: i < cats.length - 1 ? '1px solid var(--color-mist)' : 'none' }}
+              >
+                <span style={{ ...emojiTile, background: tint(c.color, 0.18) }}>{c.icon || '🏷️'}</span>
+                <span style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--color-obsidian-ink)', flex: 1, textAlign: 'left' }}>{c.name}</span>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: spent > 0 ? 'var(--color-obsidian-ink)' : 'var(--color-sage)' }}>
+                  {formatMoney(spent)}
+                </span>
+              </button>
+            )
+          })}
+        </div>
       )}
 
-      {/* Create modal */}
-      <CategoryFormModal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        title="Nueva categoría"
-        onSubmit={(data) => { create.mutate(data); setCreateOpen(false) }}
-      />
+      {/* Nueva categoría */}
+      <button onClick={() => setMode('new')} style={newRow}>+ Nueva categoría</button>
 
-      {/* Edit modal */}
-      <CategoryFormModal
-        key={editCat ? `cat-${editCat.id}` : 'cat-edit'}
-        open={editCat !== null}
-        onClose={() => setEditCat(null)}
-        initial={editCat ? { name: editCat.name, color: editCat.color ?? PALETTE[0], icon: editCat.icon ?? '' } : undefined}
-        title="Editar categoría"
-        onSubmit={(data) => {
-          if (editCat) update.mutate({ id: editCat.id, name: data.name, color: data.color, icon: data.icon })
-          setEditCat(null)
-        }}
-      />
+      {/* Drawer crear / editar */}
+      <Sheet open={mode !== null} onClose={() => setMode(null)} title={editing ? 'Editar categoría' : 'Nueva categoría'}>
+        {mode !== null && (
+          <CategoryDrawer
+            key={editing ? `cat-${editing.id}` : 'cat-new'}
+            initial={editing}
+            monthSpend={editing ? spendOf(editing) : 0}
+            onSubmit={(d) => {
+              if (editing) update.mutate({ id: editing.id, ...d })
+              else create.mutate(d)
+              setMode(null)
+            }}
+            onDelete={editing ? () => { setDeleteCat(editing); setMode(null) } : undefined}
+          />
+        )}
+      </Sheet>
 
-      {/* Delete confirm */}
+      {/* Confirmar borrado */}
       <ConfirmDialog
         open={deleteCat !== null}
         onOpenChange={(o) => { if (!o) setDeleteCat(null) }}
         title="¿Borrar esta categoría?"
-        description={deleteCat ? `Se eliminará "${deleteCat.name}".` : ''}
+        description={deleteCat ? `Se eliminará "${deleteCat.name}". Sus movimientos pasan a "Sin categoría".` : ''}
         onConfirm={() => {
           if (deleteCat) remove.mutate(deleteCat.id)
           setDeleteCat(null)
@@ -134,30 +203,47 @@ export default function Categorias() {
   )
 }
 
-const ghostBtn: React.CSSProperties = {
-  background: 'transparent',
-  border: '1px solid var(--color-mist)',
-  borderRadius: 10,
-  padding: '7px 14px',
-  fontSize: 13,
-  cursor: 'pointer',
+function Label({ children }: { children: React.ReactNode }) {
+  return <div className="cap" style={{ fontSize: 10, letterSpacing: '0.1em', margin: '18px 0 9px' }}>{children}</div>
 }
-const ctaBtn: React.CSSProperties = {
-  background: 'var(--color-voltage)',
-  color: 'var(--voltage-on-dark)',
-  border: 'none',
-  borderRadius: 10,
-  padding: '14px',
-  fontWeight: 500,
-  cursor: 'pointer',
+
+const backLink: CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
+  background: 'none', border: 'none', cursor: 'pointer', font: 'inherit',
+  fontSize: 12.5, color: 'var(--color-sage)', padding: 0,
 }
-const inputStyle: React.CSSProperties = {
-  border: '1px solid var(--color-mist)',
-  borderRadius: 10,
-  padding: '10px 12px',
-  fontSize: 14,
-  background: 'var(--color-linen)',
-  width: '100%',
-  boxSizing: 'border-box',
+const catRow: CSSProperties = {
+  display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+  padding: '12px 14px', background: 'var(--color-linen)', border: 'none', cursor: 'pointer', font: 'inherit',
 }
-const errorStyle: React.CSSProperties = { fontSize: 12, color: 'var(--color-error)', marginTop: 2 }
+const emojiTile: CSSProperties = {
+  width: 30, height: 30, borderRadius: 9, flexShrink: 0, fontSize: 15,
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+}
+const bigTile: CSSProperties = {
+  width: 52, height: 52, borderRadius: 14, flexShrink: 0, fontSize: 24,
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+}
+const newRow: CSSProperties = {
+  marginTop: 14, width: '100%', textAlign: 'left', border: '1px dashed var(--color-mist)', borderRadius: 14,
+  padding: '13px 14px', fontSize: 13, fontWeight: 600, color: 'var(--color-sage)',
+  background: 'transparent', cursor: 'pointer', font: 'inherit',
+}
+const nameInput: CSSProperties = {
+  border: '1.6px solid var(--color-obsidian-ink)', borderRadius: 12, padding: '13px 14px',
+  fontSize: 14, fontWeight: 500, background: 'var(--color-linen)', color: 'var(--color-obsidian-ink)',
+  width: '100%', boxSizing: 'border-box',
+}
+const context: CSSProperties = {
+  marginTop: 18, borderTop: '1px solid var(--color-mist)', paddingTop: 14,
+  fontSize: 11.5, lineHeight: 1.5, color: 'var(--color-sage)',
+}
+const deleteBtn: CSSProperties = {
+  border: '1px solid var(--color-mist)', borderRadius: 12, padding: '13px 16px',
+  fontSize: 13, fontWeight: 600, color: 'var(--color-error)', background: 'transparent', cursor: 'pointer', font: 'inherit',
+}
+const saveBtn: CSSProperties = {
+  flex: 1, background: 'var(--color-voltage)', color: 'var(--voltage-on-dark)', border: 'none',
+  borderRadius: 12, padding: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer', font: 'inherit',
+}
+const errorStyle: CSSProperties = { fontSize: 12, color: 'var(--color-error)', marginTop: 4, display: 'block' }
