@@ -242,6 +242,18 @@ export interface ShareState {
   members: number[]
 }
 
+export interface HouseholdInfo {
+  plan: string
+  cap: number
+  current: number
+  slots: number
+  can_invite: boolean
+  code: string | null
+  telegram: string | null
+  whatsapp: string | null
+  members: HouseholdMember[]
+}
+
 export interface HabitoLog {
   id: number
   name: string

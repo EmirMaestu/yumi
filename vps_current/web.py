@@ -779,6 +779,13 @@ def _wa_process_message(main, frm, profile, mtype, text):
     if mtype != "text" or not (text or "").strip():
         wa_send(frm, "Por ahora te entiendo por texto 🙂 (los audios llegan pronto).")
         return
+    # Invitar a la pareja/familia por chat (consistente con /invitar de Telegram).
+    if re.search(r"^/?invit[aá]r?\b|invit[aá]\s+(a\s+)?(mi\s+)?(pareja|famil)|sumar?\s+(a\s+)?(mi\s+)?(pareja|famil|hogar)", text, re.I):
+        try:
+            wa_send(frm, main.family_invite_message(main.family_invite(user["id"])))
+        except Exception as _e:
+            print("wa invitar fail:", _e); wa_send(frm, "No pude generar tu link ahora. Probá de nuevo.")
+        return
     try:
         raw_id = main.save_raw(user["telegram_id"], user.get("username") or profile or "", "whatsapp", text)
     except Exception:
@@ -1228,6 +1235,21 @@ def api_household_members(user=Depends(require_user)):
         rows = conn.execute(
             f"SELECT id, name, color FROM users WHERE id IN ({ph}) AND active=1 ORDER BY id", members).fetchall()
     return [{"id": r["id"], "name": r["name"], "color": r["color"], "is_me": r["id"] == user["id"]} for r in rows]
+
+
+@app.get("/api/household")
+def api_household(user=Depends(require_user)):
+    """Estado del hogar + links para invitar a la pareja/familia (misma lógica que /invitar).
+    Alimenta la tarjeta 'Tu pareja/familia' en la web."""
+    import main
+    info = main.family_invite(user["id"], BOT_USERNAME)
+    members = _household_member_ids(user["id"])
+    ph = ",".join("?" for _ in members) or "NULL"
+    with db() as conn:
+        rows = conn.execute(
+            f"SELECT id, name, color FROM users WHERE id IN ({ph}) AND active=1 ORDER BY id", members).fetchall()
+    info["members"] = [{"id": r["id"], "name": r["name"], "color": r["color"], "is_me": r["id"] == user["id"]} for r in rows]
+    return info
 
 
 @app.post("/api/settings/share_all")

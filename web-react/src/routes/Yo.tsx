@@ -8,6 +8,7 @@ import SettingHeader from '../components/ui/SettingHeader'
 import ThemeToggle from '../components/ThemeToggle'
 import NotifToggle from '../components/NotifToggle'
 import CalendarSubscribe from '../components/CalendarSubscribe'
+import HouseholdCard from '../components/HouseholdCard'
 
 // Hub "Yo": perfil + ajustes (privacidad, tema, notificaciones, calendario, cuenta).
 export default function Yo() {
@@ -41,6 +42,9 @@ export default function Yo() {
           </div>
         </div>
       </Card>
+
+      {/* Pareja / familia */}
+      <HouseholdCard />
 
       {/* Privacidad */}
       <Card style={{ display: 'grid', gap: 12 }}>
