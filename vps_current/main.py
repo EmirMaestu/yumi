@@ -2562,39 +2562,65 @@ async def start_cmd(update, context):
     await send_register_prompt(update)
 
 
+def family_invite(user_id, bot_username=None):
+    """Núcleo compartido para invitar a la familia/pareja al MISMO hogar (comparten todo).
+    Lo usan /invitar (Telegram), el chat de WhatsApp y GET /api/household → una sola verdad.
+    Devuelve estado del plan + links `fam_<código>` (Telegram y WhatsApp)."""
+    import urllib.parse
+    plan = household_plan(user_id)
+    cap = plan_limits(plan)["household"]
+    current = len(household_member_ids(user_id))
+    slots = max(0, cap - current)
+    conn = sqlite3.connect(DB_PATH); conn.row_factory = sqlite3.Row
+    try:
+        row = conn.execute("SELECT referral_code FROM users WHERE id=?", (user_id,)).fetchone()
+    finally:
+        conn.close()
+    code = (row["referral_code"] if row else "") or ""
+    bot_un = (bot_username or os.environ.get("BOT_USERNAME", "")).lstrip("@")
+    num = os.environ.get("WHATSAPP_NUMBER", "").strip().lstrip("+")
+    tg = f"https://t.me/{bot_un}?start=fam_{code}" if (bot_un and code) else None
+    wa = None
+    if num and code:
+        txt = urllib.parse.quote(f"Hola! Me sumo a la familia en Yumi 🌱 (fam_{code})")
+        wa = f"https://wa.me/{num}?text={txt}"
+    return {"plan": plan, "cap": cap, "current": current, "slots": slots,
+            "can_invite": cap > 1 and slots > 0, "code": code or None,
+            "telegram": tg, "whatsapp": wa}
+
+
+def family_invite_message(info):
+    """Texto de invitación (plano) a partir de family_invite(). Reusable TG/WhatsApp."""
+    if info["cap"] <= 1:
+        return ("Tu plan es individual 🙂 Para compartir con tu pareja/familia "
+                "(listas, gastos, agenda), actualizá a un plan pareja o superior.")
+    if info["slots"] <= 0:
+        return (f"Tu hogar ya está completo: {info['current']}/{info['cap']} integrantes "
+                f"para tu plan ({info['plan']}). Actualizá el plan para sumar a más.")
+    s = info["slots"]
+    lines = ["👨‍👩‍👧 Sumá a tu pareja/familia a Yumi",
+             f"Te queda{'n' if s != 1 else ''} {s} lugar{'es' if s != 1 else ''} (plan {info['plan']}).",
+             "Cuando abran el link, comparten con vos listas, gastos y agenda:"]
+    if info["telegram"]:
+        lines.append(f"Telegram: {info['telegram']}")
+    if info["whatsapp"]:
+        lines.append(f"WhatsApp: {info['whatsapp']}")
+    return "\n".join(lines)
+
+
 async def invitar_cmd(update, context):
-    """Le da al usuario su link para invitar a su familia (se unen a SU hogar y comparten todo).
-    Respeta el plan: cuántos integrantes permite y cuántos lugares quedan."""
+    """Le da al usuario su link para invitar a su familia (se unen a SU hogar y comparten todo)."""
     if not is_allowed(update):
         await send_register_prompt(update); return
     u = get_user_by_tg(update.effective_user.id)
     if not u:
         await send_register_prompt(update); return
-    plan = household_plan(u["id"])
-    cap = plan_limits(plan)["household"]
-    current = len(household_member_ids(u["id"]))
-    if cap <= 1:
-        await update.message.reply_text(
-            "Tu plan actual es individual 🙂 Para compartir con tu familia (listas, gastos, agenda), "
-            "actualizá a un plan *pareja* o superior.", parse_mode="Markdown"); return
-    if current >= cap:
-        await update.message.reply_text(
-            f"Tu hogar ya está completo: {current}/{cap} integrantes para tu plan ({plan}). "
-            "Actualizá el plan para sumar a más."); return
-    code = u.get("referral_code") or ""
     try:
         bot_un = (await context.bot.get_me()).username
     except Exception:
-        bot_un = os.environ.get("BOT_USERNAME", "").lstrip("@")
-    if not (bot_un and code):
-        await update.message.reply_text("No pude generar tu link ahora. Probá de nuevo en un momento."); return
-    link = f"https://t.me/{bot_un}?start=fam_{code}"
-    slots = cap - current
-    await update.message.reply_text(
-        "👨‍👩‍👧 *Sumá a tu familia a Yumi*\n\n"
-        f"Te queda{'n' if slots != 1 else ''} {slots} lugar{'es' if slots != 1 else ''} en tu hogar (plan {plan}).\n"
-        "Mandales este link; cuando lo abran, comparten con vos listas, gastos y agenda:\n\n"
-        f"{link}", parse_mode="Markdown")
+        bot_un = None
+    info = family_invite(u["id"], bot_un)
+    await update.message.reply_text(family_invite_message(info), disable_web_page_preview=True)
 
 
 async def vincular_cmd(update, context):

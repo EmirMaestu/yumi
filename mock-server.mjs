@@ -10,6 +10,12 @@ const routes = {
     { id: 1, name: 'Emir', color: '#2bee4b', is_me: true },
     { id: 2, name: 'Lisa', color: '#e84393', is_me: false },
   ],
+  'GET /api/household': {
+    plan: 'pareja', cap: 2, current: 1, slots: 1, can_invite: true, code: 'abc123',
+    telegram: 'https://t.me/assistant_emir_bot?start=fam_abc123',
+    whatsapp: 'https://wa.me/5492615785056?text=Hola!%20Me%20sumo%20a%20la%20familia%20(fam_abc123)',
+    members: [{ id: 1, name: 'Emir', color: '#2bee4b', is_me: true }],
+  },
   'GET /api/share': { shared: 0, members: [2] },
   'GET /api/overview2': {
     patrimonio_ars: 2480500, patrimonio_usd: 2067, blue: 1200,
