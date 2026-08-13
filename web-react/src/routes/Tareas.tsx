@@ -4,7 +4,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useTareas, useTareasMutations } from '../hooks/useTareas'
 import { useMe } from '../hooks/useMe'
-import { type Tarea } from '../lib/types'
+import { useHouseholdMembers } from '../hooks/useShare'
+import { type Tarea, type HouseholdMember } from '../lib/types'
 import Card from '../components/ui/Card'
 import CardActions from '../components/ui/CardActions'
 import Modal from '../components/ui/Modal'
@@ -20,6 +21,12 @@ const PRIORITY_OPTS = [
   { value: 'media', label: 'Media' },
   { value: 'baja', label: 'Baja' },
 ]
+
+const PRIORITY_COLOR: Record<string, string> = {
+  alta: 'var(--color-error)',
+  media: '#e0a325',
+  baja: 'var(--color-mist)',
+}
 
 const schema = z.object({
   text: z.string().min(1, 'Requerido'),
@@ -60,7 +67,7 @@ function TareaModal({
             {...register('text')}
             placeholder="¿Qué tenés que hacer?"
             autoFocus
-            style={inputStyle}
+            style={{ ...inputStyle, border: '1.6px solid var(--color-obsidian-ink)', fontWeight: 500 }}
           />
           {errors.text && <span style={errorStyle}>{errors.text.message}</span>}
         </div>
@@ -81,14 +88,10 @@ function TareaModal({
 
         <label style={labelStyle}>
           Fecha límite (opcional)
-          <input
-            type="date"
-            {...register('due_at')}
-            style={inputStyle}
-          />
+          <input type="date" {...register('due_at')} style={inputStyle} />
         </label>
 
-        <button type="submit" style={ctaBtn}>Guardar</button>
+        <button type="submit" style={solidCta}>Guardar</button>
       </form>
     </Modal>
   )
@@ -96,105 +99,136 @@ function TareaModal({
 
 const PRIORITY_ORDER = { alta: 0, media: 1, baja: 2 }
 
+// límite fin-de-día de hoy (local); tareas con due_at anterior = vencidas
+function endOfToday(): number {
+  const d = new Date(); d.setHours(23, 59, 59, 999); return d.getTime()
+}
+
+type FilterVal = 'all' | 'done' | number // number = user_id de integrante
+
 export default function Tareas() {
   const { data, isLoading } = useTareas('all')
   const { create, update, done, undone, remove } = useTareasMutations()
   const { data: me } = useMe()
+  const { data: members } = useHouseholdMembers()
 
+  const [filter, setFilter] = useState<FilterVal>('all')
   const [newOpen, setNewOpen] = useState(false)
   const [editItem, setEditItem] = useState<Tarea | null>(null)
   const [deleteItem, setDeleteItem] = useState<Tarea | null>(null)
   const [shareItem, setShareItem] = useState<Tarea | null>(null)
 
-  const pendientes = (data ?? [])
-    .filter((t) => t.status === 'pendiente')
-    .sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority])
+  const memberById = new Map<number, HouseholdMember>((members ?? []).map((m) => [m.id, m]))
 
-  const hechas = (data ?? [])
+  const all = data ?? []
+  const pendientesAll = all.filter((t) => t.status === 'pendiente')
+  const hechas = all
     .filter((t) => t.status === 'hecha')
     .sort((a, b) => (b.completed_at ?? '').localeCompare(a.completed_at ?? ''))
 
+  // pendientes visibles según filtro por integrante
+  const pendientes = (typeof filter === 'number' ? pendientesAll.filter((t) => t.user_id === filter) : pendientesAll)
+    .sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority])
+
+  const eod = endOfToday()
+  const vencidas = pendientes.filter((t) => t.due_at && new Date(t.due_at).getTime() < eod && new Date(t.due_at).getTime() < Date.now())
+  const restantes = pendientes.filter((t) => !vencidas.includes(t))
+
+  const tuyas = pendientesAll.filter((t) => t.user_id === me?.id).length
+
   const handleCreate = (values: FormValues) => {
-    create.mutate({
-      text: values.text,
-      priority: values.priority,
-      due_at: values.due_at || null,
-    })
+    create.mutate({ text: values.text, priority: values.priority, due_at: values.due_at || null })
     setNewOpen(false)
   }
-
   const handleEdit = (values: FormValues) => {
     if (!editItem) return
-    update.mutate({
-      id: editItem.id,
-      text: values.text,
-      priority: values.priority,
-      due_at: values.due_at || null,
-    })
+    update.mutate({ id: editItem.id, text: values.text, priority: values.priority, due_at: values.due_at || null })
     setEditItem(null)
   }
 
   if (isLoading) return <MovimientosSkeleton />
 
+  const showDone = filter === 'done'
+
   return (
-    <div style={{ padding: '14px 18px 24px', display: 'grid', gap: 14 }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center' }}>
-        <div className="cap" style={{ flex: 1 }}>Tareas</div>
-        <button onClick={() => setNewOpen(true)} style={ghostBtn}>+ Nueva</button>
+    <div style={{ padding: '10px 18px 24px' }}>
+      {/* Título */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+        <div>
+          <div style={pageTitle}>Tareas</div>
+          <div style={pageSub}>{pendientesAll.length} pendiente{pendientesAll.length === 1 ? '' : 's'} · {tuyas} tuya{tuyas === 1 ? '' : 's'}</div>
+        </div>
+        <button onClick={() => setNewOpen(true)} style={solidPill}><i className="ti ti-plus" aria-hidden /> Nueva</button>
       </div>
 
-      {/* Pendientes */}
-      {pendientes.length === 0 && hechas.length === 0 && (
-        <EmptyState>Sin tareas. ¡Agregá una!</EmptyState>
+      {/* Filtros */}
+      <div style={{ display: 'flex', gap: 7, margin: '16px 0 6px', paddingBottom: 14, borderBottom: '1px solid var(--color-mist)', overflowX: 'auto' }}>
+        <button onClick={() => setFilter('all')} style={chip(filter === 'all')}>Todas</button>
+        {(members ?? []).map((m) => (
+          <button key={m.id} onClick={() => setFilter(m.id)} style={chip(filter === m.id)}>{m.name}</button>
+        ))}
+        <button onClick={() => setFilter('done')} style={chip(filter === 'done')}>Hechas</button>
+      </div>
+
+      {/* Empty */}
+      {all.length === 0 && <EmptyState>Sin tareas. ¡Agregá una!</EmptyState>}
+
+      {/* Vista Hechas */}
+      {showDone && (
+        hechas.length === 0
+          ? <EmptyState>Todavía no completaste ninguna tarea.</EmptyState>
+          : (
+            <div style={{ marginTop: 16 }}>
+              <div style={sectionLabel}>Completadas</div>
+              <div style={{ display: 'grid', gap: 9 }}>
+                {hechas.map((t) => (
+                  <TareaRow key={t.id} tarea={t} isOwner={me?.id === t.user_id} owner={memberById.get(t.user_id)}
+                    onToggle={() => undone.mutate(t.id)} onEdit={() => setEditItem(t)} onDelete={() => setDeleteItem(t)} onShare={() => setShareItem(t)} dimmed />
+                ))}
+              </div>
+            </div>
+          )
       )}
 
-      {pendientes.length > 0 && (
-        <div style={{ display: 'grid', gap: 10 }}>
-          {pendientes.map((t) => (
-            <TareaRow
-              key={t.id}
-              tarea={t}
-              isOwner={me?.id === t.user_id}
-              onToggle={() => done.mutate(t.id)}
-              onEdit={() => setEditItem(t)}
-              onDelete={() => setDeleteItem(t)}
-              onShare={() => setShareItem(t)}
-            />
-          ))}
-        </div>
-      )}
+      {/* Vista pendientes agrupadas */}
+      {!showDone && (
+        <>
+          {vencidas.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div style={{ ...sectionLabel, color: 'var(--color-error)' }}>Vencidas</div>
+              <div style={{ display: 'grid', gap: 9 }}>
+                {vencidas.map((t) => (
+                  <TareaRow key={t.id} tarea={t} isOwner={me?.id === t.user_id} owner={memberById.get(t.user_id)} overdue
+                    onToggle={() => done.mutate(t.id)} onEdit={() => setEditItem(t)} onDelete={() => setDeleteItem(t)} onShare={() => setShareItem(t)} />
+                ))}
+              </div>
+            </div>
+          )}
 
-      {/* Hechas */}
-      {hechas.length > 0 && (
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', color: 'var(--color-sage)', textTransform: 'uppercase', marginBottom: 8 }}>
-            Completadas
-          </div>
-          <div style={{ display: 'grid', gap: 8 }}>
-            {hechas.map((t) => (
-              <TareaRow
-                key={t.id}
-                tarea={t}
-                isOwner={me?.id === t.user_id}
-                onToggle={() => undone.mutate(t.id)}
-                onEdit={() => setEditItem(t)}
-                onDelete={() => setDeleteItem(t)}
-                onShare={() => setShareItem(t)}
-                dimmed
-              />
-            ))}
-          </div>
-        </div>
+          {restantes.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div style={sectionLabel}>Esta semana</div>
+              <div style={{ display: 'grid', gap: 9 }}>
+                {restantes.map((t) => (
+                  <TareaRow key={t.id} tarea={t} isOwner={me?.id === t.user_id} owner={memberById.get(t.user_id)}
+                    onToggle={() => done.mutate(t.id)} onEdit={() => setEditItem(t)} onDelete={() => setDeleteItem(t)} onShare={() => setShareItem(t)} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {all.length > 0 && vencidas.length === 0 && restantes.length === 0 && (
+            <EmptyState>Nada pendiente por acá. 🎉</EmptyState>
+          )}
+
+          {pendientesAll.length > 0 && (
+            <div style={tipBanner}>Tocá una tarea para asignarla, ponerle fecha o convertirla en evento.</div>
+          )}
+        </>
       )}
 
       {/* New modal */}
-      <TareaModal
-        open={newOpen}
-        onClose={() => setNewOpen(false)}
-        title="Nueva tarea"
-        onSubmit={handleCreate}
-      />
+      <TareaModal open={newOpen} onClose={() => setNewOpen(false)} title="Nueva tarea" onSubmit={handleCreate} />
 
       {/* Edit modal */}
       <TareaModal
@@ -202,21 +236,12 @@ export default function Tareas() {
         open={editItem !== null}
         onClose={() => setEditItem(null)}
         title="Editar tarea"
-        initial={editItem ? {
-          text: editItem.text,
-          priority: editItem.priority,
-          due_at: editItem.due_at ?? '',
-        } : undefined}
+        initial={editItem ? { text: editItem.text, priority: editItem.priority, due_at: editItem.due_at ?? '' } : undefined}
         onSubmit={handleEdit}
       />
 
       {/* Share sheet */}
-      <ShareSheet
-        open={shareItem !== null}
-        onClose={() => setShareItem(null)}
-        entity="tareas"
-        id={shareItem?.id ?? null}
-      />
+      <ShareSheet open={shareItem !== null} onClose={() => setShareItem(null)} entity="tareas" id={shareItem?.id ?? null} />
 
       {/* Delete confirm */}
       <ConfirmDialog
@@ -224,10 +249,7 @@ export default function Tareas() {
         onOpenChange={(o) => { if (!o) setDeleteItem(null) }}
         title="¿Borrar esta tarea?"
         description={deleteItem ? `Se eliminará "${deleteItem.text}".` : ''}
-        onConfirm={() => {
-          if (deleteItem) remove.mutate(deleteItem.id)
-          setDeleteItem(null)
-        }}
+        onConfirm={() => { if (deleteItem) remove.mutate(deleteItem.id); setDeleteItem(null) }}
       />
     </div>
   )
@@ -236,6 +258,8 @@ export default function Tareas() {
 function TareaRow({
   tarea,
   isOwner,
+  owner,
+  overdue = false,
   onToggle,
   onEdit,
   onDelete,
@@ -244,72 +268,59 @@ function TareaRow({
 }: {
   tarea: Tarea
   isOwner: boolean
+  owner?: HouseholdMember
+  overdue?: boolean
   onToggle: () => void
   onEdit: () => void
   onDelete: () => void
   onShare: () => void
   dimmed?: boolean
 }) {
-  const PRIORITY_COLOR_MAP: Record<string, string> = {
-    alta: '#c0392b',
-    media: 'var(--color-sage)',
-    baja: 'var(--color-mist)',
-  }
+  const doneStatus = tarea.status === 'hecha'
+  const dueLabel = tarea.due_at
+    ? new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '2-digit' }).format(new Date(tarea.due_at))
+    : null
 
   return (
-    <Card style={{ opacity: dimmed ? 0.55 : 1 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-        {/* Checkbox */}
+    <Card style={{ opacity: dimmed ? 0.55 : 1, padding: '13px 14px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+        {/* Barra de prioridad */}
+        <span style={{ width: 3, height: 28, borderRadius: 2, background: PRIORITY_COLOR[tarea.priority], flexShrink: 0 }} />
+
+        {/* Checkbox cuadrado */}
         <button
           onClick={onToggle}
-          aria-label={tarea.status === 'hecha' ? 'Marcar pendiente' : 'Marcar hecha'}
+          aria-label={doneStatus ? 'Marcar pendiente' : 'Marcar hecha'}
           style={{
-            width: 20,
-            height: 20,
-            borderRadius: '50%',
-            border: `2px solid ${tarea.status === 'hecha' ? 'var(--color-voltage)' : 'var(--color-mist)'}`,
-            background: tarea.status === 'hecha' ? 'var(--color-voltage)' : 'transparent',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            flexShrink: 0,
-            marginTop: 2,
+            width: 18, height: 18, borderRadius: 5, flexShrink: 0,
+            border: `1.6px solid ${doneStatus ? 'var(--color-voltage)' : 'var(--color-mist)'}`,
+            background: doneStatus ? 'var(--color-voltage)' : 'transparent',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
           }}
         >
-          {tarea.status === 'hecha' && (
-            <i className="ti ti-check" style={{ fontSize: 12, color: 'var(--voltage-on-dark)' }} aria-hidden />
-          )}
+          {doneStatus && <i className="ti ti-check" style={{ fontSize: 11, color: 'var(--voltage-on-dark)' }} aria-hidden />}
         </button>
 
-        {/* Content */}
+        {/* Contenido */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
-            fontSize: 14,
-            fontWeight: 500,
-            textDecoration: dimmed ? 'line-through' : 'none',
-            color: dimmed ? 'var(--color-sage)' : 'var(--color-obsidian-ink)',
-          }}>
+          <div style={{ fontSize: 13.5, fontWeight: 500, textDecoration: dimmed ? 'line-through' : 'none', color: dimmed ? 'var(--color-sage)' : 'var(--color-obsidian-ink)' }}>
             {tarea.text}
           </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 3, flexWrap: 'wrap' }}>
-            <span style={{
-              fontSize: 11,
-              color: PRIORITY_COLOR_MAP[tarea.priority],
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-            }}>
-              {tarea.priority}
-            </span>
-            {tarea.due_at && (
-              <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>
-                <i className="ti ti-calendar" aria-hidden /> {tarea.due_at.slice(0, 10)}
+          <div style={{ display: 'flex', gap: 8, marginTop: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+            {doneStatus && tarea.completed_at && (
+              <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>Hecha {new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '2-digit' }).format(new Date(tarea.completed_at))}</span>
+            )}
+            {!doneStatus && dueLabel && (
+              <span style={{ fontSize: 11, color: overdue ? 'var(--color-error)' : 'var(--color-sage)' }}>
+                {overdue ? `Vencía el ${dueLabel}` : dueLabel}
               </span>
             )}
+            {!doneStatus && !dueLabel && <span style={{ fontSize: 11, color: 'var(--color-sage)' }}>Sin fecha</span>}
             {isOwner && <ShareBadge shared={tarea.shared} count={tarea.share_count} />}
           </div>
         </div>
+
+        {!isOwner && owner && <MemberDot member={owner} />}
 
         <CardActions
           onShare={isOwner ? onShare : undefined}
@@ -321,6 +332,23 @@ function TareaRow({
   )
 }
 
+function MemberDot({ member }: { member: HouseholdMember }) {
+  return (
+    <span
+      title={member.name}
+      style={{
+        width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+        background: member.color || 'rgba(43,238,75,0.22)', color: 'var(--voltage-on-dark)',
+        fontSize: 9, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      }}
+    >
+      {member.name.slice(0, 1).toUpperCase()}
+    </span>
+  )
+}
+
+const pageTitle: React.CSSProperties = { fontFamily: 'var(--font-serif)', fontWeight: 600, fontSize: 30, lineHeight: 1.05, color: 'var(--color-obsidian-ink)' }
+const pageSub: React.CSSProperties = { fontSize: 12.5, color: 'var(--color-sage)', marginTop: 3 }
 const inputStyle: React.CSSProperties = {
   border: '1px solid var(--color-mist)',
   borderRadius: 10,
@@ -332,20 +360,28 @@ const inputStyle: React.CSSProperties = {
 }
 const labelStyle: React.CSSProperties = { display: 'grid', gap: 4, fontSize: 13, color: 'var(--color-sage)' }
 const errorStyle: React.CSSProperties = { fontSize: 12, color: 'var(--color-error)', marginTop: 2 }
-const ctaBtn: React.CSSProperties = {
-  background: 'var(--color-voltage)',
-  color: 'var(--voltage-on-dark)',
-  border: 'none',
-  borderRadius: 10,
-  padding: '14px',
-  fontWeight: 500,
-  cursor: 'pointer',
+const solidCta: React.CSSProperties = {
+  background: 'var(--color-voltage)', color: 'var(--voltage-on-dark)', border: 'none',
+  borderRadius: 12, padding: '14px', fontWeight: 600, fontSize: 14, cursor: 'pointer',
 }
-const ghostBtn: React.CSSProperties = {
-  background: 'transparent',
-  border: '1px solid var(--color-mist)',
-  borderRadius: 10,
-  padding: '7px 14px',
-  fontSize: 13,
-  cursor: 'pointer',
+const solidPill: React.CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', gap: 5,
+  background: 'var(--color-voltage)', color: 'var(--voltage-on-dark)', border: 'none',
+  borderRadius: 9999, padding: '9px 15px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+}
+const sectionLabel: React.CSSProperties = {
+  fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', color: 'var(--color-sage)', textTransform: 'uppercase', marginBottom: 8,
+}
+const tipBanner: React.CSSProperties = {
+  marginTop: 20, background: 'rgba(43,238,75,0.10)', borderRadius: 14, padding: '12px 14px',
+  fontSize: 12, lineHeight: 1.4, color: 'var(--color-sage)',
+}
+function chip(active: boolean): React.CSSProperties {
+  return {
+    flex: 'none', whiteSpace: 'nowrap',
+    fontSize: 11.5, fontWeight: 600, padding: '7px 13px', borderRadius: 9999, cursor: 'pointer',
+    border: active ? '1px solid var(--color-voltage)' : '1px solid var(--color-mist)',
+    background: active ? 'var(--color-voltage)' : 'transparent',
+    color: active ? 'var(--voltage-on-dark)' : 'var(--color-obsidian-ink)',
+  }
 }
