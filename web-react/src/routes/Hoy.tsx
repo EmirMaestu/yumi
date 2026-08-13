@@ -1,247 +1,155 @@
-import { Link } from 'react-router-dom'
+import { type CSSProperties } from 'react'
+import { Link, useNavigate, useOutletContext } from 'react-router-dom'
 import { useOverview } from '../hooks/useOverview'
-import { useTareas } from '../hooks/useTareas'
 import { useVencimientos } from '../hooks/useVencimientos'
-import { useEventos } from '../hooks/useEventos'
-import { useRecordatorios } from '../hooks/useRecordatorios'
 import { useRecurring } from '../hooks/useRecurring'
+import { useMe } from '../hooks/useMe'
 import { cicloEnCursoTotal } from '../lib/cards'
-import { formatMoney, cleanReminderText } from '../lib/format'
+import { formatMoney } from '../lib/format'
+import { Money, usePrivacy } from '../lib/privacy'
 import { type HoyItem } from '../lib/types'
+import { type LayoutCtx } from '../components/nav/AppLayout'
 import Card from '../components/ui/Card'
 import EmptyState from '../components/ui/EmptyState'
 import InstallNotifyBanner from '../components/InstallNotifyBanner'
 
-// --- Date header ---
 function todayLabel(): string {
   return new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())
 }
 
-// --- Upcoming item date/time label ---
-function whenDate(s: string): Date { return new Date((s || '').replace(' ', 'T')) }
-function whenLabel(s: string): string {
-  const d = whenDate(s)
-  const day = new Intl.DateTimeFormat('es-AR', { weekday: 'short', day: 'numeric', month: 'short' }).format(d)
-  const time = new Intl.DateTimeFormat('es-AR', { hour: '2-digit', minute: '2-digit' }).format(d)
-  return `${day} · ${time}`
-}
-
-// --- HoyItem icon map ---
 const TIPO_ICON: Record<string, string> = {
-  evento: 'ti-calendar-event',
-  recordatorio: 'ti-bell',
-  tarea: 'ti-checkbox',
-  recurrente: 'ti-repeat',
+  evento: 'ti-calendar-event', recordatorio: 'ti-bell', tarea: 'ti-checkbox', recurrente: 'ti-repeat',
 }
-
-// --- HoyItem → ruta (para hacer cada item clickeable) ---
 const TIPO_ROUTE: Record<string, string> = {
-  evento: '/agenda',
-  recordatorio: '/agenda',
-  tarea: '/tareas',
-  recurrente: '/recurrentes',
+  evento: '/agenda', recordatorio: '/agenda', tarea: '/tareas', recurrente: '/recurrentes',
 }
 
-function TipoIcon({ tipo }: { tipo: string }) {
-  const icon = TIPO_ICON[tipo] ?? 'ti-point'
-  return <i className={`ti ${icon}`} aria-hidden style={{ fontSize: 16, color: 'var(--color-sage)', flexShrink: 0 }} />
-}
-
-// --- Priority chip ---
-const PRIORITY_COLOR: Record<string, string> = {
-  alta: '#a32d2d',
-  media: '#b87c20',
-  baja: 'var(--color-sage)',
-}
-
-function PriorityChip({ priority }: { priority: string }) {
-  return (
-    <span style={{
-      fontSize: 10, padding: '2px 7px', borderRadius: 6,
-      color: PRIORITY_COLOR[priority] ?? 'var(--color-sage)',
-      border: `1px solid ${PRIORITY_COLOR[priority] ?? 'var(--color-mist)'}`,
-      fontWeight: 500,
-    }}>{priority}</span>
-  )
-}
-
-// --- Skeleton ---
 function HoySkeleton() {
-  function Skel({ h, w = '100%' }: { h: number; w?: string | number }) {
-    return <span aria-hidden className="nf-skel" style={{ height: h, width: w, display: 'block' }} />
-  }
+  const Skel = ({ h, w = '100%' }: { h: number; w?: string | number }) =>
+    <span aria-hidden className="nf-skel" style={{ height: h, width: w, display: 'block', borderRadius: 12 }} />
   return (
-    <div style={{ padding: '8px 4px 24px' }}>
-      <section style={{ padding: '8px 18px 20px', display: 'grid', gap: 8 }}>
-        <Skel h={12} w="25%" />
-        <Skel h={20} w="55%" />
-      </section>
-      <div style={{ padding: '0 18px', display: 'grid', gap: 14 }}>
-        <Skel h={80} w="100%" />
-        <Skel h={64} w="100%" />
-        <Skel h={100} w="100%" />
-      </div>
+    <div style={{ padding: '8px 18px 24px', display: 'grid', gap: 14 }}>
+      <Skel h={20} w="45%" /><Skel h={190} /><Skel h={120} /><Skel h={140} />
     </div>
   )
 }
 
 export default function Hoy() {
+  const { openAdd } = useOutletContext<LayoutCtx>()
+  const nav = useNavigate()
+  const { hidden, toggle } = usePrivacy()
   const overview = useOverview()
-  const tareas = useTareas('pendiente')
   const venc = useVencimientos()
   const recurring = useRecurring()
-  const eventos = useEventos(false)
-  const recordatorios = useRecordatorios(false)
+  const { data: me } = useMe()
 
   if (overview.isLoading) return <HoySkeleton />
   if (overview.isError || !overview.data) return <EmptyState>No pudimos cargar tus datos. Reintentá.</EmptyState>
 
-  const hoy: HoyItem[] = overview.data.hoy
   const k = overview.data.kpis
-
-  const pendientes = (tareas.data ?? []).filter((t) => t.status === 'pendiente')
-  const top3 = pendientes.slice(0, 3)
-
-  // "Lo que viene": próximos eventos + recordatorios (después de hoy)
-  const endToday = new Date(); endToday.setHours(23, 59, 59, 999)
-  const upcoming = [
-    ...(eventos.data ?? []).map((e) => ({ id: `e${e.id}`, kind: 'evento', when: e.starts_at, title: e.title })),
-    ...(recordatorios.data ?? []).filter((r) => !r.event_id).map((r) => ({ id: `r${r.id}`, kind: 'recordatorio', when: r.remind_at, title: cleanReminderText(r.text) })),
-  ]
-    .filter((i) => i.when && whenDate(i.when) > endToday)
-    .sort((a, b) => whenDate(a.when).getTime() - whenDate(b.when).getTime())
-    .slice(0, 5)
+  const hoy: HoyItem[] = overview.data.hoy
+  const aPagar = cicloEnCursoTotal(venc.data, recurring.data)
+  const partner = me?.others?.[0]?.name
 
   return (
-    <div style={{ padding: '8px 4px 24px' }}>
-      {/* Header */}
-      <section style={{ padding: '8px 18px 20px' }}>
-        <div className="num-serif" style={{ fontSize: 'clamp(28px, 8vw, 36px)' }}>Inicio</div>
-        <div style={{ fontSize: 14, color: 'var(--color-sage)', marginTop: 4, textTransform: 'capitalize' }}>
-          {todayLabel()}
-        </div>
-      </section>
+    <div style={{ padding: '8px 18px 24px', display: 'grid', gap: 0 }}>
+      {/* Título + fecha */}
+      <div className="num-serif" style={{ fontSize: 'clamp(28px, 8vw, 34px)' }}>Inicio</div>
+      <div style={{ fontSize: 13, color: 'var(--color-sage)', marginTop: 3, textTransform: 'capitalize' }}>{todayLabel()}</div>
 
-      {/* Instalar app + activar notificaciones */}
-      <section style={{ padding: '0 18px 16px' }}>
-        <InstallNotifyBanner />
-      </section>
+      {/* Tarjeta de plata + acciones rápidas */}
+      <Card style={{ marginTop: 16, padding: '15px 15px 13px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span className="cap" style={{ fontSize: 10 }}>Disponible</span>
+          <Link to="/finanzas" style={{ fontSize: 11, fontWeight: 500, color: 'var(--color-sage)', textDecoration: 'none' }}>Ver finanzas →</Link>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 2 }}>
+          <span className="num-serif" style={{ fontSize: 'clamp(26px, 8vw, 31px)' }}><Money value={k.disponible} /></span>
+          <button onClick={toggle} aria-label={hidden ? 'Mostrar montos' : 'Ocultar montos'}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-sage)', padding: 0, display: 'inline-flex' }}>
+            <i className={`ti ${hidden ? 'ti-eye-off' : 'ti-eye'}`} style={{ fontSize: 16 }} aria-hidden />
+          </button>
+        </div>
+        <div style={{ fontSize: 11.5, color: 'var(--color-sage)', marginTop: 5 }}>
+          Gastado {formatMoney(k.gasto_mes)} · A pagar {formatMoney(aPagar)} este mes
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 14 }}>
+          <QuickTile icon="ti-plus" label="Cargar gasto" onClick={() => openAdd('gasto')} />
+          <QuickTile icon="ti-arrows-left-right" label="Movimientos" onClick={() => nav('/movimientos')} />
+          <QuickTile icon="ti-credit-card" label="Tarjetas" onClick={() => nav('/tarjetas')} />
+        </div>
+      </Card>
+
+      {/* Tus atajos */}
+      <div style={{ padding: '20px 0 8px' }}><span className="cap" style={{ fontSize: 10 }}>Tus atajos</span></div>
+      <div style={{ display: 'flex', gap: 9, overflowX: 'auto', paddingBottom: 2, margin: '0 -18px', padding: '0 18px 2px' }}>
+        <Shortcut icon="ti-shopping-cart" title="Sumar al súper" sub="Lista compartida" badge={partner} onClick={() => nav('/listas')} />
+        <Shortcut icon="ti-bell" title="Recordame algo" sub="Nuevo recordatorio" onClick={() => openAdd('recordatorio')} />
+        <Shortcut icon="ti-calendar" title="Nuevo evento" sub="Agenda" onClick={() => openAdd('evento')} />
+        <Shortcut icon="ti-note" title="Anotar" sub="Nueva nota" onClick={() => openAdd('nota')} />
+      </div>
 
       {/* Tu día */}
-      <section style={{ padding: '0 18px 20px' }}>
-        <div className="cap" style={{ marginBottom: 10 }}>Tu día</div>
-        {hoy.length === 0
-          ? <EmptyState>Nada agendado para hoy ✨</EmptyState>
-          : (
-            <div style={{ display: 'grid', gap: 12 }}>
-              {hoy.map((item, i) => (
-                <Link key={i} to={TIPO_ROUTE[item.tipo] ?? '/'}
-                  style={{ display: 'flex', gap: 10, alignItems: 'flex-start', textDecoration: 'none', color: 'inherit' }}>
-                  <TipoIcon tipo={item.tipo} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
-                      <span style={{ fontSize: 13, color: 'var(--color-sage)', flexShrink: 0 }}>{item.hora}</span>
-                      <span style={{ fontSize: 15, fontWeight: 500 }}>{item.titulo}</span>
-                    </div>
-                    {item.sub && (
-                      <div style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 2 }}>{item.sub}</div>
-                    )}
-                    {item.avisos && item.avisos.length > 0 && (
-                      <div style={{ fontSize: 11.5, color: 'var(--color-voltage-ink, var(--color-sage))', marginTop: 3 }}>
-                        🔔 te aviso {item.avisos.join(' · ')}
-                      </div>
-                    )}
+      <div style={{ padding: '22px 0 8px' }}><span className="cap" style={{ fontSize: 10 }}>Tu día</span></div>
+      {hoy.length === 0
+        ? <EmptyState>Nada agendado para hoy ✨</EmptyState>
+        : (
+          <Card style={{ padding: 0, overflow: 'hidden' }}>
+            {hoy.map((item, i) => (
+              <Link key={i} to={TIPO_ROUTE[item.tipo] ?? '/'}
+                style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '13px 14px', textDecoration: 'none', color: 'inherit',
+                  borderBottom: i < hoy.length - 1 ? '1px solid var(--color-mist)' : 'none' }}>
+                <i className={`ti ${TIPO_ICON[item.tipo] ?? 'ti-point'}`} style={{ fontSize: 16, color: 'var(--color-sage)', flexShrink: 0 }} aria-hidden />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600 }}>
+                    <span style={{ color: 'var(--color-sage)', fontWeight: 500, marginRight: 6 }}>{item.hora}</span>{item.titulo}
                   </div>
-                </Link>
-              ))}
-            </div>
-          )}
-      </section>
-
-      {/* Lo que viene */}
-      {upcoming.length > 0 && (
-        <section style={{ padding: '0 18px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span className="cap">Lo que viene</span>
-            <Link to="/agenda" style={{ fontSize: 12, color: 'var(--color-sage)', textDecoration: 'none' }}>Ver agenda →</Link>
-          </div>
-          <div style={{ display: 'grid', gap: 12 }}>
-            {upcoming.map((item) => (
-              <Link key={item.id} to="/agenda" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', textDecoration: 'none', color: 'inherit' }}>
-                <TipoIcon tipo={item.kind} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, color: 'var(--color-sage)' }}>{whenLabel(item.when)}</div>
-                  <div style={{ fontSize: 15, fontWeight: 500 }}>{item.title}</div>
+                  {item.sub && <div style={{ fontSize: 11.5, color: 'var(--color-sage)', marginTop: 2 }}>{item.sub}</div>}
                 </div>
+                <i className="ti ti-chevron-right" style={{ fontSize: 15, color: 'var(--color-sage)', flexShrink: 0 }} aria-hidden />
               </Link>
             ))}
-          </div>
-        </section>
-      )}
-
-      {/* Plata mini-card */}
-      <div style={{ padding: '0 18px 20px' }}>
-        <Link to="/finanzas" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <Card>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <i className="ti ti-coin" style={{ fontSize: 16, color: 'var(--color-sage)' }} aria-hidden />
-              <span className="cap">Plata</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-              <div>
-                <div className="cap" style={{ fontSize: 10 }}>Gastado</div>
-                <div className="num-serif" style={{ fontSize: 'clamp(13px, 4vw, 16px)', marginTop: 2, whiteSpace: 'nowrap' }}>{formatMoney(k.gasto_mes)}</div>
-              </div>
-              <div>
-                <div className="cap" style={{ fontSize: 10 }}>A pagar</div>
-                <div className="num-serif" style={{ fontSize: 'clamp(13px, 4vw, 16px)', marginTop: 2, whiteSpace: 'nowrap' }}>{formatMoney(cicloEnCursoTotal(venc.data, recurring.data))}</div>
-              </div>
-              <div>
-                <div className="cap" style={{ fontSize: 10 }}>Disponible</div>
-                <div className="num-serif" style={{ fontSize: 'clamp(13px, 4vw, 16px)', marginTop: 2, whiteSpace: 'nowrap' }}>{formatMoney(k.disponible)}</div>
-              </div>
-            </div>
-            <div style={{ marginTop: 10, fontSize: 12, color: 'var(--color-sage)', textAlign: 'right' }}>Ver finanzas →</div>
           </Card>
-        </Link>
-      </div>
+        )}
 
-      {/* Pendientes card */}
-      <div style={{ padding: '0 18px 20px' }}>
-        <Link to="/tareas" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <Card>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <i className="ti ti-checkbox" style={{ fontSize: 16, color: 'var(--color-sage)' }} aria-hidden />
-                <span className="cap">Pendientes</span>
-              </div>
-              {pendientes.length > 0 && (
-                <span style={{
-                  fontSize: 12, fontWeight: 600, background: 'var(--color-voltage)',
-                  color: 'var(--voltage-on-dark)', borderRadius: 20, padding: '2px 10px',
-                }}>
-                  {pendientes.length}
-                </span>
-              )}
-            </div>
-            {pendientes.length === 0
-              ? <div style={{ fontSize: 14, color: 'var(--color-sage)' }}>Todo al día</div>
-              : (
-                <div style={{ display: 'grid', gap: 10 }}>
-                  {top3.map((t) => (
-                    <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                      <span style={{ fontSize: 14, flex: 1 }}>{t.text}</span>
-                      <PriorityChip priority={t.priority} />
-                    </div>
-                  ))}
-                  {pendientes.length > 3 && (
-                    <div style={{ fontSize: 12, color: 'var(--color-sage)' }}>+{pendientes.length - 3} más →</div>
-                  )}
-                </div>
-              )}
-          </Card>
-        </Link>
-      </div>
+      <div style={{ marginTop: 16 }}><InstallNotifyBanner /></div>
     </div>
   )
+}
+
+// Acción rápida de finanzas (tile verde tenue).
+function QuickTile({ icon, label, onClick }: { icon: string; label: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} style={tile}>
+      <i className={`ti ${icon}`} style={{ fontSize: 21, color: 'var(--color-voltage-ink, #1f7a2e)' }} aria-hidden />
+      <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--color-voltage-ink, #1f7a2e)', textAlign: 'center' }}>{label}</span>
+    </button>
+  )
+}
+
+// Atajo del riel horizontal.
+function Shortcut({ icon, title, sub, badge, onClick }: { icon: string; title: string; sub: string; badge?: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} style={shortcut}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <i className={`ti ${icon}`} style={{ fontSize: 18, color: 'var(--color-obsidian-ink)' }} aria-hidden />
+        {badge && <span style={sBadge}>{badge.slice(0, 1).toUpperCase()}</span>}
+      </div>
+      <div style={{ fontSize: 12.5, fontWeight: 600, marginTop: 20, lineHeight: 1.25, textAlign: 'left' }}>{title}</div>
+      <div style={{ fontSize: 10.5, color: 'var(--color-sage)', marginTop: 2, textAlign: 'left' }}>{sub}</div>
+    </button>
+  )
+}
+
+const tile: CSSProperties = {
+  background: 'rgba(43,238,75,0.12)', border: 'none', borderRadius: 13, padding: '12px 6px 10px',
+  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, cursor: 'pointer', font: 'inherit',
+}
+const shortcut: CSSProperties = {
+  flex: 'none', width: 122, background: 'var(--color-linen)', border: '1px solid var(--color-mist)',
+  borderRadius: 14, padding: 12, cursor: 'pointer', font: 'inherit', color: 'var(--color-obsidian-ink)',
+}
+const sBadge: CSSProperties = {
+  width: 16, height: 16, borderRadius: '50%', background: 'rgba(43,238,75,0.25)',
+  fontSize: 8.5, lineHeight: '16px', fontWeight: 600, color: 'var(--color-voltage-ink, #1f7a2e)', textAlign: 'center',
 }
