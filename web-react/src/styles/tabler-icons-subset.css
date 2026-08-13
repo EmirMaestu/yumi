@@ -1,4 +1,4 @@
-/* GENERADO por scripts/build-icons.mjs — NO editar. 54 iconos. */
+/* GENERADO por scripts/build-icons.mjs — NO editar. 55 iconos. */
 @font-face{font-family:"tabler-icons";font-style:normal;font-weight:400;font-display:block;src:url("/app/fonts/tabler-subset.woff2") format("woff2")}
 .ti{font-family:"tabler-icons"!important;speak:none;font-style:normal;font-weight:normal;font-variant:normal;text-transform:none;line-height:1;display:inline-block;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 .ti-alarm-snooze:before{content:"\f632"}
@@ -41,6 +41,7 @@
 .ti-point:before{content:"\eb0c"}
 .ti-repeat:before{content:"\eb72"}
 .ti-search:before{content:"\eb1c"}
+.ti-share:before{content:"\eb21"}
 .ti-shield-lock:before{content:"\ed58"}
 .ti-shopping-cart:before{content:"\eb25"}
 .ti-shopping-cart-check:before{content:"\fb59"}

@@ -1,5 +1,7 @@
-import { type CSSProperties } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { Link, useNavigate, useOutletContext } from 'react-router-dom'
+import ShortcutsEditor from '../components/ShortcutsEditor'
+import { getShortcutIds, setShortcutIds, shortcutById } from '../lib/shortcuts'
 import { useOverview } from '../hooks/useOverview'
 import { useVencimientos } from '../hooks/useVencimientos'
 import { useRecurring } from '../hooks/useRecurring'
@@ -42,6 +44,8 @@ export default function Hoy() {
   const venc = useVencimientos()
   const recurring = useRecurring()
   const { data: me } = useMe()
+  const [shortcutIds, setIds] = useState(getShortcutIds())
+  const [editOpen, setEditOpen] = useState(false)
 
   if (overview.isLoading) return <HoySkeleton />
   if (overview.isError || !overview.data) return <EmptyState>No pudimos cargar tus datos. Reintentá.</EmptyState>
@@ -80,14 +84,22 @@ export default function Hoy() {
         </div>
       </Card>
 
-      {/* Tus atajos */}
-      <div style={{ padding: '20px 0 8px' }}><span className="cap" style={{ fontSize: 10 }}>Tus atajos</span></div>
-      <div style={{ display: 'flex', gap: 9, overflowX: 'auto', paddingBottom: 2, margin: '0 -18px', padding: '0 18px 2px' }}>
-        <Shortcut icon="ti-shopping-cart" title="Sumar al súper" sub="Lista compartida" badge={partner} onClick={() => nav('/listas')} />
-        <Shortcut icon="ti-bell" title="Recordame algo" sub="Nuevo recordatorio" onClick={() => openAdd('recordatorio')} />
-        <Shortcut icon="ti-calendar" title="Nuevo evento" sub="Agenda" onClick={() => openAdd('evento')} />
-        <Shortcut icon="ti-note" title="Anotar" sub="Nueva nota" onClick={() => openAdd('nota')} />
+      {/* Tus atajos (personalizables) */}
+      <div style={{ padding: '20px 0 8px', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+        <span className="cap" style={{ fontSize: 10 }}>Tus atajos</span>
+        <button onClick={() => setEditOpen(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', fontSize: 11, fontWeight: 600, color: 'var(--color-voltage-ink, #1f7a2e)' }}>Editar</button>
       </div>
+      <div style={{ display: 'flex', gap: 9, overflowX: 'auto', margin: '0 -18px', padding: '0 18px 2px' }}>
+        {shortcutIds.map((id) => {
+          const s = shortcutById(id)
+          if (!s) return null
+          const act = s.action
+          const onClick = act.type === 'route' ? () => nav(act.to) : () => openAdd(act.addType)
+          return <Shortcut key={id} icon={s.icon} title={s.label} sub={s.sub} badge={s.shareable ? partner : undefined} onClick={onClick} />
+        })}
+      </div>
+      <ShortcutsEditor open={editOpen} onClose={() => setEditOpen(false)} ids={shortcutIds}
+        onSave={(n) => { setShortcutIds(n); setIds(n) }} />
 
       {/* Tu día */}
       <div style={{ padding: '22px 0 8px' }}><span className="cap" style={{ fontSize: 10 }}>Tu día</span></div>
