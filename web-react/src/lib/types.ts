@@ -316,6 +316,7 @@ export interface Evento {
   location?: string | null
   notes?: string | null
   kind?: string | null
+  recurrence?: string | null
   user_id: number
   reminders?: Recordatorio[]
   shared?: number

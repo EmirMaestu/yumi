@@ -440,7 +440,7 @@ def init_db():
                           ("kind", "TEXT NOT NULL DEFAULT 'normal'"),
                           ("transfer_group_id", "TEXT"),
                           ("updated_at", "TEXT")],
-        "eventos": [("kind", "TEXT"), ("shared", "INTEGER DEFAULT 0")],
+        "eventos": [("kind", "TEXT"), ("shared", "INTEGER DEFAULT 0"), ("recurrence", "TEXT")],
         "notas": [("description", "TEXT")],
         "shopping_items": [("list_id", "INTEGER"), ("qty", "REAL"), ("unit", "TEXT"),
                            ("note", "TEXT"), ("category", "TEXT"), ("priority", "TEXT"),
@@ -1292,9 +1292,12 @@ def save_recurring(r, raw_id, user_id, fire_immediately=True):
     return rid, fired_tx_id
 
 def save_evento(e, raw_id, user_id):
+    rec = (e.get("recurrence") or None)
+    if rec not in ("daily", "weekly", "monthly", None):
+        rec = None
     conn = sqlite3.connect(DB_PATH)
-    cur = conn.execute("INSERT INTO eventos (title,starts_at,location,notes,kind,raw_message_id,user_id) VALUES (?,?,?,?,?,?,?)",
-        (e["title"], e["starts_at"], e.get("location"), e.get("notes"), e.get("kind"), raw_id, user_id))
+    cur = conn.execute("INSERT INTO eventos (title,starts_at,location,notes,kind,recurrence,raw_message_id,user_id) VALUES (?,?,?,?,?,?,?,?)",
+        (e["title"], e["starts_at"], e.get("location"), e.get("notes"), e.get("kind"), rec, raw_id, user_id))
     conn.commit(); eid = cur.lastrowid; conn.close()
     return eid
 
@@ -1563,7 +1566,8 @@ recurrente: {"type":"gasto"|"ingreso","amount":num,"currency":str,"category":str
 mover: {"target_account":str|null,"target_category":str|null,"filters":{...}}
 eliminar: {"filters":{...}}
 editar: {"id":int,"amount":num|null,"currency":str|null,"description":str|null,"category":str|null,"account":str|null,"occurred_at":str|null}
-evento: {"title":str,"starts_at":"YYYY-MM-DDTHH:MM","location":str|null,"notes":str|null,"kind":"turno"|null,"reminder_offsets":[int]|null}  (kind="turno" para turnos medicos; reminder_offsets=minutos antes para avisar, ej [60,30,10])
+evento: {"title":str,"starts_at":"YYYY-MM-DDTHH:MM","location":str|null,"notes":str|null,"kind":"turno"|null,"reminder_offsets":[int]|null,"recurrence":"daily"|"weekly"|"monthly"|null}  (kind="turno" para turnos medicos; reminder_offsets=minutos antes para avisar, ej [60,30,10]; recurrence si el evento se repite: "todos los martes"/"cada semana"->weekly, "todos los dias"->daily, "todos los meses"->monthly)
+IMPORTANTE eventos que se repiten con aviso: "un evento/clase/turno todos los <dia> a las HH con aviso X antes que se repita" = UN SOLO evento (con recurrence + reminder_offsets), NUNCA un evento + un recordatorio aparte para lo mismo. El aviso ya se maneja con reminder_offsets.
 recordatorio: {"text":str,"remind_at":"YYYY-MM-DDTHH:MM","recurrence":"daily"|"weekly"|"monthly"|null}
 tarea: {"text":str,"priority":"baja"|"media"|"alta","due_at":"YYYY-MM-DD"|null}
 habito: {"name":str,"value":num|null,"unit":str|null,"note":str|null}
@@ -1599,6 +1603,9 @@ EJEMPLOS:
 
 "turno con el cardiologo el martes 10am, recordame 60, 30 y 10 minutos antes"
 -> [{"intent":"evento","confidence":0.95,"data":{"title":"Turno cardiologo","starts_at":"<martes>T10:00","kind":"turno","reminder_offsets":[60,30,10]}}]
+
+"un evento Curso Electronica todos los martes a las 19 con aviso 1 hora antes que se repita todas las semanas"
+-> [{"intent":"evento","confidence":0.95,"data":{"title":"Curso Electronica","starts_at":"<martes>T19:00","reminder_offsets":[60],"recurrence":"weekly"}}]  (UN solo evento recurrente, NO un recordatorio aparte)
 
 "crear cuenta MP nueva tipo billetera"
 -> crear_cuenta{name:"MP",type:"billetera",icon:"💳"}
@@ -1951,8 +1958,9 @@ def _reemit_recurring_reminder(app_or_jobqueue, fired_row):
     if not nxt:
         return
     lid = fired_row["list_id"] if "list_id" in keys else None
+    evid = fired_row["event_id"] if "event_id" in keys else None
     new_id = save_recordatorio(fired_row["text"], nxt, fired_row["user_id"],
-                               source="recurrente", raw_id=None, list_id=lid)
+                               source="recurrente", raw_id=None, event_id=evid, list_id=lid)
     with db() as c:
         c.execute("UPDATE recordatorios SET recurrence=? WHERE id=?", (rec, new_id))
     jq = getattr(app_or_jobqueue, "job_queue", app_or_jobqueue)
@@ -1965,7 +1973,7 @@ async def send_reminder(context):
     data = context.job.data
     conn = sqlite3.connect(DB_PATH); conn.row_factory = sqlite3.Row
     row = conn.execute(
-        "SELECT r.id, r.text, r.remind_at, r.recurrence, r.user_id, r.fired, r.list_id, u.telegram_id AS telegram_id "
+        "SELECT r.id, r.text, r.remind_at, r.recurrence, r.user_id, r.fired, r.list_id, r.event_id, u.telegram_id AS telegram_id "
         "FROM recordatorios r LEFT JOIN users u ON u.id=r.user_id WHERE r.id=?",
         (data["rem_id"],)).fetchone()
     if row and row["fired"]:
@@ -4443,6 +4451,7 @@ async def process_action(update, context, parsed, raw_id):
     elif intent == "evento" and parsed.get("evento"):
         e = parsed["evento"]; eid = save_evento(e, raw_id, uid)
         es_turno = e.get("kind") == "turno"
+        ev_rec = e.get("recurrence") if e.get("recurrence") in ("daily", "weekly", "monthly") else None
         reply = f"{'🩺 Turno' if es_turno else '📅'} {e['title']} — {fmt_dt(e['starts_at'])}"
         if e.get("location"): reply += f"\n📍 {e['location']}"
         try:
@@ -4456,11 +4465,18 @@ async def process_action(update, context, parsed, raw_id):
                     rstr = remind_dt.strftime("%Y-%m-%dT%H:%M")
                     txt = e['title']
                     rid = save_recordatorio(txt, rstr, uid, source="evento", raw_id=raw_id, event_id=eid)
+                    # Evento recurrente → su aviso también recurre (dispara cada período,
+                    # 1h antes de cada ocurrencia) vía _reemit_recurring_reminder.
+                    if ev_rec:
+                        with db() as c:
+                            c.execute("UPDATE recordatorios SET recurrence=? WHERE id=?", (ev_rec, rid))
                     schedule_reminder(context.application.job_queue, rid, txt, rstr, update.effective_user.id)
                     avisados.append(off)
             if avisados:
                 reply += "\n🔔 Te aviso " + ", ".join(f"{o}min" for o in avisados) + " antes."
         except Exception: log.exception("Reminder fail")
+        if ev_rec:
+            reply += "\n🔁 " + {"daily": "Se repite todos los días", "weekly": "Se repite cada semana", "monthly": "Se repite cada mes"}[ev_rec]
         if es_turno:
             reply += "\n📎 Mandame la foto de la orden con epígrafe «orden» y la guardo."
         await update.message.reply_text(reply)
@@ -4729,7 +4745,7 @@ async def reminder_watchdog(context):
         conn = sqlite3.connect(DB_PATH); conn.row_factory = sqlite3.Row
         nowstr = now_local().strftime("%Y-%m-%dT%H:%M")
         rows = conn.execute(
-            "SELECT r.id, r.text, r.source, r.remind_at, r.recurrence, r.user_id, r.list_id, "
+            "SELECT r.id, r.text, r.source, r.remind_at, r.recurrence, r.user_id, r.list_id, r.event_id, "
             "u.telegram_id AS telegram_id, u.wa_id AS wa_id, "
             "u.wa_last_inbound_at AS wa_last_inbound_at, u.notify_channel AS notify_channel "
             "FROM recordatorios r LEFT JOIN users u ON u.id=r.user_id "

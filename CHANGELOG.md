@@ -6,6 +6,12 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-08-18
+### Added
+- **Eventos recurrentes de verdad:** "un evento todos los martes a las 19 que se repita" ahora crea **un evento que se repite** (semanal/diario/mensual) con su aviso también recurrente — ya no un evento suelto + un recordatorio aparte para lo mismo. En la agenda web se ve **semana a semana** (varias fechas, hasta 8 por adelantado) con el cartel **"se repite cada semana"**, así queda claro que se repite. Borrar el evento borra toda la serie (y frena los avisos).
+### Fixed
+- **El aviso de un evento ya no aparece como card suelta:** el recordatorio ligado a un evento se muestra dentro del evento (o como "con aviso" en los recurrentes), no como una tarjeta separada que parecía un duplicado.
+
 ## [1.5.1] - 2026-08-18
 ### Fixed
 - **Días de la semana (parte 2):** cuando hoy caía en el mismo día que pedías (p. ej. "todos los martes" un martes), a veces lo ubicaba un día antes (lunes). La tabla de fechas del parser ahora incluye también el día **de la semana que viene**, y se aclaró que "todos los X" arranca en el X más cercano (hoy incluido) → cae siempre en el día correcto.
