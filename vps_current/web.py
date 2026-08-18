@@ -747,7 +747,9 @@ def _wa_process_message(main, frm, profile, mtype, text):
                        "— van a compartir listas, gastos y agenda.")
                 if temp_pw:
                     msg += (f"\n\n🌐 App web de Yumi: {APP_URL}\n"
-                            f"Entrá con usuario {new_user['username']} y clave temporal {temp_pw} (cambiala desde la web).")
+                            f"👤 Usuario: {new_user['username']}\n"
+                            f"🔑 Clave: {temp_pw}\n"
+                            "Cambiala desde la web cuando entres.")
                 wa_send(frm, msg)
                 return
         code = _wa_extract_code(main, text)
@@ -762,8 +764,9 @@ def _wa_process_message(main, frm, profile, mtype, text):
                        "📊 «cuánto gasté este mes?»")
                 if temp_pw:
                     msg += (f"\n\n🌐 App web de Yumi: {APP_URL}\n"
-                            f"Entrá con usuario {new_user['username']} y clave temporal {temp_pw} "
-                            f"(cambiala desde la web). También podés usar todo acá por WhatsApp.")
+                            f"👤 Usuario: {new_user['username']}\n"
+                            f"🔑 Clave: {temp_pw}\n"
+                            "Cambiala desde la web. También podés usar todo acá por WhatsApp.")
                 wa_send(frm, msg)
                 return
         wa_send(frm, getattr(main, "REGISTER_MSG", "👋 Yumi es por invitación. Pedile su link a quien te invitó."))
