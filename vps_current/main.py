@@ -213,6 +213,7 @@ def cost_gate(user_id):
     return None
 MESES_ES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"]
 DIAS_ES = ["lun","mar","mié","jue","vie","sáb","dom"]
+DIAS_ES_FULL = ["lunes","martes","miércoles","jueves","viernes","sábado","domingo"]
 logging.basicConfig(format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", level=logging.INFO)
 log = logging.getLogger("asistente")
 
@@ -1544,9 +1545,12 @@ luca=1000 -> "50 lucas"=50000 - media luca=500 - palo=1000000 -> "1,5 palos"=150
 gamba=100 - 2k=2000 - 1.500=1500 (punto = miles) - dolares/USD/u$s/verdes -> USD - default ARS
 Monedas de la region: reales/R$ -> BRL - pesos chilenos/CLP -> CLP - pesos uruguayos -> UYU - guaranies -> PYG - bolivianos/Bs -> BOB (usa el codigo)
 
-FECHAS (resolver TODO a ISO usando HOY=__TODAY__ __DOW__):
+FECHAS (resolver TODO a ISO). Para un DIA DE LA SEMANA (lunes..domingo, "el jueves",
+"todos los martes") NO calcules: buscá la fecha EXACTA en esta tabla:
+__NEXTDAYS__
+"el X que viene" / "el proximo X" = ese X de la tabla + 7 dias. Si el usuario nombra
+VARIOS dias (ej. "martes y jueves"), resolve CADA UNO por separado con la tabla.
 manana=+1d - pasado manana=+2d - en una hora=__NOW__+1h
-el viernes=viernes mas proximo - el viernes que viene=siguiente
 fin de mes=ultimo dia del mes - recordatorio sin hora -> 09:00
 
 CAMPOS DE `data`:
@@ -1748,6 +1752,18 @@ def _others_block(me_id):
     if not others: return "(sin otros usuarios)"
     return ", ".join(u["name"] for u in others)
 
+def _next_days_block(now):
+    """Tabla de los próximos 7 días con nombre completo y fecha ISO, ya calculada en
+    Python. El LLM resuelve los días de la semana por LOOKUP (antes calculaba y erraba,
+    ej. "jueves" → viernes). Cada día de la semana aparece una vez; hoy = su fecha real."""
+    out = []
+    for i in range(7):
+        d = (now + timedelta(days=i)).date()
+        pfx = "HOY " if i == 0 else ("MAÑANA " if i == 1 else "")
+        out.append(f"- {pfx}{DIAS_ES_FULL[d.weekday()]} = {d.strftime('%Y-%m-%d')}")
+    return "\n".join(out)
+
+
 def build_parser_system(user_id, user_name):
     now = now_local()
     return (PARSER_TEMPLATE
@@ -1757,6 +1773,7 @@ def build_parser_system(user_id, user_name):
             .replace("__NOW__", now.strftime("%H:%M"))
             .replace("__TZ__", TIMEZONE)
             .replace("__DOW__", DIAS_ES[now.weekday()])
+            .replace("__NEXTDAYS__", _next_days_block(now))
             .replace("__ME__", user_name or "Yo")
             .replace("__ME_ID__", str(user_id or 0))
             .replace("__OTHERS__", _others_block(user_id)))

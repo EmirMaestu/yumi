@@ -6,6 +6,12 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-08-18
+### Fixed
+- **Días de la semana bien resueltos:** al pedirle al bot algo para "el jueves" (o varios días juntos, "martes y jueves"), a veces caía en el día equivocado (p. ej. el jueves lo ponía en viernes). Ahora el parser usa una **tabla de fechas exactas ya calculada** en vez de calcularlas él → cada día cae donde corresponde. (Los recordatorios recurrentes —"que se repita" semanal/diario— ya existían y siguen funcionando.)
+### Added
+- **Agenda — la tira de días ahora es un navegador real:** muestra **solo los días que tienen algo** (los días vacíos ya no aparecen) y **tocás un día para ver solo lo de ese día**, con un botón **"Todos"** para volver a la vista completa.
+
 ## [1.4.1] - 2026-08-18
 ### Fixed
 - **Claves temporales legibles (no se podía iniciar sesión):** la contraseña temporal que da el bot al crear una cuenta ahora usa un alfabeto **sin caracteres ambiguos** (nada de `l`/`1`/`O`/`0`/`_`/`-`), así es fácil de copiar y tipear. Antes traía símbolos confusos y algunas personas no lograban entrar a la web con lo que el bot les había dado. La bienvenida además muestra **usuario y clave en líneas separadas**, cada uno para copiar de un toque.
