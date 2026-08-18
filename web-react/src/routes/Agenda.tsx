@@ -60,12 +60,37 @@ function recurrenceLabel(rec?: string | null): string | null {
   return null
 }
 
+// 'YYYY-MM-DDTHH:MM' en hora local (para las ocurrencias proyectadas).
+function toLocalDT(d: Date): string {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+// Ocurrencias de un evento: si es recurrente, proyecta las próximas (hasta maxCount,
+// dentro del horizonte); si no, una sola. Solo de hoy en adelante. Así la agenda
+// muestra que se repite (varios días) sin cambiar el modelo del backend.
+function eventOccurrences(e: Evento, maxCount = 8, horizonDays = 120): string[] {
+  if (!e.recurrence) return [e.starts_at]
+  const startToday = new Date(); startToday.setHours(0, 0, 0, 0)
+  const horizon = new Date(); horizon.setDate(horizon.getDate() + horizonDays)
+  const d = new Date(e.starts_at)
+  const out: string[] = []
+  let guard = 0
+  while (out.length < maxCount && d <= horizon && guard < 400) {
+    if (d >= startToday) out.push(toLocalDT(d))
+    if (e.recurrence === 'daily') d.setDate(d.getDate() + 1)
+    else if (e.recurrence === 'monthly') d.setMonth(d.getMonth() + 1)
+    else d.setDate(d.getDate() + 7) // weekly (default)
+    guard++
+  }
+  return out.length ? out : [e.starts_at]
+}
+
 const WEEKDAY_ABBR = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB']
 
 // ── unified item type ────────────────────────────────────────────────────────
 
 type AgendaItem =
-  | { kind: 'evento'; data: Evento; sortKey: string }
+  | { kind: 'evento'; data: Evento; sortKey: string; occursAt: string }
   | { kind: 'recordatorio'; data: Recordatorio; sortKey: string }
 
 // ── Evento modal (rediseño 2b: chips de cuándo + recordatorio + compartir) ────
@@ -340,9 +365,10 @@ export default function Agenda() {
 
   if (loadE || loadR) return <MovimientosSkeleton />
 
+  const allEventos = [...(eventos ?? []), ...(eventosPast ?? [])]
   const allItems: AgendaItem[] = [
-    ...(eventos ?? []).map((e): AgendaItem => ({ kind: 'evento', data: e, sortKey: e.starts_at })),
-    ...(eventosPast ?? []).map((e): AgendaItem => ({ kind: 'evento', data: e, sortKey: e.starts_at })),
+    ...allEventos.flatMap((e): AgendaItem[] =>
+      eventOccurrences(e).map((occ) => ({ kind: 'evento' as const, data: e, sortKey: occ, occursAt: occ }))),
     ...(recordatorios ?? []).filter((r) => !r.event_id).map((r): AgendaItem => ({ kind: 'recordatorio', data: r, sortKey: r.remind_at })),
   ].sort((a, b) => a.sortKey.localeCompare(b.sortKey))
 
@@ -470,11 +496,12 @@ export default function Agenda() {
             {items.map((item) =>
               item.kind === 'evento' ? (
                 <EventoCard
-                  key={`e-${item.data.id}`}
+                  key={`e-${item.data.id}-${item.occursAt}`}
                   evento={item.data}
+                  occursAt={item.occursAt}
                   isOwner={me?.id === item.data.user_id}
                   owner={memberById.get(item.data.user_id)}
-                  dimmed={isPast(item.data.starts_at)}
+                  dimmed={isPast(item.occursAt)}
                   onEdit={() => setEditEvento(item.data)}
                   onDelete={() => setDeleteItem(item)}
                   onShare={() => setShareItem(item)}
@@ -546,7 +573,7 @@ export default function Agenda() {
         title="¿Borrar este ítem?"
         description={
           deleteItem?.kind === 'evento'
-            ? `Se eliminará "${deleteItem.data.title}".`
+            ? `Se eliminará "${deleteItem.data.title}"${deleteItem.data.recurrence ? ' y todas sus repeticiones' : ''}.`
             : deleteItem?.kind === 'recordatorio'
             ? `Se eliminará "${deleteItem.data.text}".`
             : ''
@@ -596,6 +623,7 @@ function reminderOffsetLabel(remindAt: string, startsAt: string): string {
 
 function EventoCard({
   evento,
+  occursAt,
   isOwner,
   owner,
   dimmed,
@@ -605,6 +633,7 @@ function EventoCard({
   onRemoveReminder,
 }: {
   evento: Evento
+  occursAt: string
   isOwner: boolean
   owner?: HouseholdMember
   dimmed: boolean
@@ -614,19 +643,31 @@ function EventoCard({
   onRemoveReminder: (id: number) => void
 }) {
   const reminders = evento.reminders ?? []
-  const sub = [evento.location, reminders[0] ? `recordatorio ${reminderOffsetLabel(reminders[0].remind_at, evento.starts_at)}` : null]
-    .filter(Boolean).join(' · ')
+  const isRecurring = !!evento.recurrence
+  // En un evento recurrente el aviso ligado se va corriendo semana a semana → no
+  // mostramos el offset exacto por ocurrencia (sería confuso), sino "con aviso" + el
+  // cartel de recurrencia. En eventos simples, el detalle exacto de siempre.
+  const sub = [
+    evento.location,
+    !isRecurring && reminders[0] ? `recordatorio ${reminderOffsetLabel(reminders[0].remind_at, evento.starts_at)}` : null,
+    isRecurring && reminders.length ? 'con aviso' : null,
+  ].filter(Boolean).join(' · ')
   return (
     <Card style={{ opacity: dimmed ? 0.55 : 1, padding: 14 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11 }}>
-        <div style={{ ...timeCol }}>{fmtTime(evento.starts_at)}</div>
+        <div style={{ ...timeCol }}>{fmtTime(occursAt)}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--color-obsidian-ink)' }}>{evento.title}</div>
           {(sub || evento.notes) && (
             <div style={{ fontSize: 11.5, color: 'var(--color-sage)', marginTop: 2 }}>{sub || evento.notes}</div>
           )}
+          {isRecurring && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6, fontSize: 10.5, fontWeight: 600, color: 'var(--color-voltage-ink, #1f7a2e)', background: 'rgba(43,238,75,0.12)', borderRadius: 999, padding: '3px 8px' }}>
+              <i className="ti ti-repeat" aria-hidden style={{ fontSize: 11 }} /> {recurrenceLabel(evento.recurrence)}
+            </div>
+          )}
           {isOwner && <div style={{ marginTop: 6 }}><ShareBadge shared={evento.shared} count={evento.share_count} /></div>}
-          {reminders.length > 0 && (
+          {!isRecurring && reminders.length > 0 && (
             <div style={{ marginTop: 8, display: 'grid', gap: 5 }}>
               {reminders.map((r) => (
                 <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--color-sage)' }}>

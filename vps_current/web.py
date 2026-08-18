@@ -1707,7 +1707,7 @@ def api_eventos(past: bool = False, user=Depends(require_user), scope: str = Coo
             ids = [e["id"] for e in events]
             ph = ",".join("?" * len(ids))
             recs = conn.execute(
-                f"SELECT * FROM recordatorios WHERE event_id IN ({ph}) ORDER BY remind_at ASC", ids).fetchall()
+                f"SELECT * FROM recordatorios WHERE event_id IN ({ph}) AND fired=0 ORDER BY remind_at ASC", ids).fetchall()
             by_ev = {}
             for r in recs:
                 by_ev.setdefault(r["event_id"], []).append(dict(r))
@@ -1722,6 +1722,9 @@ def del_ev(eid: int, user=Depends(require_user)):
         row = conn.execute("SELECT user_id FROM eventos WHERE id=?", (eid,)).fetchone()
         if row and row["user_id"] != user["id"]: raise HTTPException(403, "No es tuyo")
         conn.execute("DELETE FROM eventos WHERE id=?", (eid,))
+        # Borrar también los avisos ligados: si no, un aviso recurrente sigue disparando
+        # para siempre aunque el evento ya no exista.
+        conn.execute("DELETE FROM recordatorios WHERE event_id=?", (eid,))
         conn.execute("DELETE FROM item_shares WHERE entity='eventos' AND item_id=?", (eid,)); conn.commit()
     return {"ok": True}
 
