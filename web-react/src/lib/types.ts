@@ -329,6 +329,7 @@ export interface Recordatorio {
   fired: number
   source?: string | null
   event_id?: number | null
+  recurrence?: string | null
   user_id: number
   shared?: number
   share_count?: number
