@@ -6,6 +6,10 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-08-18
+### Added
+- **Crear y editar eventos desde la web:** el botón **"+ Evento"** de la Agenda ahora funciona (antes no tenía backend y no guardaba nada). Podés poner título, fecha y hora, lugar, aviso (1 h / 1 día antes) y **si se repite** (cada semana / día / mes). Los avisos se disparan igual que los del bot, y editar un evento también permite cambiar la repetición.
+
 ## [1.6.0] - 2026-08-18
 ### Added
 - **Eventos recurrentes de verdad:** "un evento todos los martes a las 19 que se repita" ahora crea **un evento que se repite** (semanal/diario/mensual) con su aviso también recurrente — ya no un evento suelto + un recordatorio aparte para lo mismo. En la agenda web se ve **semana a semana** (varias fechas, hasta 8 por adelantado) con el cartel **"se repite cada semana"**, así queda claro que se repite. Borrar el evento borra toda la serie (y frena los avisos).

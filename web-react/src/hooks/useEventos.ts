@@ -15,6 +15,7 @@ interface EventoCreate {
   location?: string | null
   notes?: string | null
   reminder_offsets?: number[]  // minutos antes para avisar
+  recurrence?: string | null   // daily|weekly|monthly|null (se repite)
 }
 
 interface EventoUpdate {
@@ -23,6 +24,7 @@ interface EventoUpdate {
   starts_at?: string
   location?: string | null
   notes?: string | null
+  recurrence?: string | null
 }
 
 export function useEventosMutations() {

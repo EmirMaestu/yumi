@@ -95,15 +95,23 @@ type AgendaItem =
 
 // ── Evento modal (rediseño 2b: chips de cuándo + recordatorio + compartir) ────
 
-type EventoInitial = { title: string; starts_at: string; location?: string; notes?: string }
+type EventoInitial = { title: string; starts_at: string; location?: string; notes?: string; recurrence?: string | null }
 type EventoPayload = {
   title: string
   starts_at: string
   location: string
   notes: string
   reminder_offsets?: number[]
+  recurrence?: string | null
   share?: boolean
 }
+type Recur = 'none' | 'daily' | 'weekly' | 'monthly'
+const RECUR_OPTS: { key: Recur; label: string }[] = [
+  { key: 'none', label: 'No se repite' },
+  { key: 'weekly', label: 'Cada semana' },
+  { key: 'daily', label: 'Cada día' },
+  { key: 'monthly', label: 'Cada mes' },
+]
 
 function pad(n: number) { return String(n).padStart(2, '0') }
 function todayStr() { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` }
@@ -142,6 +150,7 @@ function EventoModal({
   const [reminder, setReminder] = useState<'1h' | '1d' | 'none'>('1h')
   const [location, setLocation] = useState('')
   const [notes, setNotes] = useState('')
+  const [recur, setRecur] = useState<Recur>('none')
   const [share, setShare] = useState(false)
   const [err, setErr] = useState(false)
 
@@ -155,8 +164,9 @@ function EventoModal({
       setTimeStr(`${pad(d.getHours())}:${pad(d.getMinutes())}`)
       setLocation(initial.location ?? '')
       setNotes(initial.notes ?? '')
+      setRecur((initial.recurrence as Recur) ?? 'none')
     } else {
-      setName(''); setDateStr(todayStr()); setTimeStr('09:00'); setLocation(''); setNotes('')
+      setName(''); setDateStr(todayStr()); setTimeStr('09:00'); setLocation(''); setNotes(''); setRecur('none')
     }
     setPickDate(false); setReminder('1h'); setShare(false); setErr(false)
   }, [open, initial])
@@ -180,6 +190,7 @@ function EventoModal({
       location: location.trim(),
       notes: notes.trim(),
       reminder_offsets,
+      recurrence: recur === 'none' ? null : recur,
       share: withReminders ? share : undefined,
     })
   }
@@ -235,6 +246,15 @@ function EventoModal({
             </div>
           </div>
         )}
+
+        <div>
+          <div style={groupLabel}>Repetir</div>
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+            {RECUR_OPTS.map((o) => (
+              <button key={o.key} type="button" onClick={() => setRecur(o.key)} style={chip(recur === o.key)}>{o.label}</button>
+            ))}
+          </div>
+        </div>
 
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notas (opcional)" rows={2} style={{ ...inputStyle, resize: 'vertical' }} />
 
@@ -398,6 +418,7 @@ export default function Agenda() {
         location: data.location || null,
         notes: data.notes || null,
         reminder_offsets: data.reminder_offsets,
+        recurrence: data.recurrence,
       },
       {
         onSuccess: (res) => {
@@ -413,7 +434,7 @@ export default function Agenda() {
   }
   const handleEditEvento = (data: EventoPayload) => {
     if (!editEvento) return
-    evMut.update.mutate({ id: editEvento.id, title: data.title, starts_at: data.starts_at, location: data.location || null, notes: data.notes || null })
+    evMut.update.mutate({ id: editEvento.id, title: data.title, starts_at: data.starts_at, location: data.location || null, notes: data.notes || null, recurrence: data.recurrence })
     setEditEvento(null)
   }
   const handleEditRec = (data: { text: string; remind_at: string; event_id: number | null }) => {
@@ -553,6 +574,7 @@ export default function Agenda() {
           starts_at: editEvento.starts_at,
           location: editEvento.location ?? '',
           notes: editEvento.notes ?? '',
+          recurrence: editEvento.recurrence,
         } : undefined}
         onSubmit={handleEditEvento}
       />
