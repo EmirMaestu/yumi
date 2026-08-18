@@ -1545,11 +1545,14 @@ luca=1000 -> "50 lucas"=50000 - media luca=500 - palo=1000000 -> "1,5 palos"=150
 gamba=100 - 2k=2000 - 1.500=1500 (punto = miles) - dolares/USD/u$s/verdes -> USD - default ARS
 Monedas de la region: reales/R$ -> BRL - pesos chilenos/CLP -> CLP - pesos uruguayos -> UYU - guaranies -> PYG - bolivianos/Bs -> BOB (usa el codigo)
 
-FECHAS (resolver TODO a ISO). Para un DIA DE LA SEMANA (lunes..domingo, "el jueves",
-"todos los martes") NO calcules: buscá la fecha EXACTA en esta tabla:
+FECHAS (resolver TODO a ISO). Para un DIA DE LA SEMANA NO calcules NUNCA: copiá la
+fecha EXACTA de esta tabla (cada dia ya trae su fecha):
 __NEXTDAYS__
-"el X que viene" / "el proximo X" = ese X de la tabla + 7 dias. Si el usuario nombra
-VARIOS dias (ej. "martes y jueves"), resolve CADA UNO por separado con la tabla.
+- "el X" / "todos los X" (aunque sea recurrente) = la PRIMERA fila de ese X (la mas
+  cercana a hoy; si HOY es ese dia, usa HOY). La recurrencia ya se encarga de las
+  semanas siguientes: NO adelantes a la semana que viene.
+- "el X que viene" / "el proximo X" = la fila de ese X marcada "(semana que viene)".
+- Varios dias ("martes y jueves") = resolve CADA UNO por separado con la tabla.
 manana=+1d - pasado manana=+2d - en una hora=__NOW__+1h
 fin de mes=ultimo dia del mes - recordatorio sin hora -> 09:00
 
@@ -1752,15 +1755,21 @@ def _others_block(me_id):
     if not others: return "(sin otros usuarios)"
     return ", ".join(u["name"] for u in others)
 
-def _next_days_block(now):
-    """Tabla de los próximos 7 días con nombre completo y fecha ISO, ya calculada en
+def _next_days_block(now, n=8):
+    """Tabla de los próximos 8 días con nombre completo y fecha ISO, ya calculada en
     Python. El LLM resuelve los días de la semana por LOOKUP (antes calculaba y erraba,
-    ej. "jueves" → viernes). Cada día de la semana aparece una vez; hoy = su fecha real."""
+    ej. "jueves"→viernes, o "todos los martes" cuando hoy es martes→lunes). Con 8 días,
+    el día de HOY aparece dos veces: hoy y "(semana que viene)", para desambiguar
+    "el X" (más cercano) vs "el X que viene"."""
     out = []
-    for i in range(7):
+    seen = set()
+    for i in range(n):
         d = (now + timedelta(days=i)).date()
+        name = DIAS_ES_FULL[d.weekday()]
+        label = name + (" (semana que viene)" if name in seen else "")
+        seen.add(name)
         pfx = "HOY " if i == 0 else ("MAÑANA " if i == 1 else "")
-        out.append(f"- {pfx}{DIAS_ES_FULL[d.weekday()]} = {d.strftime('%Y-%m-%d')}")
+        out.append(f"- {pfx}{label} = {d.strftime('%Y-%m-%d')}")
     return "\n".join(out)
 
 

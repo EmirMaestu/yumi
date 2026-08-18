@@ -53,6 +53,13 @@ function isPast(iso: string) {
   return new Date(iso) < new Date()
 }
 
+function recurrenceLabel(rec?: string | null): string | null {
+  if (rec === 'daily') return 'se repite todos los días'
+  if (rec === 'weekly') return 'se repite cada semana'
+  if (rec === 'monthly') return 'se repite cada mes'
+  return null
+}
+
 const WEEKDAY_ABBR = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB']
 
 // ── unified item type ────────────────────────────────────────────────────────
@@ -676,6 +683,11 @@ function RecordatorioCard({
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--color-obsidian-ink)' }}>{cleanReminderText(rec.text)}</div>
           <div style={{ fontSize: 11.5, color: 'var(--color-sage)', marginTop: 2 }}>Recordatorio · {fmtTime(rec.remind_at)}</div>
+          {recurrenceLabel(rec.recurrence) && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 5, fontSize: 10.5, fontWeight: 600, color: 'var(--color-voltage-ink, #1f7a2e)', background: 'rgba(43,238,75,0.12)', borderRadius: 999, padding: '3px 8px' }}>
+              <i className="ti ti-repeat" aria-hidden style={{ fontSize: 11 }} /> {recurrenceLabel(rec.recurrence)}
+            </div>
+          )}
           {isOwner && <div style={{ marginTop: 6 }}><ShareBadge shared={rec.shared} count={rec.share_count} /></div>}
           {showSnooze && (
             <SnoozeMenu

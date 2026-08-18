@@ -6,6 +6,12 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-08-18
+### Fixed
+- **Días de la semana (parte 2):** cuando hoy caía en el mismo día que pedías (p. ej. "todos los martes" un martes), a veces lo ubicaba un día antes (lunes). La tabla de fechas del parser ahora incluye también el día **de la semana que viene**, y se aclaró que "todos los X" arranca en el X más cercano (hoy incluido) → cae siempre en el día correcto.
+### Added
+- **Agenda: se ve que un recordatorio se repite.** Los recordatorios recurrentes muestran un cartelito **"se repite cada semana/día/mes"** en la web (como ya lo indicaba el bot).
+
 ## [1.5.0] - 2026-08-18
 ### Fixed
 - **Días de la semana bien resueltos:** al pedirle al bot algo para "el jueves" (o varios días juntos, "martes y jueves"), a veces caía en el día equivocado (p. ej. el jueves lo ponía en viernes). Ahora el parser usa una **tabla de fechas exactas ya calculada** en vez de calcularlas él → cada día cae donde corresponde. (Los recordatorios recurrentes —"que se repita" semanal/diario— ya existían y siguen funcionando.)
