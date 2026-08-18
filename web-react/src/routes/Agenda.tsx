@@ -325,6 +325,7 @@ export default function Agenda() {
   const [editRec, setEditRec] = useState<Recordatorio | null>(null)
   const [deleteItem, setDeleteItem] = useState<AgendaItem | null>(null)
   const [shareItem, setShareItem] = useState<AgendaItem | null>(null)
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
 
   const memberById = new Map<number, HouseholdMember>((members ?? []).map((m) => [m.id, m]))
   const others = (members ?? []).filter((m) => !m.is_me)
@@ -350,15 +351,11 @@ export default function Agenda() {
   const thisWeekCount = allItems.filter((i) => !isPast(i.sortKey) && new Date(i.sortKey) <= weekEnd).length
   const monthName = new Intl.DateTimeFormat('es-AR', { month: 'long' }).format(new Date())
 
-  // Tira de días (próximos 6 desde hoy)
-  const strip = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(); d.setDate(d.getDate() + i)
-    return d
-  })
-
-  const scrollToDay = (key: string) => {
-    document.getElementById(`day-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
+  // Tira de días = SOLO los días que tienen algo, de hoy en adelante (los vacíos no
+  // se muestran). Tocar un día filtra la lista a ese día; "Todos" limpia el filtro.
+  const todayKey = localDay(new Date())
+  const dayKeys = [...groups.keys()].filter((k) => k >= todayKey).sort()
+  const activeDay = selectedDay && dayKeys.includes(selectedDay) ? selectedDay : null
 
   const handleCreateEvento = (data: EventoPayload) => {
     evMut.create.mutate(
@@ -416,38 +413,50 @@ export default function Agenda() {
         </button>
       </div>
 
-      {/* Tira de días */}
-      <div style={{ display: 'flex', gap: 6, paddingBottom: 14, borderBottom: '1px solid var(--color-mist)', overflowX: 'auto' }}>
-        {strip.map((d, i) => {
-          const key = localDay(d)
-          const isToday = i === 0
-          const hasItems = groups.has(key)
-          return (
+      {/* Tira de días con algo (los vacíos no se muestran). Tocar un día filtra a ese día. */}
+      {dayKeys.length > 0 && (
+        <div style={{ display: 'flex', gap: 6, paddingBottom: 14, borderBottom: '1px solid var(--color-mist)', overflowX: 'auto' }}>
+          {activeDay && (
             <button
-              key={key}
-              onClick={() => hasItems && scrollToDay(key)}
-              style={{
-                flex: 'none', width: 44, borderRadius: 12, padding: '8px 0', textAlign: 'center', cursor: hasItems ? 'pointer' : 'default',
-                border: 'none', background: isToday ? 'var(--color-obsidian-ink)' : 'transparent',
-              }}
+              onClick={() => setSelectedDay(null)}
+              style={{ flex: 'none', borderRadius: 12, padding: '0 13px', border: '1px solid var(--color-mist)', background: 'transparent', color: 'var(--color-obsidian-ink)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}
             >
-              <div style={{ fontSize: 9.5, fontWeight: 500, color: isToday ? 'var(--color-linen)' : 'var(--color-sage)' }}>{WEEKDAY_ABBR[d.getDay()]}</div>
-              <div className="num-serif" style={{ fontSize: 16, fontWeight: 600, color: isToday ? 'var(--color-linen)' : 'var(--color-obsidian-ink)' }}>{d.getDate()}</div>
-              <div style={{ height: 4, marginTop: 2, display: 'flex', justifyContent: 'center' }}>
-                {hasItems && <span style={{ width: 4, height: 4, borderRadius: '50%', background: isToday ? 'var(--color-voltage)' : 'var(--color-voltage)' }} />}
-              </div>
+              Todos
             </button>
-          )
-        })}
-      </div>
+          )}
+          {dayKeys.map((key) => {
+            const d = new Date(key + 'T00:00')
+            const isToday = key === todayKey
+            const isSel = key === activeDay
+            const fg = isSel ? 'var(--voltage-on-dark)' : isToday ? 'var(--color-linen)' : undefined
+            return (
+              <button
+                key={key}
+                onClick={() => setSelectedDay(isSel ? null : key)}
+                aria-pressed={isSel}
+                style={{
+                  flex: 'none', width: 44, borderRadius: 12, padding: '8px 0', textAlign: 'center', cursor: 'pointer',
+                  border: 'none', background: isSel ? 'var(--color-voltage)' : isToday ? 'var(--color-obsidian-ink)' : 'transparent',
+                }}
+              >
+                <div style={{ fontSize: 9.5, fontWeight: 500, color: fg ?? 'var(--color-sage)' }}>{WEEKDAY_ABBR[d.getDay()]}</div>
+                <div className="num-serif" style={{ fontSize: 16, fontWeight: 600, color: fg ?? 'var(--color-obsidian-ink)' }}>{d.getDate()}</div>
+                <div style={{ height: 4, marginTop: 2, display: 'flex', justifyContent: 'center' }}>
+                  <span style={{ width: 4, height: 4, borderRadius: '50%', background: isSel ? 'var(--voltage-on-dark)' : 'var(--color-voltage)' }} />
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* Empty state */}
       {allItems.length === 0 && (
         <EmptyState>Sin eventos ni recordatorios. ¡Agregá algo!</EmptyState>
       )}
 
-      {/* Días agrupados */}
-      {[...groups.entries()].map(([dateKey, items]) => (
+      {/* Días agrupados (filtrados al día seleccionado si hay uno) */}
+      {[...groups.entries()].filter(([dateKey]) => !activeDay || dateKey === activeDay).map(([dateKey, items]) => (
         <div key={dateKey} id={`day-${dateKey}`} style={{ marginTop: 16 }}>
           <div style={{ ...sectionLabel, textTransform: 'uppercase' }}>{fmtDateLabel(dateKey + 'T00:00')}</div>
           <div style={{ display: 'grid', gap: 9 }}>
