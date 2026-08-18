@@ -6,6 +6,10 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-08-18
+### Fixed
+- **Crear un evento con "repetir" desde la web ahora sí guarda la recurrencia.** El endpoint real de creación/edición de eventos vive en `crud_v2.py` (no en `web.py`); ahí faltaba el soporte de repetición, así que el evento se creaba pero sin repetirse. Se agregó `recurrence` en crear y editar → el evento **y su aviso** quedan recurrentes de verdad. (El 1.7.0 había puesto el soporte en un handler duplicado que quedaba tapado por el de crud_v2.)
+
 ## [1.7.0] - 2026-08-18
 ### Added
 - **Crear y editar eventos desde la web:** el botón **"+ Evento"** de la Agenda ahora funciona (antes no tenía backend y no guardaba nada). Podés poner título, fecha y hora, lugar, aviso (1 h / 1 día antes) y **si se repite** (cada semana / día / mes). Los avisos se disparan igual que los del bot, y editar un evento también permite cambiar la repetición.

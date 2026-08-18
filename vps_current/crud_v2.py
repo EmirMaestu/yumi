@@ -195,6 +195,7 @@ class EventoIn(BaseModel):
     location: Optional[str] = None
     notes: Optional[str] = None
     reminder_offsets: Optional[list[int]] = None  # minutos antes para avisar, ej [1440, 120]
+    recurrence: Optional[str] = None  # daily|weekly|monthly|null (se repite)
 
 
 class EventoPatch(BaseModel):
@@ -202,17 +203,20 @@ class EventoPatch(BaseModel):
     starts_at: Optional[str] = None
     location: Optional[str] = None
     notes: Optional[str] = None
+    recurrence: Optional[str] = None
 
 
 @router.post("/eventos")
 def create_evento(e: EventoIn, user=Depends(require_user_crud)):
+    rec = e.recurrence if e.recurrence in ("daily", "weekly", "monthly") else None
     with db() as conn:
         cur = conn.execute(
-            "INSERT INTO eventos(title, starts_at, location, notes, user_id) VALUES (?,?,?,?,?)",
-            (e.title, e.starts_at, e.location, e.notes, user["id"]),
+            "INSERT INTO eventos(title, starts_at, location, notes, recurrence, user_id) VALUES (?,?,?,?,?,?)",
+            (e.title, e.starts_at, e.location, e.notes, rec, user["id"]),
         )
         eid = cur.lastrowid
-        # avisos linkeados al evento (recordatorios con event_id)
+        # avisos linkeados al evento (recordatorios con event_id). Si el evento se
+        # repite, su aviso también (recurrence) → el watchdog lo re-dispara cada período.
         if e.reminder_offsets:
             try:
                 start = datetime.fromisoformat(e.starts_at.replace(" ", "T")[:16])
@@ -221,8 +225,8 @@ def create_evento(e: EventoIn, user=Depends(require_user_crud)):
                     rdt = start - timedelta(minutes=off)
                     if rdt > ahora:
                         conn.execute(
-                            "INSERT INTO recordatorios(text, remind_at, source, user_id, event_id) VALUES (?,?,'web',?,?)",
-                            (e.title, rdt.strftime("%Y-%m-%d %H:%M:%S"), user["id"], eid),
+                            "INSERT INTO recordatorios(text, remind_at, source, user_id, event_id, recurrence) VALUES (?,?,'evento',?,?,?)",
+                            (e.title, rdt.strftime("%Y-%m-%d %H:%M:%S"), user["id"], eid, rec),
                         )
             except Exception:
                 pass

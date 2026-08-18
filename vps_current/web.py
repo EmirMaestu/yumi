@@ -1716,59 +1716,10 @@ def api_eventos(past: bool = False, user=Depends(require_user), scope: str = Coo
     return events
 
 
-@app.post("/api/eventos")
-def crear_evento(body: dict = Body(...), user=Depends(require_user)):
-    """Crea un evento desde la web (+ sus avisos ligados). Los avisos los dispara el
-    watchdog del bot (poll de la DB compartida). Si el evento se repite, su aviso
-    también (recurrence) → se re-dispara solo cada período."""
-    title = (body.get("title") or "").strip()
-    starts_at = (body.get("starts_at") or "").strip()
-    if not title or not starts_at:
-        raise HTTPException(400, "Faltan título y fecha")
-    rec = body.get("recurrence")
-    if rec not in ("daily", "weekly", "monthly"):
-        rec = None
-    with db() as conn:
-        cur = conn.execute(
-            "INSERT INTO eventos (title,starts_at,location,notes,recurrence,user_id) VALUES (?,?,?,?,?,?)",
-            (title, starts_at, (body.get("location") or None), (body.get("notes") or None), rec, user["id"]))
-        eid = cur.lastrowid
-        try:
-            base = datetime.fromisoformat(starts_at.replace(" ", "T")[:16])
-        except Exception:
-            base = None
-        offsets = body.get("reminder_offsets") or []
-        if base:
-            for off in sorted({int(o) for o in offsets if int(o) > 0}, reverse=True):
-                remind_at = (base - timedelta(minutes=off)).strftime("%Y-%m-%dT%H:%M")
-                conn.execute(
-                    "INSERT INTO recordatorios (text,remind_at,source,user_id,event_id,recurrence) VALUES (?,?,?,?,?,?)",
-                    (title, remind_at, "evento", user["id"], eid, rec))
-        conn.commit()
-    return {"id": eid, "ok": True}
-
-
-@app.patch("/api/eventos/{eid}")
-def editar_evento(eid: int, body: dict = Body(...), user=Depends(require_user)):
-    allowed = ("title", "starts_at", "location", "notes", "recurrence")
-    fields = {k: body[k] for k in allowed if k in body}
-    if "recurrence" in fields and fields["recurrence"] not in ("daily", "weekly", "monthly"):
-        fields["recurrence"] = None
-    if "title" in fields:
-        fields["title"] = (fields["title"] or "").strip()
-        if not fields["title"]:
-            raise HTTPException(400, "Título vacío")
-    with db() as conn:
-        row = conn.execute("SELECT user_id FROM eventos WHERE id=?", (eid,)).fetchone()
-        if not row:
-            raise HTTPException(404, "No existe")
-        if row["user_id"] != user["id"]:
-            raise HTTPException(403, "No es tuyo")
-        if fields:
-            sets = ", ".join(f"{k}=?" for k in fields)
-            conn.execute(f"UPDATE eventos SET {sets} WHERE id=?", [*fields.values(), eid])
-            conn.commit()
-    return {"ok": True}
+# NOTA: la creación (POST) y edición (PATCH) de /api/eventos las maneja crud_v2.py
+# (router con prefix /api, incluido antes que estas rutas → tiene prioridad). El
+# soporte de `recurrence` se agregó ahí (create_evento / EventoPatch). No dupliques
+# el POST/PATCH acá o quedan como código muerto.
 
 
 @app.delete("/api/eventos/{eid}")
