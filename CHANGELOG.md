@@ -6,6 +6,10 @@ Todas las novedades relevantes de Yumi. Formato basado en [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-08-18
+### Fixed
+- **Claves temporales legibles (no se podía iniciar sesión):** la contraseña temporal que da el bot al crear una cuenta ahora usa un alfabeto **sin caracteres ambiguos** (nada de `l`/`1`/`O`/`0`/`_`/`-`), así es fácil de copiar y tipear. Antes traía símbolos confusos y algunas personas no lograban entrar a la web con lo que el bot les había dado. La bienvenida además muestra **usuario y clave en líneas separadas**, cada uno para copiar de un toque.
+
 ## [1.4.0] - 2026-08-13
 ### Added
 - **Registro autónomo (el bot deja entrar solo):** quien le escribe al bot de Telegram en frío (con `/start` o un mensaje) ahora **crea su cuenta solo** (hogar propio, plan free) sin necesitar un link de invitación. Los topes de costo (cap global diario + quota free) siguen protegiendo. Se puede apagar con `SELF_REGISTER=0`.

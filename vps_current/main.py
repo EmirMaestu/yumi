@@ -596,6 +596,12 @@ _REF_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"  # sin caracteres ambiguos (l/
 def gen_referral_code(n=7):
     return "".join(secrets.choice(_REF_ALPHABET) for _ in range(n))
 
+def gen_temp_password(n=10):
+    """Clave temporal legible: alfabeto sin caracteres ambiguos (l/I/1/O/0/_/-),
+    para que sea fácil de copiar/tipear (antes usábamos token_urlsafe, que mete
+    guiones y símbolos fáciles de confundir → la gente no podía loguearse)."""
+    return "".join(secrets.choice(_REF_ALPHABET) for _ in range(n))
+
 def get_user_by_referral_code(code):
     if not code: return None
     conn = sqlite3.connect(DB_PATH); conn.row_factory = sqlite3.Row
@@ -633,7 +639,7 @@ def onboard_user(channel, channel_user_id, display_name, referred_by_id=None, ho
     else:
         tg_id, wa_id = None, None
     name = (display_name or "Usuario").strip()[:40] or "Usuario"
-    temp_pw = secrets.token_urlsafe(6)
+    temp_pw = gen_temp_password()
     conn = sqlite3.connect(DB_PATH); conn.row_factory = sqlite3.Row
     try:
         username = _unique_username(conn, name)
@@ -2485,18 +2491,27 @@ async def post_init(app):
         log.exception("set_my_commands fallo (no critico)")
 
 
+def _credentials_block(new_user, temp_pw):
+    """Bloque de credenciales web para las bienvenidas (Telegram, parse_mode Markdown).
+    Usuario y clave en líneas separadas, cada uno en su propio code-span → fácil de
+    copiar tocándolo y sin confusiones. El alfabeto de la clave ya es sin ambigüedades."""
+    if not temp_pw:
+        return ""
+    return (f"\n\n🌐 *App web de Yumi:* {APP_URL}\n"
+            f"👤 Usuario: `{new_user['username']}`\n"
+            f"🔑 Clave: `{temp_pw}`\n"
+            "Tocá cada uno para copiarlo. Podés cambiar la clave con /password <nueva>. "
+            "El bot también funciona acá en el chat.")
+
+
 def _new_user_welcome(new_user, temp_pw):
     """Bienvenida para el registro autónomo (cuenta propia, hogar propio)."""
     msg = (f"🎉 ¡Listo {new_user['name']}, tu cuenta de Yumi está creada!\n"
            "Soy tu asistente de finanzas y agenda para el día a día. Mandame texto, audios o fotos:\n"
            "💸 «pagué 1000 de café con débito»\n"
            "📅 «cena con Ana el viernes 21»\n"
-           "⏰ «recordame mañana 9 llamar al banco»\n\n")
-    if temp_pw:
-        msg += (f"🌐 *App web de Yumi:* {APP_URL}\n"
-                f"Entrá con usuario *{new_user['username']}* y clave temporal `{temp_pw}` "
-                f"(cambiala con /password <nueva>). El bot también funciona acá en el chat.")
-    return msg
+           "⏰ «recordame mañana 9 llamar al banco»")
+    return msg + _credentials_block(new_user, temp_pw)
 
 
 async def try_self_register(update):
@@ -2580,11 +2595,8 @@ async def start_cmd(update, context):
                    "Mandame texto, audios o fotos:\n"
                    "💸 «pagué 1000 de café con débito»\n"
                    "📅 «cena con Ana el viernes 21»\n"
-                   "⏰ «recordame mañana 9 llamar al banco»\n\n")
-            if temp_pw:
-                msg += (f"🌐 *App web de Yumi:* {APP_URL}\n"
-                        f"Entrá con usuario *{new_user['username']}* y clave temporal `{temp_pw}` "
-                        f"(cambiala con /password <nueva>). También funciona acá en el chat.")
+                   "⏰ «recordame mañana 9 llamar al banco»")
+            msg += _credentials_block(new_user, temp_pw)
             await update.message.reply_text(msg, parse_mode="Markdown")
             return
         # Link de familia inválido → si el registro autónomo está abierto, cuenta propia.
@@ -2601,11 +2613,8 @@ async def start_cmd(update, context):
                    "Soy tu asistente: mandame texto, audios o fotos.\n"
                    "💸 «pagué 1000 de café con débito»\n"
                    "📅 «cena con Ana el viernes 21»\n"
-                   "⏰ «recordame mañana 9 llamar al banco»\n\n")
-            if temp_pw:
-                msg += (f"🌐 *App web de Yumi:* {APP_URL}\n"
-                        f"Entrá con usuario *{new_user['username']}* y clave temporal `{temp_pw}` "
-                        f"(cambiala con /password <nueva>). El bot también funciona acá en el chat, sin necesidad de entrar a la web.")
+                   "⏰ «recordame mañana 9 llamar al banco»")
+            msg += _credentials_block(new_user, temp_pw)
             await update.message.reply_text(msg, parse_mode="Markdown")
             return
     # Sin código (o inválido) → registro autónomo si está abierto; si no, gate de invitación.
