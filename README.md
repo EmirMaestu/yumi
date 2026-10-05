@@ -116,16 +116,6 @@ asistant/
 - **Modo Splitwise**: no implementado. Solo se ven gastos juntos, no se balancean automaticamente.
 - **Recurrentes solo mensuales**: no hay frecuencia semanal/anual.
 - **Comparaciones temporales**: no entiende "cuanto mas gaste este mes que el pasado?" en una sola pregunta.
-
-## Acceso al VPS
-
-- SSH: `ssh emir@217.76.48.219`
-- Path del proyecto: `~/asistente/`
-- Servicios: `sudo systemctl {start|stop|restart|status} asistente` (bot) / `asistente-web` (dashboard)
-- Logs: `sudo journalctl -u asistente -n 50`
-- DB: `~/asistente/data.db` (SQLite)
-- Config: `~/asistente/.env`
-- Venv: `~/asistente/venv/bin/python`
 - URL publica: https://asistente.emir-maestu.site
 
 ## Para poblar `vps_current/` con el codigo en vivo
@@ -141,9 +131,6 @@ tar czf /tmp/asistente_bundle.tar.gz \
 
 Despues desde tu PC:
 
-```powershell
-scp emir@217.76.48.219:/tmp/asistente_bundle.tar.gz $env:USERPROFILE\Downloads\
-```
 
 Y descomprimi adentro de `asistant/vps_current/`.
 
